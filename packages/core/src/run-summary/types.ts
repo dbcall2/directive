@@ -196,9 +196,9 @@ export interface VerificationRunSummaryPayload {
   readonly method_fingerprint: string;
   readonly outcome: VerificationOutcome;
   /**
-   * True when both sides of the comparison were rebuilt from scratch by a
-   * different method than the one that failed. Required to resolve
-   * fail → method-change → pass (#3322).
+   * Copied from the run-summary payload as a diagnostic (#3322).
+   * Presence of this key is not a security waiver (#3925): the evaluator
+   * does not clear unresolved method-change flags from this boolean.
    */
   readonly independent_rederivation?: boolean;
 }

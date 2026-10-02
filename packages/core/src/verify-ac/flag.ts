@@ -1,8 +1,9 @@
 /**
  * Flag fail → method-change → pass on one product-oracle check id (#3322).
  *
- * A red verification may be resolved only by a product change (same method)
- * or an independently re-derived oracle (both sides rebuilt, different method).
+ * A red verification may be resolved only by a product change (same method).
+ * `independent_rederivation` on the agent-writable run-summary is diagnostic
+ * only; it is not a security waiver (#3925).
  * In-place comparison repair then pass is unresolved.
  */
 
@@ -95,7 +96,9 @@ export function readVerificationAttempts(lines: readonly RunSummaryLine[]): Veri
 
 /**
  * Flag each fail → different method → pass sequence on the same check id.
- * Independent re-derivation is recorded on the pass event, not inferred.
+ * Any pass after a fail consumes pending fails for that check so later
+ * passes do not double-flag. `independent_rederivation` is copied as a
+ * diagnostic and does not clear unresolved flags (#3925).
  */
 export function flagPassAfterFailWithMethodChange(
   attempts: readonly VerificationAttempt[],
@@ -127,23 +130,16 @@ export function flagPassAfterFailWithMethodChange(
         ...(delta !== 0 ? { resolved_command_count_delta: delta } : {}),
       });
     }
-    if (attempt.independent_rederivation || other === undefined) {
-      failedMethods.delete(key);
-    } else {
-      prior.delete(attempt.method_fingerprint);
-      if (prior.size === 0) {
-        failedMethods.delete(key);
-      }
-    }
+    failedMethods.delete(key);
   }
   return flagged;
 }
 
-/** Unresolved flags: method-change pass without recorded re-derivation. */
+/** Unresolved flags: every method-change pass. The payload boolean is not a waiver (#3925). */
 export function unresolvedMethodChangePasses(
   flagged: readonly FlaggedMethodChangePass[],
 ): FlaggedMethodChangePass[] {
-  return flagged.filter((flag) => !flag.independent_rederivation);
+  return flagged.slice();
 }
 
 /** Parse JSONL (or DEFT-TLM capture) and flag method-change passes. */

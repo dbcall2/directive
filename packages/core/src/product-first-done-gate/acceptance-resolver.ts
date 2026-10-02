@@ -96,7 +96,7 @@ const REMEDY: Record<AcceptancePredicate, string> = {
   "unmapped-sentence":
     "map each plan.acceptance.sentences entry to a clause or name it in plan.acceptance.confessions; the sentence list does not select a file (#3550)",
   "integrity-discrepancy":
-    "resolve by a product change under the same method, or independently re-derive both sides and record independent_rederivation=true (#3322)",
+    "resolve by a product change under the same method (#3322); independent_rederivation on the run-summary is not a security waiver (#3925)",
   unclassified: "read the verify:ac message below; the deciding check did not name itself",
 };
 

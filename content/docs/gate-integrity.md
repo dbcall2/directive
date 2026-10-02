@@ -103,6 +103,7 @@ Field notes and parent framing: issue [#3156](https://github.com/deftai/directiv
 | Safety via formal gates | [#1200](https://github.com/deftai/directive/issues/1200) |
 | Poisoned product-oracle history from a safety refusal | [#3615](https://github.com/deftai/directive/issues/3615), this page § Product-oracle history poisoned by a safety refusal |
 | Product-oracle method-change detector | [#3322](https://github.com/deftai/directive/issues/3322), `flagPassAfterFailWithMethodChange` |
+| Presence-keyed re-derivation waiver | [#3925](https://github.com/deftai/directive/issues/3925), this page § Presence-keyed independent_rederivation is not a security waiver |
 | Evaluator-definition disclosure | [#4386](https://github.com/deftai/directive/issues/4386), `verify:evaluator-surface` |
 
 ---
@@ -117,6 +118,18 @@ Records already written still pair on `session_id` + `check_id`. A correct class
 2. Truncate or delete the run-summary JSONL (default `.deft-run-summary.json`, typically gitignored).
 
 ⊗ Set `independent_rederivation=true` to clear this class. That flag asserts both sides were rebuilt from scratch. The refused side never executed.
+
+---
+
+## Presence-keyed independent_rederivation is not a security waiver (#3925)
+
+`verify-ac` copies `independent_rederivation` from the run-summary payload as a diagnostic. It does not clear unresolved fail→method-change→pass flags.
+
+Dropping that boolean as a gate-clearing waiver is advisory demotion. `DEFT_RUN_SUMMARY_PATH`, `DEFT_SESSION_ID`, and truncate-on-session-start remain cheaper disablers. Two of those are documented recovery above. That residual is honest, not Prefer-A-complete as a security repair.
+
+Same-stream `attested_by`, recorded product-state hashes, and #3350 line-count seq-gap are not the trust boundary.
+
+⊗ Treat `independent_rederivation=true` on the agent-writable run-summary as a security waiver.
 
 ---
 

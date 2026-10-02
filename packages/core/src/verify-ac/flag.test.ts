@@ -100,7 +100,7 @@ describe("flagPassAfterFailWithMethodChange (#3322)", () => {
     expect(mixed.split("\0")).toHaveLength(3);
   });
 
-  it("treats recorded independent re-derivation as resolved", () => {
+  it("does not treat recorded independent_rederivation as a security waiver (#3925)", () => {
     const flagged = flagPassAfterFailFromJsonl(
       jsonl([
         { check_id: "eq", method_fingerprint: "diff-v1", outcome: "fail" },
@@ -114,7 +114,7 @@ describe("flagPassAfterFailWithMethodChange (#3322)", () => {
     );
     expect(flagged).toHaveLength(1);
     expect(flagged[0]?.independent_rederivation).toBe(true);
-    expect(unresolvedMethodChangePasses(flagged)).toEqual([]);
+    expect(unresolvedMethodChangePasses(flagged)).toEqual(flagged);
   });
 
   it("keeps check ids independent", () => {
@@ -229,6 +229,7 @@ describe("flagPassAfterFailWithMethodChange (#3322)", () => {
         independent_rederivation: true,
       },
     ]);
+    expect(unresolvedMethodChangePasses(flagged)).toEqual(flagged);
   });
 
   it("does not pair a fail in one session with a pass in another", () => {

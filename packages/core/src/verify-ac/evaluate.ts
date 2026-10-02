@@ -2,7 +2,8 @@
  * Apply product-oracle integrity to verify:ac (#3322).
  *
  * Missing run-summary is a no-op (no evidence). A flagged
- * fail → method-change → pass without independent_rederivation fails closed.
+ * fail → method-change → pass fails closed. The run-summary
+ * `independent_rederivation` boolean is not a security waiver (#3925).
  * Stdout dest (`DEFT_RUN_SUMMARY_PATH=-`) evaluates the same-process
  * attempts just emitted by this verify:ac — it does not treat non-file
  * dest as no evidence.
@@ -53,7 +54,7 @@ function formatUnresolved(flag: FlaggedMethodChangePass): string {
       : "";
   return (
     `check_id=${flag.check_id} fail method=${flag.failed_method} ` +
-    `then pass method=${flag.passed_method} without independent re-derivation${delta}`
+    `then pass method=${flag.passed_method}${delta}`
   );
 }
 
@@ -235,8 +236,9 @@ export function evaluateProductOracleIntegrity(
   }
   const lead =
     `UNRESOLVED product-oracle discrepancy (#3322): ${unresolved.map(formatUnresolved).join("; ")}. ` +
-    "Resolve by a product change (same method) or independently re-derive both sides " +
-    "and record independent_rederivation=true.";
+    "Resolve by a product change (same method). " +
+    "independent_rederivation on the run-summary is not a security waiver (#3925). " +
+    "Poisoned-history recovery: new session or truncate-delete (gate-integrity.md).";
   return {
     ok: false,
     code: 1,

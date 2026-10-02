@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Oracle-integrity detector no longer treats `independent_rederivation` on the run-summary as a security waiver (#3925).** Fail→method-change→pass stays unresolved even when that boolean is true on the agent-writable stream. Recovery for poisoned history remains a new session or truncate-delete. Same-stream attested_by / hashes / seq-gap stay out. Closes #3925. Refs #3322.
 - **Authz CLI exits cleanly when grant or UAT writes are refused (#4233).** Tracking #4233.
 - **Authz refuses grant and pin changes while UAT is active (#4233).** Ending UAT without the human-presence suspend path is refused; spending a single-use grant still works. Empty pins activate no grants under UAT. Tracking #4233.
 - **Authz store writes stay consistent when interrupted or a lock holder dies (#4233).** Failed writes return a clear refusal; publishing a release reports when a single-use approval could not be spent after the release went public. Tracking #4233.

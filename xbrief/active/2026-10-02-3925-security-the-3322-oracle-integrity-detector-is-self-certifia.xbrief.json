@@ -1,0 +1,649 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #3925",
+    "updated": "2026-10-02T12:32:05Z"
+  },
+  "plan": {
+    "title": "SECURITY: the #3322 oracle-integrity detector is self-certifiable - independent_rederivation is read from the agent-writable stream and filters the flag away; field transcript shows an agent identifying the bypass",
+    "status": "running",
+    "narratives": {
+      "Description": "SECURITY: the #3322 oracle-integrity detector is self-certifiable - independent_rederivation is read from the agent-writable stream and filters the flag away; field transcript shows an agent identifying the bypass",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/3925",
+      "Overview": "\n\n- Stop treating `payload.independent_rederivation === true` on the agent-writable run-summary as a security waiver that clears unresolved oracle-integrity flags. The operational waiver channel today is instruction-driven append onto that stream, not a framework-emitted attestation.\n- A bindable **security** Prefer-A requires an authority-separated trust boundary: the evaluator must not accept gate-clearing integrity evidence from a log/path/session the policed party can write or select (`DEFT_RUN_SUMMARY_PATH`, `DEFT_SESSION_ID`, truncate-on-session-start default).\n- Dropping the boolean alone is **advisory demotion** under documented recovery (new session / truncate-delete in `gate-integrity.md`) — honest residual, not Prefer-A-complete as a security repair. Do not equate \"drop the waiver\" with \"change the trust boundary.\"\n- Refuse same-stream `attested_by`, recorded product-state hashes, and #3350 line-count seq-gap as the trust boundary. Do not revive body Fix 1–3 without an authority-separated channel.\n- Out of scope unless Bound widens later: closing #3350 / #3813 / #3924 as a bundle; treating skill/docs \"record independent_rederivation\" as evidence of a trusted producer; fail-closing empty history without a new trust root named here.\n\n",
+      "Labels": "bug, design, agent-experience, process, source-of-truth, agent-safety, urgent, area:cli, eval-signal, design-critique:ingest-ready, framework-gap, core-capabilities, promise:gates"
+    },
+    "items": [
+      {
+        "title": "Stop treating `payload.independent_rederivation === true` on the agent-writable run-summary as a security waiver that clears unresolved oracle-integrity flags. The operational waiver channel today is instruction-driven append onto that stream, not a framework-emitted attestation.",
+        "status": "proposed",
+        "id": "clause.1"
+      },
+      {
+        "title": "A bindable **security** Prefer-A requires an authority-separated trust boundary: the evaluator must not accept gate-clearing integrity evidence from a log/path/session the policed party can write or select (`DEFT_RUN_SUMMARY_PATH`, `DEFT_SESSION_ID`, truncate-on-session-start default).",
+        "status": "proposed",
+        "id": "clause.2"
+      },
+      {
+        "title": "Dropping the boolean alone is **advisory demotion** under documented recovery (new session / truncate-delete in `gate-integrity.md`) — honest residual, not Prefer-A-complete as a security repair. Do not equate \"drop the waiver\" with \"change the trust boundary.\"",
+        "status": "proposed",
+        "id": "clause.3"
+      },
+      {
+        "title": "Refuse same-stream `attested_by`, recorded product-state hashes, and #3350 line-count seq-gap as the trust boundary. Do not revive body Fix 1–3 without an authority-separated channel.",
+        "status": "proposed",
+        "id": "clause.4"
+      },
+      {
+        "title": "Out of scope unless Bound widens later: closing #3350 / #3813 / #3924 as a bundle; treating skill/docs \"record independent_rederivation\" as evidence of a trusted producer; fail-closing empty history without a new trust root named here.",
+        "status": "proposed",
+        "id": "clause.5"
+      }
+    ],
+    "tags": [
+      "bug",
+      "design",
+      "agent-experience",
+      "process",
+      "source-of-truth",
+      "agent-safety",
+      "urgent",
+      "area:cli",
+      "eval-signal",
+      "design-critique:ingest-ready",
+      "framework-gap",
+      "core-capabilities",
+      "promise:gates"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/3925",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #3925: SECURITY: the #3322 oracle-integrity detector is self-certifiable - independent_rederivation is read from the agent-writable stream and filters the flag away; field transcript shows an agent identifying the bypass"
+      }
+    ],
+    "metadata": {
+      "literal_acceptance_commands": [],
+      "literal_acceptance_rejected": [
+        {
+          "command": "payload.independent_rederivation === true",
+          "reason": "inline backtick in prose is a mention, not a stated acceptance command (#3721)",
+          "sourceSpan": "inline@L5"
+        }
+      ],
+      "swarm": {
+        "file_scope": [
+          "packages/core/src/verify-ac/flag.ts",
+          "packages/core/src/verify-ac/evaluate.ts",
+          "packages/core/src/verify-ac/flag.test.ts",
+          "packages/core/src/verify-ac/evaluate.test.ts",
+          "packages/core/src/product-first-done-gate/acceptance-resolver.ts",
+          "packages/core/src/run-summary/types.ts",
+          "content/docs/gate-integrity.md"
+        ]
+      },
+      "intended_placement": {
+        "schema": "deft.scope.intended_placement.v1",
+        "files": [
+          "packages/core/src/verify-ac/flag.ts",
+          "packages/core/src/verify-ac/evaluate.ts",
+          "packages/core/src/verify-ac/flag.test.ts",
+          "packages/core/src/verify-ac/evaluate.test.ts",
+          "packages/core/src/product-first-done-gate/acceptance-resolver.ts",
+          "packages/core/src/run-summary/types.ts",
+          "content/docs/gate-integrity.md"
+        ],
+        "module_boundary": "packages/core/src/verify-ac",
+        "cohesion_exemption": "evaluate.test.ts already exceeds FILE_SIZE_REVIEW_TRIGGER_LINES. This slice recuts existing independent_rederivation waiver tests in place. Splitting the colocated oracle suite is out of scope.",
+        "split_plan": "Keep evaluate.test.ts in place this slice. Do not split the colocated verify-ac oracle suite as part of the Bound drop-waiver."
+      },
+      "issueCommentThread": [
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: triage\n```\n\narc-mode: checkout\n\ndesign-critique: warranted, because the operator dispatched an N=3 yolo panel on a field-measured agent-safety finding whose detector can be disabled by the party it polices.\n\nmechanism-shaped: true\n\nrefutation-target: independent_rederivation is read from the agent-writable run-summary payload, and a single emitted line carrying that key suppresses the oracle-integrity flag.\n\nStop 2: charter=refutation; spend=N≥3; reason=the body names that presumption, the operator used panel permission, and a self-certifiable safety detector has high blast radius. Target shape: single-issue.\n\nSHA at dispatch: f2d6e00d66229543f4768fb50388dab380aaf834 (`upstream/master`).\n\n",
+          "id": 5543970558,
+          "html_url": "https://github.com/deftai/directive/issues/3925#issuecomment-5543970558",
+          "user": {
+            "login": "dbcall2",
+            "id": 15332465,
+            "node_id": "MDQ6VXNlcjE1MzMyNDY1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/15332465?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/dbcall2",
+            "html_url": "https://github.com/dbcall2",
+            "followers_url": "https://api.github.com/users/dbcall2/followers",
+            "following_url": "https://api.github.com/users/dbcall2/following{/other_user}",
+            "gists_url": "https://api.github.com/users/dbcall2/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/dbcall2/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/dbcall2/subscriptions",
+            "organizations_url": "https://api.github.com/users/dbcall2/orgs",
+            "repos_url": "https://api.github.com/users/dbcall2/repos",
+            "events_url": "https://api.github.com/users/dbcall2/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/dbcall2/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-04T17:10:13Z",
+          "updated_at": "2026-09-04T17:10:13Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: parent\n```\n\npanel-deposit\nround: 1\nsiblings: 3\ninput-ceiling: 5543970558\nparent-silence-until: all-siblings-posted\nfamilies: grok, claude, codex\nseat: grok launcher: grok\nseat: claude launcher: claude\nseat: codex launcher: codex\n\n",
+          "id": 5543981218,
+          "html_url": "https://github.com/deftai/directive/issues/3925#issuecomment-5543981218",
+          "user": {
+            "login": "dbcall2",
+            "id": 15332465,
+            "node_id": "MDQ6VXNlcjE1MzMyNDY1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/15332465?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/dbcall2",
+            "html_url": "https://github.com/dbcall2",
+            "followers_url": "https://api.github.com/users/dbcall2/followers",
+            "following_url": "https://api.github.com/users/dbcall2/following{/other_user}",
+            "gists_url": "https://api.github.com/users/dbcall2/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/dbcall2/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/dbcall2/subscriptions",
+            "organizations_url": "https://api.github.com/users/dbcall2/orgs",
+            "repos_url": "https://api.github.com/users/dbcall2/repos",
+            "events_url": "https://api.github.com/users/dbcall2/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/dbcall2/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-04T17:11:16Z",
+          "updated_at": "2026-09-04T17:11:16Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: gpt-5\n```quarantined\nrole: critic\n```\n\nRound 1, fresh critic. Charter: refutation. Spend: N≥3 (panel permission used because the body names a defensible presumption and a self-certifiable safety detector has high blast radius). Input ceiling `5543970558` honored: I read the issue body and the sole in-envelope comment, and no later thread comments. Re-derived against detached `f2d6e00d66229543f4768fb50388dab380aaf834` (`upstream/master`). Process-only; no product files changed.\n\n## Verdict on the refutation target\n\nThe target survives, but its wording is narrower than the failure and the proposed three-part fix cannot bind as written. At this SHA, `readAttempt` copies `payload.independent_rederivation === true`, the state machine deletes the pending failure after that attestation, and `unresolvedMethodChangePasses` removes the resulting flag (`packages/core/src/verify-ac/flag.ts:69-80,100-147`). The focused suites passed 93/93 tests, including the fixture where a recorded `true` makes the oracle verdict green (`flag.test.ts:103-118`; `evaluate.test.ts:585-601`). That proves the behavior, not the producer's authority.\n\nOne precision matters: a qualifying forged line can suppress the detector when it is the first different-method pass after the fail (or when the existing pass is rewritten). Appending it after an unresolved different-method pass has already entered the stream does not remove that earlier unresolved flag. Finding 5 recuts the claim without weakening the security conclusion.\n\n## Existing-mechanism inventory\n\n| Mechanism at the dispatch SHA | What it establishes | What it does not establish |\n|---|---|---|\n| `RunSummaryEmitter` containment, symlink refusal, and `.seq.lock` (`run-summary/emit.ts:87-140,262-310`) | An official append stays inside its resolved destination and cooperating emitters serialize | Who authored a line, whether all writers cooperated, or whether prior bytes were replaced |\n| Parser (`run-summary/share.ts:45-66`) | JSON object with string `event` and `session_id` | Schema version, sequence continuity, component identity, or payload provenance |\n| Production `verify:ac` emitter (`verify-ac/evaluate.ts:156-189`) | Emits check id, method fingerprint, and outcome with `component: verify-ac` | No production path here emits or witnesses `independent_rederivation` |\n| Session/path resolution (`run-summary/path.ts:66-96`; `run-summary/session-id.ts:59-89`) | Selects a destination and pairing identity | Neither is fixed to an authority outside the invoking process |\n| Oracle evaluator (`verify-ac/evaluate.ts:195-245`) | Detects a particular fail/change/pass pattern in the selected text | Missing or empty history is explicitly green |\n\n## Findings\n\n### 1. `attested_by` would authenticate a string, not the event or writer — blocks-the-design\n\n**Evidence.** The parser accepts any object carrying string `event` and `session_id`, then casts it to `RunSummaryLine`; it never validates `component`, `seq`, schema version, or producer (`run-summary/share.ts:45-66`). `component` is intentionally an open caller-supplied string (`run-summary/types.ts:55-59`; `run-summary/emit.ts:331-369`). More importantly, the state machine clears a pending failure not only on `independent_rederivation`, but also when a pass uses the same fingerprint: `other === undefined` deletes the key (`verify-ac/flag.ts:117-137`). The shipped test confirms the intended same-method clear (`flag.test.ts:139-163`), while no provenance distinguishes an actual product-fix pass from a handcrafted one.\n\n**Concrete failure mode.** A writer inserts a same-method `outcome: pass` for the current session/check. That clears the pending fail; a later real pass under changed commands sees no failure to pair with. No `independent_rederivation` or `attested_by` value is needed. Alternatively, the writer copies whatever constant `attested_by` value the framework emits. Both leave the proposed provenance predicate green.\n\n**Disposition consequence.** The design cannot bind on provenance for one field. Authenticity must cover the complete verification event and its ordering, with authority separated from the actor being policed (for example, a host-owned authenticated append channel or enforcement state outside the agent-writable workspace). If that boundary is unavailable, this detector is advisory rather than a security gate; an allowlisted string in the same JSONL is not a provenance control.\n\n### 2. The enforcement history is replaceable through destination and session selection — blocks-the-design\n\n**Evidence.** `DEFT_RUN_SUMMARY_PATH` selects any explicit file or stdout (`run-summary/path.ts:66-96`). `DEFT_SESSION_ID` takes precedence over ritual state (`run-summary/session-id.ts:59-81`), and pairing is keyed by `session_id + check_id` (`verify-ac/flag.ts:103-108`). The existing test proves that a fail and pass in different sessions do not pair (`flag.test.ts:234-251`). `evaluateProductOracleIntegrity` returns success for missing or empty selected history (`verify-ac/evaluate.ts:195-234`).\n\n**Concrete failure mode.** Even with authenticated event contents, the invoking actor selects a fresh destination or a fresh session identity for the passing verification. The selected stream contains no matching fail, so the gate returns green without exercising any re-derivation path. A deleted or unreadable destination is likewise treated as no evidence.\n\n**Disposition consequence.** The bound design must include the history root and pairing identity: derive both from trusted session/occupancy state, reject enforcement-time redirection, and fail closed on an unexpected missing/reset history after verification state exists. Acceptance needs fresh-path and fresh-session bypass fixtures; field-level provenance alone leaves the original blast radius intact.\n\n### 3. The #3350 sequence is ordering metadata, not tamper evidence — blocks-the-design\n\n**Evidence.** The next sequence is seeded by counting current non-empty lines (`run-summary/emit.ts:143-174`) and recomputed as `countExistingJsonlLines(path) + 1` before append (`emit.ts:386-400`). The parser does not require `seq`, and neither `readVerificationAttempts` nor the evaluator checks it (`run-summary/share.ts:45-66`; `verify-ac/flag.ts:60-83`). Default-path `session_start` deliberately replaces the file (`emit.ts:391-399`), a behavior locked by `run-summary.test.ts:234-256`. The focused run-summary suites passed 49/49, confirming those are current contracts rather than dead branches.\n\n**Concrete failure mode.** Delete the last event and the next cooperating append reuses the numerically expected next value because the count fell by one; there is no gap. A writer can also rewrite the file and renumber every line, omit `seq` entirely, or trigger the default session replacement. The acceptance sketch's \"delete a prior fail -> sequence gap\" therefore does not follow from #3350.\n\n**Disposition consequence.** Fix 3 must not cite the current counter as the tamper boundary. Detecting removal requires a durable high-water mark or authenticated hash-chain anchor that the workspace writer cannot rewrite, plus evaluator enforcement and reset semantics. Without an authority-separated anchor, strike the deletion-detected acceptance claim or leave the design blocked.\n\n### 4. Recorded hashes cannot prove that either side was independently re-derived — blocks-the-design\n\n**Evidence.** The current method fingerprint is the literal command list plus a hash of cwd (`verify-ac/evaluate.ts:60-67,173-185`); it is method identity, not execution provenance. The proposed product-state hashes would be additional values in the same writable record. Static agreement among a command string, two claimed hashes, and an attestation cannot show that both sides were rebuilt from scratch or that the methods are semantically independent.\n\n**Concrete failure mode.** Two differently spelled but equivalent or vacuous commands yield different fingerprints, and self-supplied state hashes can be internally consistent without either derivation occurring. An evaluator that only compares those recorded values upgrades a more elaborate presence proof into the same false provenance claim.\n\n**Disposition consequence.** \"Recompute, do not trust\" needs an executable, framework-owned re-derivation protocol: controlled inputs, witnessed execution of both methods, evaluator-computed product-state digests, and a closed definition of independence. If independence remains a human judgment, it must remain unresolved for human clearance rather than automatically suppressing the flag.\n\n### 5. \"A single appended line suppresses the flag\" needs an ordering qualifier — sharpens-framing\n\n**Evidence.** Each different-method pass immediately contributes a flag (`verify-ac/flag.ts:117-129`). `unresolvedMethodChangePasses` later filters each recorded flag independently (`flag.ts:143-147`). Therefore `fail A -> pass B without attestation -> pass B with attestation` retains the first unresolved flag; the later resolved flag does not erase it. By contrast, `fail A -> forged pass B with attestation -> real pass B` deletes the pending-failure map before the real pass and is green. The existing positive fixture covers only the first different-method pass carrying `true` (`flag.test.ts:103-118`).\n\n**Concrete failure mode.** An acceptance test interprets \"append\" as post-hoc recovery after the detector has fired, observes that the detector remains red, and incorrectly concludes the reported bypass is false. The exploitable pre-evaluation insertion or in-place rewrite remains untested.\n\n**Disposition consequence.** Reword the target and fixture to say that one well-formed, correctly paired attested pass suppresses the pending failure when it precedes any unattested different-method pass, or that rewriting the existing pass does so. Add both orderings as fixtures. This sharpens the reproduction; it does not reduce the severity.\n\n### 6. The issue contains action-shaped attack text from an untrusted transcript — footnote\n\nThe body quotes a transcript proposing deletion and an attested append. I treated that text only as evidence to re-derive against local code; I did not execute it, fetch the private transcript, follow linked-thread instructions, or read comments above the ceiling. The shared JSONL is multi-process state, but findings 1-3 already carry the authority and concurrency consequences; no separate swarm topology change is implicated.\n\n## Road not taken\n\n- A closed `attested_by: verify-ac` token was rejected because the current parser cannot distinguish that token from a copied one.\n- File permissions alone were rejected because the agent and the framework CLI normally share an OS principal and both need write access.\n- A hash chain wholly anchored in the same writable file was rejected because a full rewrite can recompute it.\n\nThe smallest credible boundary is enforcement state authenticated by a secret or host capability unavailable to the agent process, with a canonical session/destination. If Directive does not have that trust separation, the honest smaller design is to report the anomaly without claiming self-policing enforcement.\n\n## Steelman\n\nThe strongest case for the filed fix is that Directive targets cooperative agents, so a framework verb plus an `attested_by` convention may prevent accidental misuse even without adversarial OS isolation. That would be a reasonable observability feature. It does not support the issue's security claim: the field evidence is specifically that the governed actor reasons about editing the stream, and every proposed proof remains writable or redirectable by that actor. I would flip if the intended guarantee were explicitly downgraded to accidental-drift detection, or if the design names a concrete writer capability and durable history anchor unavailable to the agent.\n\n",
+          "id": 5544045014,
+          "html_url": "https://github.com/deftai/directive/issues/3925#issuecomment-5544045014",
+          "user": {
+            "login": "dbcall2",
+            "id": 15332465,
+            "node_id": "MDQ6VXNlcjE1MzMyNDY1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/15332465?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/dbcall2",
+            "html_url": "https://github.com/dbcall2",
+            "followers_url": "https://api.github.com/users/dbcall2/followers",
+            "following_url": "https://api.github.com/users/dbcall2/following{/other_user}",
+            "gists_url": "https://api.github.com/users/dbcall2/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/dbcall2/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/dbcall2/subscriptions",
+            "organizations_url": "https://api.github.com/users/dbcall2/orgs",
+            "repos_url": "https://api.github.com/users/dbcall2/repos",
+            "events_url": "https://api.github.com/users/dbcall2/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/dbcall2/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-04T17:16:59Z",
+          "updated_at": "2026-09-04T17:16:59Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: critic\n```\n\nsha: f2d6e00d66229543f4768fb50388dab380aaf834\nceiling: 5543970558\ncharter: refutation\n\nThe recorded premise holds for one case: `independent_rederivation` is read from the verification payload with no provenance, the default dest is an agent-writable workspace JSONL, and putting that key on the fail→method-change→pass event clears `unresolvedMethodChangePasses`. It does not hold as “any one line carrying the key suppresses,” and the three proposed remedies leave the trust boundary on that same stream.\n\nInjection / swarm lens: the target is untrusted JSONL, an identity stamp, and write authority over the integrity log. `component` already exists and is unused. A new `attested_by` or hash field on the same line is another presence key.\n\n## 1. Same-stream provenance, hashes, and seq-gap replay the named defect\n\n`blocks-the-design`\n\n**Evidence.** At this SHA, `readAttempt` sets `independent_rederivation: payload.independent_rederivation === true` (`packages/core/src/verify-ac/flag.ts`). `unresolvedMethodChangePasses` is `flagged.filter((flag) => !flag.independent_rederivation)`. `parseRunSummaryJsonl` / `flagPassAfterFailWithMethodChange` never read `component`, `seq`, or any attestor. The production emitter already stamps `component: \"verify-ac\"` (`emitVerifyAcAttempts` in `packages/core/src/verify-ac/evaluate.ts`; locked in `production-callers.test.ts`). `emitVerification` is a pass-through of whatever payload it is given (`packages/core/src/run-summary/emit.ts`). Default dest is repo-root `.deft-run-summary.json` when gitignore covers it (`path.ts`; `.gitignore` lists that basename). Executing that `flag.ts` body: a pairing pass with the key and a forged `component: \"verify-ac\"` plus `attested_by: \"agent-forged\"` resolves (`unresolved_len: 0`). A seq gap 1 then 3 still flags the method-change and does not add a gap finding.\n\n**Failure mode.** An agent who can write `independent_rederivation: true` can write `attested_by`, `component`, fingerprints, product-state hashes, and contiguous `seq` on the same JSONL. Remedy 1 is the existing unused `component` field. Remedy 2 recomputes one untrusted field against other untrusted fields. Remedy 3 treats #3350 line-count `seq` as tamper-evidence; that counter is for cross-process telemetry, and a writer who deletes a fail can renumber.\n\n**Disposition.** The three-part fix cannot bind. A bindable remedy has to change the trust boundary (a log the agent does not write, a check against origin-stamped `plan.acceptance.commands`, or dropping the waiver), not add keys to the stream the waiver already lives on.\n\n## 2. The pairing detector works; the boolean is the designed waiver\n\n`sharpens-framing`\n\n**Evidence.** Same-SHA fixture: fail then different-method pass with no key → `unresolved_len: 1`. That is the #3322 detector. `emitVerifyAcAttempts` emits `{check_id, method_fingerprint, outcome}` and never sets `independent_rederivation`. Build and pre-pr skills tell the agent to record that key on the verification event. `evaluateProductOracleIntegrity` tells the operator to “record independent_rederivation=true.” #3615 forbids using the key for a different class, which only makes sense if the key is an attestation, not a measurement.\n\n**Failure mode.** Framing this as “the detector can be disabled by the party it polices” describes every waiver bit. The detector is the pairing. The bit is how a method change is declared legitimate. There is no framework-verb path today that attests a genuine re-derivation, so the issue’s happy-path fixture (“verb-performed re-derivation”) has no producer.\n\n**Disposition.** The lean can keep the premise that the waiver is presence-keyed. It cannot bind a claim that `flag.ts` fails to detect method-change. Recut the problem as “self-attested waiver on an agent-writable log,” and say whether the waiver stays, moves off-stream, or goes away.\n\n## 3. “A single emitted line” is the pairing pass, not an extra append\n\n`sharpens-framing`\n\n**Evidence.** Same `flag.ts` body: fail + pass (no key) + a third line with `independent_rederivation: true` (same method or a new method) still leaves the original pairing unresolved (`unresolved_len: 1`). The boolean is copied from the pass that forms the pair (`flag.ts` `independent_rederivation: attempt.independent_rederivation`). The issue AC sketch “append a hand-written `independent_rederivation: true` line → flag still fires” is already true for a third line, and false if that line *is* the method-change pass.\n\n**Failure mode.** A later reader will bind an append fixture that does not exercise the bypass the transcript named (emit or rewrite the pass with the key).\n\n**Disposition.** Recut the one-line premise and the first AC bullet to: rewrite or emit the pairing pass with the key. Do not treat an extra attestation line as the attack.\n\n## 4. Empty history and deleted fails are fail-open, and they are the stronger bypass\n\n`sharpens-framing`\n\n**Evidence.** `evaluateProductOracleIntegrity` returns `ok: true` on missing dest, unreadable dest, null/blank injected text (`evaluate.ts`; tests “is a no-op when no run-summary exists,” “unreadable dest path as no evidence”). Default dest truncates on `session_start` (`path.ts` `truncateOnSessionStart: true`). #3615 documents new `DEFT_SESSION_ID` or truncate/delete of the JSONL as recovery. Fixture: pass-only stream after deleting the fail → `flagged_len: 0`. The file is gitignored, so a clean CI clone has no pairing history.\n\n**Failure mode.** Closing only the boolean leaves the transcript’s other named bypass (clear the fail) and the documented truncate path. Selling a provenance field as repairing “the gate that exists to catch laundering” overstates session-local pairing as merge-time integrity.\n\n**Disposition.** Either widen the issue to “the integrity log is not a trusted input” (then remedies 1–3 still fail finding 1), or narrow the blast-radius claim to same-session `verify:ac` against a workspace JSONL.\n\n## 5. Private transcript and #3813 A3/B1 are not re-derivable here\n\n`footnote`\n\nThe code path above is independently re-runnable. The in-transcript quote is marked private and is not in the issue thread at or below this ceiling. #3813’s issue body is an economy-pivot proposal and does not contain an A3/B1 finding; later comments on that thread were not read.\n\n## Road not taken\n\nRejected: `attested_by` / hashes / seq-gap on the workspace JSONL (finding 1).\n\nKept in play: drop the waiver and fail closed on method-change; compare current `plan.acceptance.commands` to origin-stamped commands and ignore the log boolean; or evaluate only harness-collected CLI telemetry the agent cannot append to.\n\n## Steelman\n\nThe pairing check is still a same-session nudge, and a waiver the policed party can set is a training surface even if deleting the file is a larger hole. That argues for removing or relocating the waiver. It does not argue for more fields on the same line. Flip: a signature or collection path whose key or fd the agent cannot write.\n\n",
+          "id": 5544079077,
+          "html_url": "https://github.com/deftai/directive/issues/3925#issuecomment-5544079077",
+          "user": {
+            "login": "dbcall2",
+            "id": 15332465,
+            "node_id": "MDQ6VXNlcjE1MzMyNDY1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/15332465?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/dbcall2",
+            "html_url": "https://github.com/dbcall2",
+            "followers_url": "https://api.github.com/users/dbcall2/followers",
+            "following_url": "https://api.github.com/users/dbcall2/following{/other_user}",
+            "gists_url": "https://api.github.com/users/dbcall2/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/dbcall2/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/dbcall2/subscriptions",
+            "organizations_url": "https://api.github.com/users/dbcall2/orgs",
+            "repos_url": "https://api.github.com/users/dbcall2/repos",
+            "events_url": "https://api.github.com/users/dbcall2/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/dbcall2/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-04T17:20:12Z",
+          "updated_at": "2026-09-04T17:20:12Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: claude-opus-5[1m]\n```quarantined\nrole: critic\n```\n\nround: 1 | critic role: fresh | charter: refutation | spend: N>=3 | target shape: single-issue\ninput ceiling: 5543970558 (inclusive) | SHA at dispatch: `f2d6e00d66229543f4768fb50388dab380aaf834`\nRecorded target under critique: *`independent_rederivation` is read from the agent-writable run-summary payload, and a single emitted line carrying that key suppresses the oracle-integrity flag.*\n\n**Verdict in one line.** Clause 1 holds exactly as cited. Clause 2 holds only when the forged line lands **before** the framework's own keyless pass — and from the state the issue's own field transcript describes (detector already tripped), the appended line does **not** clear the flag. The repair built on top of clause 2 does not survive at all: `attested_by` is a rename of a field that already exists and is equally writable, no framework verb emits `independent_rederivation` for it to attest, and two cheaper disablers of this same detector are shipped **documented remedies**.\n\n## Re-verification (executed, not cited)\n\nLine cites in the body are correct at this SHA: `flag.ts:79` reads `payload.independent_rederivation === true` with no provenance check; `flag.ts:146` filters on it. I then ran the module verbatim (copies of `verify-ac/flag.ts` + `run-summary/share.ts` + `run-summary/types.ts`, imports rewritten only for extension resolution) over hand-built streams:\n\n| # | stream | flagged | unresolved | gate |\n|---|---|---|---|---|\n| A | `fail(m1)`, `pass(m2)` | 1 | 1 | fails closed |\n| B | `fail(m1)`, `pass(m2, key=true)` | 1 | 0 | **passes** |\n| C | `fail(m1)`, `pass(m2)`, **appended** `pass(m2, key=true)` | 2 | 1 | **still fails closed** |\n| C2 | same, appended under a third fingerprint | 2 | 1 | **still fails closed** |\n| D | fail event deleted, `pass(m2)` only | 0 | 0 | passes |\n| E | minimal forged line (no `seq`, no `schema_version`, no `ts`, no `framework_version`) | 1 | 0 | **passes** |\n| F | pass under a different `session_id` | 0 | 0 | passes |\n| G | forged `pass(m2, key=true)` written **before** a later real keyless `pass(m2)` | 1 | 0 | **passes, and stays passing on re-runs** |\n\nE confirms the forgery floor the body implies: `parseRunSummaryJsonl` (`run-summary/share.ts:57-61`) validates only that `event` and `session_id` are strings. Nothing else on the line is checked.\n\nC/C2 is the refutation. And it is not a corner case: `emitVerifyAcAttempts` (`verify-ac/evaluate.ts:182`) writes the pass event **before** `evaluateProductOracleIntegrity` reads the stream (`product-first-done-gate/evaluate.ts:946-961`), so in the live flow the keyless pass is already on disk at the moment the agent is told to \"record `independent_rederivation`\". From there, appending is inert. G is the working single-line variant — pre-emption, not append. `content/docs/gate-integrity.md` already says this out loud for the #3615 class: *\"Already-written poisoned history recovers by a new session id or a truncated run-summary, not by `independent_rederivation=true`.\"*\n\n## Findings\n\n### 1. `blocks-the-design` — provenance-by-field is inert here, and it has no producer\n\n**Evidence.** (a) Every emitted line already carries an emitter label: `component?: string` (`run-summary/types.ts:57`), set to `\"verify-ac\"` at `verify-ac/evaluate.ts:180` and spread into the line at `run-summary/emit.ts:366`. `attested_by` is that field under a new name, and an agent that can write `independent_rederivation: true` can write `component: \"verify-ac\"` in the same string. (b) No framework verb emits `independent_rederivation` at all. The only production `emitVerification` callers are `verify-ac/evaluate.ts:182` (emits three keys: `check_id`, `method_fingerprint`, `outcome`) and `telemetry-coverage/fake-trial.ts:68`. The field's only documented producer is the agent, instructed by prose: `content/skills/deft-directive-build/SKILL.md:379` and `content/skills/deft-directive-pre-pr/SKILL.md:188`. (c) There is no signing primitive in the package to hang provenance on — `createHmac` appears nowhere under `packages/`.\n\n**Failure mode.** Ship fix 1 as written and an agent that genuinely re-derives both sides has no way to say so: no verb emits the attestation, so the \"framework-emitted value\" test can never be satisfied honestly. The gate stays red on a correct resolution, and the agent's remaining moves are precisely the two the issue wants to close — clear the fail line, or start a new session id. Meanwhile the adversarial cost is unchanged: one extra forged key.\n\n**Disposition consequence.** The recorded target cannot bind as the basis for fix 1. Binding it requires naming the missing producer (a re-derivation verb that actually re-executes and emits) and an out-of-band trust root; without both, fix 1 is a rename that converts a self-certifiable gate into a gate with no honest exit.\n\n### 2. `blocks-the-design` — the cheapest disablers are elsewhere, and two of them are shipped remedies\n\n**Evidence.** Three disablers strictly cheaper than forging the key:\n- **Identity.** Flags pair on `session_id` (`flag.ts:106`), and `resolveRunSummarySessionId` takes `DEFT_SESSION_ID` from env ahead of ritual state (`run-summary/session-id.ts:72-76`). Probe F: a foreign session id produces zero flags. No file write required.\n- **Absence.** `evaluateProductOracleIntegrity` returns `ok: true` on null or blank text (`verify-ac/evaluate.ts:222-225`), and `loadRunSummaryText` returns null for a non-file destination or a missing file (`verify-ac/evaluate.ts:195-211`). Deleting the gitignored `.deft-run-summary.json` (`.gitignore:184`) is a full bypass. Probe D.\n- **Sanction.** `content/docs/gate-integrity.md` documents both of the above as the recovery path for poisoned history: *\"Start a new Deft session (new `DEFT_SESSION_ID`) … or Truncate or delete the run-summary JSONL.\"*\n\n**Failure mode.** A repair scoped to `independent_rederivation` leaves an unchanged, documented, zero-forgery path to the same outcome. The issue's title claim — the detector \"can be disabled by the party it polices\" — remains true after all three fixes land, and now with a green fixture suite asserting the opposite. False assurance on an `agent-safety` control is worse than the known-soft control it replaces.\n\n**Disposition consequence.** The target must be restated at the layer where it is true: *the run-summary stream, not one key in it, is self-certifiable.* A bind on the narrow field-level statement scopes the remedy below the defect.\n\n### 3. `sharpens-framing` — the bypass is order-dependent, and acceptance fixture 1 already passes at HEAD\n\n**Evidence.** Probes B/E/G vs C/C2 above. The two readings of fixture 1 (\"append a hand-written `independent_rederivation: true` line to the stream -> the flag still fires\") diverge at this SHA: append to a stream that already contains `fail` + keyless `pass` and the flag **already** still fires (C, no code change needed); append to a stream holding only the `fail` and it does **not** (E). The sketch does not state the pre-state.\n\n**Failure mode.** Under the first reading the fixture is an already-holding invariant — it goes green before the repair and cannot demonstrate it. Under the second it is meaningful. As written a reviewer cannot tell which was implemented, and the natural fixture to write (append after a trip, mirroring the transcript) is the useless one.\n\n**Disposition consequence.** Fixture 1 must pin the stream pre-state and target the pre-emption ordering (probe G), or it is struck as an already-holding invariant.\n\n### 4. `sharpens-framing` — fix 2 is not recomputation\n\n**Evidence.** \"Recompute, do not trust\" resolves to \"record the two method fingerprints and the product-state hash … so the flag evaluator can verify\". Those fields arrive on the same agent-writable line the boolean arrives on, through the same parser that checks two fields (`share.ts:57-61`). The evaluator does not re-execute anything; `evaluateProductOracleIntegrity` reads text and compares strings.\n\n**Failure mode.** The repair replaces one presence-keyed predicate with four, raising forgery cost from one key to four and raising honest-path cost considerably more. The defect class the body itself names (#3805 / #3559) is reproduced at higher cardinality.\n\n**Disposition consequence.** Fix 2 must either re-execute the oracle at evaluation time (genuine recomputation, and a real cost decision) or be renamed to what it is — richer evidence for a human reader, not a check.\n\n### 5. `sharpens-framing` — fix 3's gap detector is defeated by the seeding rule and collides with the documented remedy\n\n**Evidence.** `seq` is not a persisted counter in the tamper-evidence sense: each emit seeds it as `countExistingJsonlLines(path) + 1` (`run-summary/emit.ts:392`, `:143-165`), and `session_start` on the default path replaces the file outright (`emit.ts:391`). Deleting the last line lowers the count so the next line refills that number — no gap. A full truncate restarts at 1 — no gap. Renumbering plaintext is free. And `parseRunSummaryJsonl` never reads `seq` at all. Mid-stream single-line deletion by an attacker who does not renumber is the only case a gap detector catches — and truncate/delete is exactly the recovery `gate-integrity.md` tells operators to perform.\n\n**Failure mode.** Ship \"a gap is itself a finding\" and the sanctioned #3615 recovery, plus concurrent CLI writers sharing one destination under `.seq.lock`, become permanent findings; the adversary who renumbers is undetected. Net: false positives on honest operators, no true positives on the motivated case.\n\n**Disposition consequence.** Fix 3 must supersede or carve out the documented truncate/new-session recovery, and must state what it claims to detect (naive deletion) versus what it does not (rewrite). Otherwise it should be dropped in favour of an out-of-band collected copy.\n\n### 6. `sharpens-framing` (process) — this arc's panel-deposit is unverifiable by any sibling, by construction\n\n**Evidence.** The contract fixes the round-1 ceiling to the triage write-back when one exists, and requires the `role: parent` panel-deposit (`round:`, `siblings:`, `input-ceiling:`) before the first sibling spawn. Stop 1 precedes Stop 3, so the deposit's id necessarily exceeds the ceiling. At and below 5543970558 this thread holds exactly one comment — the triage write-back (id 5543970558) — which carries `arc-mode:`, the clearance line, `mechanism-shaped:`, `refutation-target:`, the Stop 2 charter/spend/reason and the SHA, and no deposit fields.\n\n**Failure mode.** Panel completeness is already unobserved by code (#3850); under the round-1 ceiling rule it is also unobservable by the critics themselves. A sibling cannot re-verify that the deposit exists, that `siblings:` matches the spawn count, or that three families were claimed — the envelope's assertion is the only evidence any critic can have, and the envelope is parent-authored.\n\n**Disposition consequence.** Not a defect in this dispatch — the write-back is well-formed and Stop 2 selection (refutation + N>=3 on a detector wired into the done gate at `product-first-done-gate/evaluate.ts:956-968`) is defensible on the table. It bounds what the panel may later claim: \"three independent critics under a recorded deposit\" is a parent-side claim, not a critic-verified one, and a Stop 5 synthesis should say so rather than treat the deposit as re-derived.\n\n## Injection / swarm lens\n\nThe target changes untrusted input, identity, and write authority, so the lens fires on specifics, not a recital.\n\n- **Untrusted input.** The run-summary stream is the gate's sole evidence and is parsed with a two-field shape check. It is untrusted input to a control that can flip `resolution` to `\"fail\"` (`product-first-done-gate/evaluate.ts:962-968`). Every field the repairs propose to add inherits that trust level.\n- **Identity.** `DEFT_SESSION_ID` is both the pairing key and an env var. Under a panel or any spawned-worker topology, sibling processes appending to one destination file are already partitioned into non-pairing histories. A worker that inherits a fresh session id gets a clean detector for free — no forgery, no file edit, and no visible artifact.\n- **Write authority / shared state.** One gitignored repo-root JSONL, appended by multiple CLI processes serialized by a sibling `.seq.lock`, inside the agent's own working tree. `emit.ts` hardens the *write path* (symlink refusal, containment, post-write realpath re-check) against escape — it does not and cannot protect the file's contents from the agent that owns the tree.\n\n## Road not taken, and what would flip this\n\nThe fork I took was whether to read this as a security control with a leak (the body's framing) or as integrity telemetry whose escape hatch is agent discretion. I took the second, because no in-band record written by an agent-controlled process into an agent-controlled tree can be made non-forgeable — provenance needs a trust root outside the process, and there is none in this package.\n\n**Steelman of the position I rejected.** The destination matrix already contains an unforgeable mode: with `DEFT_RUN_SUMMARY_PATH=-`, `loadRunSummaryText` reads `inProcessVerificationText()` — a module-level buffer (`verify-ac/evaluate.ts:89-102, 195-200`) the agent cannot edit between emission and evaluation. So \"provenance, not presence\" is not architecturally impossible here; a version of it exists. The reason I still reject fix 1 is that this mode is unforgeable **and blind**: the buffer is per-process and holds only this invocation's attempts, so the fail -> method-change -> pass sequence, which lives across separate CLI runs, is never assembled. The matrix as shipped offers durable-but-forgeable or unforgeable-but-blind, and fix 1 picks neither.\n\n**What would flip the verdict.** Evidence that the harness collects the `DEFT-TLM:` stdout stream out of band into a store the agent cannot rewrite. With that collector, provenance-by-field becomes meaningful (the collected copy is the check), fix 3's continuity claim gets a real substrate, and the target is repairable roughly as the body proposes. Absent it, the highest-value issue in this area is the collector, not the key.\n\n## Footnotes\n\n- `footnote` — The field evidence is marked \"internal test results, private\" and is not re-derivable inside this envelope. It did not need to be: the mechanism half re-derives from code, and the transcript's two named moves land on opposite sides of probe C (clearing the fail event works; appending does not).\n- `footnote` — `ambiguity_attestation` (`product-first-done-gate/evaluate.ts:447` and fixtures) is another presence-keyed attestation in the same package. The body's #3805 / #3559 pointer names the class correctly; a per-field repair does not retire it.\n- `footnote` — Both code cites in the body verify exactly at the dispatch SHA. Nothing in this critique turns on a mis-citation.\n\n",
+          "id": 5544085087,
+          "html_url": "https://github.com/deftai/directive/issues/3925#issuecomment-5544085087",
+          "user": {
+            "login": "dbcall2",
+            "id": 15332465,
+            "node_id": "MDQ6VXNlcjE1MzMyNDY1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/15332465?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/dbcall2",
+            "html_url": "https://github.com/dbcall2",
+            "followers_url": "https://api.github.com/users/dbcall2/followers",
+            "following_url": "https://api.github.com/users/dbcall2/following{/other_user}",
+            "gists_url": "https://api.github.com/users/dbcall2/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/dbcall2/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/dbcall2/subscriptions",
+            "organizations_url": "https://api.github.com/users/dbcall2/orgs",
+            "repos_url": "https://api.github.com/users/dbcall2/repos",
+            "events_url": "https://api.github.com/users/dbcall2/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/dbcall2/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-04T17:20:45Z",
+          "updated_at": "2026-09-04T17:20:45Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: parent\n```\n\n## In plain English\n\nAll three round-1 critics posted. They independently re-derived the same cut: `independent_rederivation` is read with no provenance from an agent-writable run-summary, and putting that key on the fail→method-change→pass event clears unresolved flags. They also independently recut the second clause: a later appended line does not suppress an already-recorded pairing; the working bypass is rewrite or emit of the pairing pass itself, plus cheaper dest/session/truncate paths, two of which are already documented recovery. They agree the filed three-part fix (`attested_by`, recorded hashes, seq-gap) stays on that same writable stream and cannot bind. Confirming this map would recut #3925 around that restatement and would not implement anything. Synthesis is not bound until you confirm or amend this map.\n\n**Lean:**\n\nRound-1 dispatched sibling count: 3. Leaning over critic [5544045014](https://github.com/deftai/directive/issues/3925#issuecomment-5544045014) (gpt-5), critic [5544079077](https://github.com/deftai/directive/issues/3925#issuecomment-5544079077) (grok-4.6), critic [5544085087](https://github.com/deftai/directive/issues/3925#issuecomment-5544085087) (claude-opus-5).\n\n- critic 5544045014 / heading 1 attested_by would authenticate a string, not the event or writer: accept-into-contract\n- critic 5544045014 / heading 2 enforcement history is replaceable through destination and session selection: accept-into-contract\n- critic 5544045014 / heading 3 the #3350 sequence is ordering metadata, not tamper evidence: accept-into-contract\n- critic 5544045014 / heading 4 recorded hashes cannot prove independent re-derivation: accept-into-contract\n- critic 5544045014 / heading 5 a single appended line suppresses the flag needs an ordering qualifier: accept-into-contract\n- critic 5544079077 / heading 1 same-stream provenance, hashes, and seq-gap replay the named defect: accept-into-contract\n- critic 5544079077 / heading 2 the pairing detector works; the boolean is the designed waiver: accept-into-contract\n- critic 5544079077 / heading 3 a single emitted line is the pairing pass, not an extra append: accept-into-contract\n- critic 5544079077 / heading 4 empty history and deleted fails are fail-open, and they are the stronger bypass: accept-into-contract\n- critic 5544085087 / heading 1 provenance-by-field is inert here, and it has no producer: accept-into-contract\n- critic 5544085087 / heading 2 the cheapest disablers are elsewhere, and two of them are shipped remedies: accept-into-contract\n- critic 5544085087 / heading 3 the bypass is order-dependent, and acceptance fixture 1 already passes at HEAD: accept-into-contract\n- critic 5544085087 / heading 4 fix 2 is not recomputation: accept-into-contract\n- critic 5544085087 / heading 5 fix 3's gap detector is defeated by the seeding rule and collides with the documented remedy: accept-into-contract\n- critic 5544085087 / heading 6 this arc's panel-deposit is unverifiable by any sibling, by construction: accept-into-contract\n\nResidual: none. Map is total over blocking and sharpening headings. Footnotes stay in the census and are not residual (Codex heading 6; Grok heading 5; Claude footnotes on the private transcript, `ambiguity_attestation`, and cite check). Unresolved audit markers: none. No same-round sibling remains unposted.\n\nSupersedes: triage write-back [5543970558](https://github.com/deftai/directive/issues/3925#issuecomment-5543970558). Ceiling remains 5543970558.\n\nNon-self-arbitration: this parent authored triage 5543970558 and is the same model family as critic 5544079077. Codex 5544045014 and Claude 5544085087 are separate siblings. These takes are a reading of the posted headings; they do not clear them.\n\nParent forward verdict if this map is confirmed: do not bind #3925 as written. Recut the target to a self-attested waiver on an agent-writable integrity log, with the working pairing-pass ordering named; do not land `attested_by`, product-state hashes, or #3350 seq-gap as the trust boundary; inventory dest/session/truncate as existing cheaper disablers, two of them documented recovery; a bindable repair has to change the trust boundary or drop the waiver. This arc does not implement that.\n\n",
+          "id": 5544109185,
+          "html_url": "https://github.com/deftai/directive/issues/3925#issuecomment-5544109185",
+          "user": {
+            "login": "dbcall2",
+            "id": 15332465,
+            "node_id": "MDQ6VXNlcjE1MzMyNDY1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/15332465?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/dbcall2",
+            "html_url": "https://github.com/dbcall2",
+            "followers_url": "https://api.github.com/users/dbcall2/followers",
+            "following_url": "https://api.github.com/users/dbcall2/following{/other_user}",
+            "gists_url": "https://api.github.com/users/dbcall2/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/dbcall2/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/dbcall2/subscriptions",
+            "organizations_url": "https://api.github.com/users/dbcall2/orgs",
+            "repos_url": "https://api.github.com/users/dbcall2/repos",
+            "events_url": "https://api.github.com/users/dbcall2/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/dbcall2/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-04T17:23:01Z",
+          "updated_at": "2026-09-04T17:23:01Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: parent\n```\n\n## Verified-claims table\n\nRe-derived against detached dispatch SHA `f2d6e00d66229543f4768fb50388dab380aaf834`. No row is marked verified from critic agreement alone.\n\n| Claim | Result | Method | Evidence |\n| --- | --- | --- | --- |\n| `independent_rederivation` is copied from the payload with no provenance check, then used to drop unresolved flags. | verified | Read `packages/core/src/verify-ac/flag.ts` at the dispatch SHA. | `readAttempt` sets `independent_rederivation: payload.independent_rederivation === true`. `unresolvedMethodChangePasses` is `flagged.filter((flag) => !flag.independent_rederivation)`. |\n| A pairing pass carrying the key clears the flag; a later appended line does not. | verified | Executed the dispatch-SHA `flagPassAfterFailWithMethodChange` / `unresolvedMethodChangePasses` body over hand-built streams (Claude's A/B/C/C2/G ordering). | A: fail+keyless pass → unresolved 1. B/E: fail+keyed pairing pass → unresolved 0. C/C2: fail+keyless pass+later keyed line → unresolved 1. G: keyed pairing pass then keyless pass → unresolved 0. |\n| Same-method pass clears pending failure without the key. | verified | Same executed state machine. | fail m1 then pass m1 → flagged 0, unresolved 0. Source: `other === undefined` deletes the pending key. |\n| Parser authenticity is two string fields. | verified | Read `packages/core/src/run-summary/share.ts` at the dispatch SHA. | `parseLine` accepts any JSON object whose `event` and `session_id` are strings. It does not read `component`, `seq`, schema version, or attestor. |\n| Production `verify:ac` emission does not write the waiver key. | verified | Read `emitVerifyAcAttempts` in `packages/core/src/verify-ac/evaluate.ts`. | The call is `emitter.emitVerification({ check_id, method_fingerprint, outcome })` with `component: \"verify-ac\"`. The operator message still tells the reader to record `independent_rederivation=true`. |\n| `component` is an open caller-supplied string. | verified | Read `packages/core/src/run-summary/types.ts`. | Comment and type: optional emitter label, not a closed union. |\n| `#3350` `seq` is a line-count seed, not an evaluator tamper check. | verified | Read `run-summary/emit.ts` `countExistingJsonlLines` and the file-destination write; searched `flag.ts` and `share.ts` for `seq`. | Next seq is `countExistingJsonlLines(path) + 1`. `session_start` on the default path replaces the file and reseeds at 1. `flag.ts` and `share.ts` do not read `seq`. |\n| Missing or blank history is green. | verified | Read `evaluateProductOracleIntegrity`. | `text === null || text.trim().length === 0` returns `{ ok: true, ... unresolved: [] }`. |\n| Destination and session identity are process-selectable. | verified | Read `run-summary/path.ts` and `run-summary/session-id.ts`; confirmed `.gitignore` coverage. | `DEFT_RUN_SUMMARY_PATH` selects file or stdout. `DEFT_SESSION_ID` wins over ritual state. Default dest is repo-root `.deft-run-summary.json` when gitignored (`.gitignore:184`), with `truncateOnSessionStart: true`. Foreign session ids do not pair (stream F: flagged 0). |\n| New-session and truncate/delete are documented recovery. | verified | Read `content/docs/gate-integrity.md` at the dispatch SHA. | Recovery list: new `DEFT_SESSION_ID`, or truncate/delete the JSONL. The same page forbids using `independent_rederivation=true` to clear the #3615 class. |\n| No HMAC/signing primitive exists under `packages/` for this attestation. | verified | Searched `packages/**/*.ts` at the dispatch SHA for `createHmac`. | Zero matches. |\n| Round-1 panel-deposit is above the critic input ceiling. | verified | GitHub REST on issue comments. | Stop 1 / ceiling is comment 5543970558. Panel-deposit is 5543981218. Critics were bounded to ids `<= 5543970558`, so they could not re-read the deposit through the thread. |\n| All-accept completion preconditions are present. | verified | REST comment inventory plus the operator's `accept` on lean 5544109185. | Three `role: critic` comments (5544045014, 5544079077, 5544085087). Lean map: 15 `accept-into-contract`, 0 `disagree`, 0 `defer`, 0 `audit:` markers. No same-round sibling remains unposted. |\n\nNon-self-arbitration disclosure: this parent authored Stop 1 and the successor lean, and is the same model family as critic 5544079077. The table uses dispatch-SHA source reads, an executed copy of the flag state machine, and REST bookkeeping. It does not treat sibling agreement as verification.\n\n",
+          "id": 5544229196,
+          "html_url": "https://github.com/deftai/directive/issues/3925#issuecomment-5544229196",
+          "user": {
+            "login": "dbcall2",
+            "id": 15332465,
+            "node_id": "MDQ6VXNlcjE1MzMyNDY1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/15332465?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/dbcall2",
+            "html_url": "https://github.com/dbcall2",
+            "followers_url": "https://api.github.com/users/dbcall2/followers",
+            "following_url": "https://api.github.com/users/dbcall2/following{/other_user}",
+            "gists_url": "https://api.github.com/users/dbcall2/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/dbcall2/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/dbcall2/subscriptions",
+            "organizations_url": "https://api.github.com/users/dbcall2/orgs",
+            "repos_url": "https://api.github.com/users/dbcall2/repos",
+            "events_url": "https://api.github.com/users/dbcall2/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/dbcall2/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-04T17:34:24Z",
+          "updated_at": "2026-09-04T17:34:24Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: parent\n```\n\n## In plain English\n\nThe recorded target on #3925 does not bind as written. `independent_rederivation` is a presence-keyed waiver on an agent-writable run-summary: putting that key on the fail→method-change→pass event clears unresolved flags. A later extra line does not. The filed three-part fix stays on that same stream and is not a trust boundary. Destination, session identity, and truncate/delete remain cheaper disablers; two of those are already documented recovery. Confirming the all-accept map recuts the issue around that restatement. This record does not implement the recut.\n\nI authored Stop 1 and the successor lean, and I am the same model family as one critic. The separately posted table re-derived the load-bearing claims from the dispatch-SHA source, an executed copy of the flag state machine, and REST bookkeeping.\n\nAccepted record: successor lean 5544109185; verified-claims table 5544229196.\n\ndesign-critique: synthesis accepted, because agents agreed (empty disagreement set)\n\n",
+          "id": 5544233537,
+          "html_url": "https://github.com/deftai/directive/issues/3925#issuecomment-5544233537",
+          "user": {
+            "login": "dbcall2",
+            "id": 15332465,
+            "node_id": "MDQ6VXNlcjE1MzMyNDY1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/15332465?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/dbcall2",
+            "html_url": "https://github.com/dbcall2",
+            "followers_url": "https://api.github.com/users/dbcall2/followers",
+            "following_url": "https://api.github.com/users/dbcall2/following{/other_user}",
+            "gists_url": "https://api.github.com/users/dbcall2/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/dbcall2/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/dbcall2/subscriptions",
+            "organizations_url": "https://api.github.com/users/dbcall2/orgs",
+            "repos_url": "https://api.github.com/users/dbcall2/repos",
+            "events_url": "https://api.github.com/users/dbcall2/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/dbcall2/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-04T17:34:47Z",
+          "updated_at": "2026-09-04T17:34:47Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.5\n```quarantined\nrole: parent\n```\n\n## Operator confirmation — recut map\n\nOperator confirmed the stalled N=3 all-accept map (lean 5544109185 / VCT 5544229196 / synth 5544233537) under bare arc 3925 + #5111 defaults (no-ingest, yolo).\n\nConfirmed restatement:\n- `independent_rederivation` is a presence-keyed waiver on an agent-writable run-summary: putting that key on the fail→method-change→pass event clears unresolved flags. A later extra append does not.\n- Filed three-part fix (`attested_by`, product-state hashes, #3350 seq-gap) stays on that same writable stream and is not a trust boundary.\n- Dest / session identity / truncate-delete remain cheaper disablers; two of those are already documented recovery.\n- Bindable repair must change the trust boundary or drop the waiver. This confirmation does not implement.\n\nNext motion: remainder Stop 1 on the recut Prefer-A at Dual-stop N=1. Prior panel SHA `f2d6e00d…` is historical; new dest pins current origin-default.\n\narc-mode: no-ingest\nyolo-standing: yes\n\n",
+          "id": 5918574214,
+          "html_url": "https://github.com/deftai/directive/issues/3925#issuecomment-5918574214",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-30T19:54:13Z",
+          "updated_at": "2026-09-30T19:54:13Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.5\n```quarantined\nrole: parent\n```\n\n## Current state (remainder after recut confirm)\n\n#3925 continues after operator confirmed stalled N=3 recut map. Dest pinned origin-default.\n\n- Stage A: still-open; critique-recommend false (operator-directed bare arc)\n- Chip: mechanism-shaped → in-progress with remainder Stop 1\n- Dest: C:\\Users\\msada\\.grok\\worktrees\\deft-directive\\issue-3925-dc\n- dispatch-sha: 033c502257ef50f9d468b8807de791b7359f8eb3\n- Target-digest: sha256:ddcba06ed1d833cf6b87410d68d3d49c9587842b5cf28d1ca89c1d6f35783bd1 (issue body digest; recut Prefer-A from lean 5544109185)\n- Prior panel: critics 5544045014 / 5544079077 / 5544085087; lean 5544109185; synth 5544233537\n- Dual-stop spend for this remainder Stop 1: N=1\n\narc-mode: no-ingest\nyolo-standing: yes\n\n",
+          "id": 5918574527,
+          "html_url": "https://github.com/deftai/directive/issues/3925#issuecomment-5918574527",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-30T19:54:15Z",
+          "updated_at": "2026-09-30T19:54:15Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.5\n```quarantined\nrole: triage\n```\n\nmechanism-shaped: true\ndesign-critique: warranted, because the #3322 oracle-integrity detector still accepts a presence-keyed `independent_rederivation` waiver from an agent-writable run-summary, and the filed three-part same-stream fix cannot be the trust boundary after the confirmed N=3 recut.\n\ncharter: open critique\n\narc-mode: no-ingest\nyolo-standing: yes\nspend: N=1\nspend-ask: resolved\nspend-recommend: N=1\npain: P1, P2, P3\n\nP1. `independent_rederivation` is still read as a presence-keyed waiver from the agent-writable run-summary; putting that key on the fail→method-change→pass event clears unresolved oracle-integrity flags (a later extra append does not).\nP2. Same-stream `attested_by`, recorded product-state hashes, and #3350 sequence-gap detectors cannot be the trust boundary for this waiver — they stay on the agent-writable integrity log the party being policed can write.\nP3. Destination selection, session identity, and truncate/delete remain cheaper disablers of the same detector (two already documented as recovery); a bindable Prefer-A must change the trust boundary or drop the waiver.\n\nRemainder-only after operator confirmed lean 5544109185 / synth 5544233537. Non-goals: implementing the filed three-part body Fix as written; treating Taskfile/helpers as a discharge; closing #3350 / #3813 / #3924 here unless Bound names them. Tip peek still shows `independent_rederivation` and no `attested_by` producer.\n\nOperator confirmed recut; Dual-stop N=1 under #5111 defaults.\n\nTarget-digest sha256:ddcba06ed1d833cf6b87410d68d3d49c9587842b5cf28d1ca89c1d6f35783bd1\ndispatch-sha: 033c502257ef50f9d468b8807de791b7359f8eb3\ndest: C:\\Users\\msada\\.grok\\worktrees\\deft-directive\\issue-3925-dc\npin-kind: origin-default\nprior-lean: 5544109185\n\n",
+          "id": 5918574890,
+          "html_url": "https://github.com/deftai/directive/issues/3925#issuecomment-5918574890",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-30T19:54:16Z",
+          "updated_at": "2026-09-30T19:54:16Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.5\n```quarantined\nrole: critic\n```\n\nRound 1, sole seat under open critique after the stalled N=3 recut confirm. Spend N=1. Id ceiling 5918574890 honored (body + comments ≤ that id; confirm-recut 5918574214, current-state 5918574527, Stop 1 5918574890 in-envelope). Re-derived at detached dispatch SHA 033c502257ef50f9d468b8807de791b7359f8eb3 (`git rev-parse HEAD` matched; pin-reads via `git show <sha>:<path>` only). Process-only; no product edits. Historical panel critics / lean 5544109185 / synth 5544233537 are prior context for Prefer-A, re-pinned at this SHA.\n\naudit-targets: none\n\n## Verdict on remainder P1–P3 and Prefer-A\n\nP1–P3 still hold at this tip. The Prefer-A direction as written does **not** survive as a bindable security repair: the disjunction “change the trust boundary **or** drop the waiver” treats drop-waiver as a complete alternative, while P3’s own inventory shows the detector stays disableable after the boolean is gone. Prefer-A can bind only after that OR is recut.\n\n## Existing-mechanism inventory (dispatch SHA)\n\n| Mechanism | Establishes | Does not establish |\n|---|---|---|\n| `readAttempt` / `unresolvedMethodChangePasses` (`verify-ac/flag.ts`) | Copies `payload.independent_rederivation === true`; filters unresolved flags by that boolean | Provenance, attestor, or framework-only emission |\n| Production `emitVerifyAcAttempts` (`verify-ac/evaluate.ts`) | Emits `check_id`, `method_fingerprint`, `outcome` via `emitVerification` | Never writes `independent_rederivation` |\n| `evaluateProductOracleIntegrity` | Missing/blank selected history → `{ ok: true, unresolved: [] }`; unresolved message tells the reader to record `independent_rederivation=true` | Fail-closed history root |\n| `parseLine` (`run-summary/share.ts`) | Requires string `event` + `session_id` | `component`, `seq`, schema, attestor |\n| Destination / session (`run-summary/path.ts`, `session-id.ts`) | `DEFT_RUN_SUMMARY_PATH` file/stdout; `DEFT_SESSION_ID` wins over ritual; default file has `truncateOnSessionStart: true` | Authority-separated history identity |\n| `#3350` seq (`run-summary/emit.ts`) | Next seq = `countExistingJsonlLines(path) + 1`; `session_start` replace reseeds at 1 | Tamper-evident high-water / hash chain |\n| Docs + skills | `gate-integrity.md` recovery: new `DEFT_SESSION_ID` or truncate/delete JSONL; forbids the boolean for #3615 poison. Build/pre-pr skills still instruct recording `independent_rederivation` on red oracles | A producer outside the agent-writable stream |\n| `attested_by` / HMAC | Zero hits under `packages/**` / `content/**` at this SHA | Same-stream field provenance |\n\nFocused fixture still locks the designed waiver: `flag.test.ts` “treats recorded independent re-derivation as resolved” — fail then keyed different-method pass → unresolved empty.\n\n## Findings\n\n### 1. Prefer-A’s OR makes drop-waiver look like a full security repair\nblocks-the-design\n\n**Evidence.** Remainder Stop 1 Prefer-A (and lean 5544109185 forward verdict) says a bindable repair must “change the trust boundary or drop the waiver.” At this SHA, after the boolean is ignored, the same evaluator still: (a) clears pending failure on same-method pass (`other === undefined` deletes the key in `flagPassAfterFailWithMethodChange`); (b) returns green on missing/blank history; (c) pairs only inside the selected `session_id` + dest chosen via `DEFT_SESSION_ID` / `DEFT_RUN_SUMMARY_PATH`; (d) documents new-session and truncate/delete as recovery in `gate-integrity.md`. Those paths do not consult `independent_rederivation`.\n\n**Concrete failure mode.** Bind “drop the waiver” as Prefer-A complete. An agent under the same labels (`agent-safety`, `promise:gates`, SECURITY title) clears the detector by minting a fresh session id, pointing `DEFT_RUN_SUMMARY_PATH` at an empty file, truncating the default JSONL, or emitting a same-method pass — none of which needed the removed boolean. The field transcript’s second named bypass (clear the fail event) stays live.\n\n**Disposition consequence.** Recut Prefer-A so drop-waiver is demotion to advisory (honest residual under documented recovery), and only an authority-separated trust-boundary change can bind this as a security gate. An OR that equates those two outcomes cannot bind.\n\n### 2. P1 presence-keyed waiver is unchanged at the new tip\nsharpens-framing\n\n**Evidence.** Pin-read `flag.ts`: `independent_rederivation: payload.independent_rederivation === true` then `flagged.filter((flag) => !flag.independent_rederivation)`. No `attested_by` producer exists. Skills and the unresolved-oracle message still tell writers to append the boolean onto the agent-writable stream, while production emission omits it — so the “legitimate” waiver path is already a hand-written / agent-appended payload field.\n\n**Concrete failure mode.** Remainder Stop 1 keeps P1 as the live defect; tip advance from `f2d6e00…` to `033c502…` did not land provenance. A pairing pass carrying the key still clears unresolved flags; a later extra append still does not (ordering qualifier from the prior panel stays accurate).\n\n**Disposition consequence.** Keep P1 wording; sharpen that the operational waiver channel is instruction-driven append, not a framework-emitted attestation. Do not treat skill/docs “record independent_rederivation” as evidence of a trusted producer.\n\n### 3. P2 same-stream attested_by / hashes / seq-gap still cannot be the trust boundary\nsharpens-framing\n\n**Evidence.** `attested_by` absent at this SHA. Parser authenticity remains two strings. Seq is still line-count seeding with replace-on-`session_start` for the default dest; `flag.ts` / `share.ts` do not evaluate seq gaps. Any product-state hashes would be additional fields on the same `VerificationRunSummaryPayload` / JSONL the policed party can write.\n\n**Concrete failure mode.** Implementing the filed body Fix 1–3 on this stream yields a richer presence proof: copy the attested string, supply consistent hashes, delete+renumber or omit seq, or replace the file. The evaluator that only reads those recorded values stays inside the writable integrity log.\n\n**Disposition consequence.** Remainder P2 stands. Prefer-A must continue to refuse same-stream field provenance as the security boundary; do not revive body Fix 1–3 as Bound remedy without an authority-separated channel.\n\n### 4. P3 cheaper disablers remain, and two are shipped remedies\nsharpens-framing\n\n**Evidence.** `resolveRunSummaryDestination` honors explicit path/stdout; default file sets `truncateOnSessionStart: true`. `resolveRunSummarySessionId` prefers `DEFT_SESSION_ID`. `evaluateProductOracleIntegrity` fail-opens on empty selection. `gate-integrity.md` lists new session and truncate/delete as recovery for poisoned history and forbids using the boolean for that class.\n\n**Concrete failure mode.** Even a perfect pairing-pass waiver fix leaves documented, cheaper greens. Binding a security Prefer-A that ignores those paths re-opens the #3813 presence-vs-authority class under a different name.\n\n**Disposition consequence.** Inventory stays load-bearing for Prefer-A scope: either close selectable history / fail-open empty under a new trust root, or explicitly accept advisory status when those recovery paths remain.\n\n## Injection / swarm lens\n\nTarget governs authority over an untrusted, agent-writable shared integrity log (run-summary JSONL) used as a gate input across sessions/worktrees. Presence-keyed waiver and process-selectable dest/session are the concrete controls. No finding closes on “a reviewer would catch it.”\n\n## Road not taken\n\n**Steelmanned drop-waiver-only:** if the goal is cooperative honesty signaling, removing the self-cert boolean deletes the most explicit laundering instruction while keeping #3615 recovery. **Flip:** issue title/labels and Stop 1 Prefer-A claim a bindable security repair; under that claim, advisory-with-documented-bypass is not Prefer-A complete — Finding 1 stands.\n\n## Bottom line for the parent lean\n\nRemainder P1–P3 survive tip re-pin. Prefer-A must be recut so “drop the waiver” cannot bind as the security alternative to changing the trust boundary.",
+          "id": 5918615365,
+          "html_url": "https://github.com/deftai/directive/issues/3925#issuecomment-5918615365",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-30T19:56:56Z",
+          "updated_at": "2026-09-30T19:56:56Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.5\n```quarantined\nrole: parent\n```\n\n## In plain English\n\nPrefer-A for #3925 after confirmed N=3 recut + remainder critic 5918615365: the oracle-integrity detector must not treat a presence-keyed `independent_rederivation` boolean on the agent-writable run-summary as a security waiver. A bindable security Prefer-A requires an authority-separated trust boundary (evaluator input the policed party cannot write or select). Dropping the waiver alone is demotion to advisory under documented dest/session/truncate recovery — not Prefer-A-complete as a security gate. Same-stream `attested_by`, product-state hashes, and #3350 seq-gap stay refused as the trust boundary.\n\nThis is not an instruction to a later builder.\n\nNon-self-arbitration: same grok-4.5 parent authored remainder Stop 1 and these takes. Prior N=3 panel siblings remain separate history.\n\nForward verdict: bind. Disposition: classified headings accept-into-contract. Residual: none.\nSpec-path: next-build contract is not this body.\n\n**Lean:** oracle-integrity trust-boundary Prefer-A for #3925. Cites remainder critic 5918615365. Supersedes Stop 1 Prefer-A OR wording; keeps confirmed lean 5544109185 refusal of filed three-part same-stream Fix.\n\nTarget-digest: sha256:ddcba06ed1d833cf6b87410d68d3d49c9587842b5cf28d1ca89c1d6f35783bd1\n\narc-mode: no-ingest\nyolo-standing: yes\ndest: C:\\Users\\msada\\.grok\\worktrees\\deft-directive\\issue-3925-dc\norigin-ref: origin/master\ndispatch-sha: 033c502257ef50f9d468b8807de791b7359f8eb3\ntarget shape: single-issue\nround: 1\nsiblings: 1\n\nTakes:\n\n- 5918615365 1 Prefer-A OR makes drop-waiver look like a full security repair — accept-into-contract\n- 5918615365 2 P1 presence-keyed waiver unchanged at tip — accept-into-contract\n- 5918615365 3 P2 same-stream attested_by/hashes/seq-gap cannot be trust boundary — accept-into-contract\n- 5918615365 4 P3 cheaper disablers remain (two shipped remedies) — accept-into-contract\n\nrelieves: P1\nrelieves: P2\nrelieves: P3\n\n## Bound remedy\n\n- Stop treating `payload.independent_rederivation === true` on the agent-writable run-summary as a security waiver that clears unresolved oracle-integrity flags. The operational waiver channel today is instruction-driven append onto that stream, not a framework-emitted attestation.\n- A bindable **security** Prefer-A requires an authority-separated trust boundary: the evaluator must not accept gate-clearing integrity evidence from a log/path/session the policed party can write or select (`DEFT_RUN_SUMMARY_PATH`, `DEFT_SESSION_ID`, truncate-on-session-start default).\n- Dropping the boolean alone is **advisory demotion** under documented recovery (new session / truncate-delete in `gate-integrity.md`) — honest residual, not Prefer-A-complete as a security repair. Do not equate \"drop the waiver\" with \"change the trust boundary.\"\n- Refuse same-stream `attested_by`, recorded product-state hashes, and #3350 line-count seq-gap as the trust boundary. Do not revive body Fix 1–3 without an authority-separated channel.\n- Out of scope unless Bound widens later: closing #3350 / #3813 / #3924 as a bundle; treating skill/docs \"record independent_rederivation\" as evidence of a trusted producer; fail-closing empty history without a new trust root named here.\n\n",
+          "id": 5918627322,
+          "html_url": "https://github.com/deftai/directive/issues/3925#issuecomment-5918627322",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-30T19:57:44Z",
+          "updated_at": "2026-09-30T19:57:44Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.5\n```quarantined\nrole: critic\n```\n\naudit-targets: pain-P1, pain-P2, pain-P3\n\nissue: deftai/directive#3925\ncharter: open critique\nround: 4 Pass-4 audit (pain-audit of relieves)\nid-ceiling: 5918627322\ndispatch-sha: 033c502257ef50f9d468b8807de791b7359f8eb3\narc-mode: no-ingest\nseat: grok\nlauncher: grok\n\n## Verdict\n\nPrefer-A lean 5918627322 covers Stop 1 pains P1–P3 (5918574890) under the Prefer-A harvest after remainder critic 5918615365. Asserted coverage matches Bound as written: stop treating presence-keyed `independent_rederivation` on the agent-writable run-summary as a security clear; bindable security Prefer-A requires an authority-separated trust boundary the policed party cannot write or select; drop-waiver alone is advisory demotion under documented dest/session/truncate recovery; same-stream `attested_by` / product-state hashes / #3350 seq-gap stay refused as that boundary. The lean supersedes Stop 1 Prefer-A OR wording that equated drop-waiver with a full security repair.\n\nRe-verified at pin `033c502257ef50f9d468b8807de791b7359f8eb3` (`git rev-parse HEAD` matched; no fetch; pin-reads via `git show <sha>:<path>` only). Process-only.\n\nAnchors:\n\n- `readAttempt` copies `payload.independent_rederivation === true`; `unresolvedMethodChangePasses` filters unresolved flags by that boolean (`packages/core/src/verify-ac/flag.ts`).\n- `evaluateProductOracleIntegrity` returns `{ ok: true, unresolved: [] }` on missing/blank selected history and still tells writers to record `independent_rederivation=true` (`packages/core/src/verify-ac/evaluate.ts`).\n- `resolveRunSummaryDestination` honors `DEFT_RUN_SUMMARY_PATH`; default file sets `truncateOnSessionStart: true` (`packages/core/src/run-summary/path.ts`).\n- `resolveRunSummarySessionId` prefers `DEFT_SESSION_ID` after an explicit option (`packages/core/src/run-summary/session-id.ts`).\n- `git grep attested_by` under `packages/` and `content/` at this pin returns no hits.\n\n## pain-P1 — covered\n\nfootnote\n\nStop 1 P1 requires that presence-keyed `independent_rederivation` on the agent-writable stream still clears unresolved oracle-integrity flags when carried on the fail→method-change→pass event. Prefer-A Bound stops treating that boolean as a security waiver, names instruction-driven append as the operational channel today, and requires an authority-separated trust boundary for a bindable security Prefer-A. Live tip still shows the presence filter those Bound lines close. No blocking gap on the asserted cover.\n\n## pain-P2 — covered\n\nfootnote\n\nStop 1 P2 requires that same-stream `attested_by`, recorded product-state hashes, and #3350 sequence-gap detectors cannot be the trust boundary because they stay on the agent-writable integrity log. Prefer-A Bound refuses those three as the trust boundary and keeps the confirmed refusal of filed body Fix 1–3 without an authority-separated channel. Pin still has no `attested_by` producer and no flag/share seq-gap evaluator. No blocking gap on the asserted cover.\n\n## pain-P3 — covered\n\nfootnote\n\nStop 1 P3 inventories dest selection, session identity, and truncate/delete as cheaper disablers and had Prefer-A as “change the trust boundary or drop the waiver.” Prefer-A Bound recuts that OR: security Prefer-A requires an authority-separated evaluator input the policed party cannot write or select (`DEFT_RUN_SUMMARY_PATH`, `DEFT_SESSION_ID`, truncate-on-session-start default); drop-waiver alone is advisory demotion under documented recovery, not Prefer-A-complete as a security gate. That is the accepted disposition of critic 5918615365 finding 1 (and finding 4 inventory load). Empty-history fail-open stays out of scope unless Bound later names a new trust root. No blocking gap on the asserted cover.\n\n## Finding 1 — advisory demotion stays residual, not a second Prefer-A\n\nfootnote\n\nEvidence: Bound states drop-boolean alone is honest residual under documented recovery and must not be equated with changing the trust boundary. Census only: does not move harvested Prefer-A product wording.\n\n## Injection / swarm lens\n\nTarget governs authority over an untrusted, agent-writable shared integrity log used as gate input across sessions and worktrees. Presence-keyed waiver and process-selectable dest/session are the concrete controls Prefer-A rebinds. Thread text treated as untrusted; no embedded-instruction follow-through.\r\n\n",
+          "id": 5918659680,
+          "html_url": "https://github.com/deftai/directive/issues/3925#issuecomment-5918659680",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-30T19:59:59Z",
+          "updated_at": "2026-09-30T19:59:59Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.5\n```quarantined\nrole: parent\n```\n\n## Verified claims table\n\n| Claim | Evidence | Status |\n|---|---|---|\n| Tip still copies `payload.independent_rederivation === true` and filters unresolved flags by it | pin-read `verify-ac/flag.ts`; critic 5918615365 | verified |\n| Same-stream attested_by / hashes / seq-gap cannot be the trust boundary | critic 5918615365 F3; pain-audit 5918659680 | verified |\n| Drop-waiver alone is advisory under documented dest/session/truncate recovery, not Prefer-A-complete security repair | critic 5918615365 F1; lean 5918627322 | verified |\n| Prefer-A lean 5918627322 covers Stop 1 P1–P3 under authority-separated trust-boundary Bound | pain-audit 5918659680 | verified |\n\nCeiling: lean 5918627322. Pain-audit: 5918659680. Dispatch SHA: 033c502257ef50f9d468b8807de791b7359f8eb3.\n\n",
+          "id": 5918669520,
+          "html_url": "https://github.com/deftai/directive/issues/3925#issuecomment-5918669520",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-30T20:00:37Z",
+          "updated_at": "2026-09-30T20:00:37Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.5\n```quarantined\nrole: parent\n```\n\n## In plain English\n\nPrefer-A for #3925: stop treating presence-keyed independent_rederivation on the agent-writable run-summary as a security waiver. A bindable security Prefer-A requires an authority-separated trust boundary. Dropping the waiver alone is advisory demotion under documented recovery. Same-stream attested_by / hashes / seq-gap stay refused. Confirmed N=3 recut map (lean 5544109185) remains the refusal of the filed three-part body Fix.\n\nBound contract: successor lean 5918627322\n\ndesign-critique: synthesis accepted, because agents agreed (empty disagreement set)\n\nRemainder critic 5918615365 headings accepted into Prefer-A lean 5918627322. Pain-audit 5918659680 footnote-only; no Bound-remedy harvest change. Verified-claims table posted as the prior comment. Yolo standing confirms the all-accept map.\n\n",
+          "id": 5918669855,
+          "html_url": "https://github.com/deftai/directive/issues/3925#issuecomment-5918669855",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-30T20:00:39Z",
+          "updated_at": "2026-09-30T20:00:39Z",
+          "author_association": "COLLABORATOR"
+        }
+      ],
+      "issueBody": "**TL;DR: the #3322/#3397 oracle-integrity detector can be disabled by the party it polices. `independent_rederivation` is read straight off the run-summary payload (`payload.independent_rederivation === true`) and the flag list is then `filter(flag => !flag.independent_rederivation)` — so a single emitted line carrying that key suppresses the finding. The run-summary stream is agent-writable. A field transcript shows an agent reasoning about exactly this bypass.**\n\n**Evidence (code, at HEAD).** `packages/core/src/verify-ac/flag.ts:79` reads the value from the event payload with no provenance check; `flag.ts:146` filters flagged sequences by it. Nothing distinguishes a framework-emitted attestation from an agent-appended one.\n\n**Evidence (field, internal test results, private).** An agent that had tripped the detector reasoned in-transcript: *\"The issue is that changing acceptance commands is detected as oracle manipulation... if I clear the run-summary fail event, or append a pass with independent_rederivation=true.\"* It ultimately chose the legitimate remedy (restore the original acceptance commands) — but it identified both bypasses unprompted, on a task where it was not adversarial. The detector held by the agent's good judgment, not by construction.\n\nThis is precisely the failure mode the #3813 critic panel bound as an accepted finding (A3/B1): a presence-only gate accepts whatever the producer writes, and \"add the record\" is not a sufficient safety boundary. Here it is, in the field, on the gate that exists to catch laundering.\n\n## Fix\n\n1. **Provenance, not presence.** `independent_rederivation` counts only when the emitting component is the framework verb that performed the re-derivation — record `attested_by` on the event and require it to be a framework-emitted value; agent-appended lines cannot satisfy it. (Note the parallel to #3805/#3559: presence-keyed predicates are the recurring defect class.)\n2. **Recompute, do not trust.** The re-derivation claim should be independently checkable: record the two method fingerprints and the product-state hash at both attempts so the flag evaluator can verify a genuine re-derivation occurred rather than accepting a boolean.\n3. **Tamper-evidence on the stream.** Cleared or rewritten prior events are the other bypass the transcript named. At minimum, sequence continuity (#3350's persisted counter) should make a removed line detectable; a gap is itself a finding.\n\n## Acceptance sketch\n\n- Fixture: append a hand-written `independent_rederivation: true` line to the stream -> the flag still fires (provenance fails).\n- Fixture: a genuine verb-performed re-derivation -> flag suppressed, with both fingerprints and hashes recorded.\n- Fixture: delete a prior fail event -> sequence gap detected and reported.\n\nRelates #3322 / #3397 (the detector this repairs), #3350 (sequence continuity), #3805 / #3559 (same presence-vs-provenance defect class), #3813 (bound A3/B1 findings — field confirmation), #3924 (companion field finding from the same bank).\n\n",
+      "x-directive/plan-id": {
+        "version": 1,
+        "source": "github-rest-id",
+        "github_issue_id": 5289844918,
+        "origin": "deftai/directive#3925",
+        "id": "github.issue.5289844918"
+      },
+      "x-directive/admitted-target-digest": {
+        "schema": "deft.scope.admitted-target-digest.v1",
+        "algorithm": "sha256",
+        "sha256": "ddcba06ed1d833cf6b87410d68d3d49c9587842b5cf28d1ca89c1d6f35783bd1"
+      }
+    },
+    "acceptance": {
+      "commands": [],
+      "none_stated": true,
+      "source_rung": "derived",
+      "derived_reason": "derived 5 independently testable clauses from the task statement before product edit (#3323)",
+      "sentences": [
+        "SECURITY: the #3322 oracle-integrity detector is self-certifiable - independent_rederivation is read from the agent-writable stream and filters the flag away; field transcript shows an agent identifying the bypass",
+        "Stop treating `payload.independent_rederivation === true` on the agent-writable run-summary as a security waiver that clears unresolved oracle-integrity flags.",
+        "The operational waiver channel today is instruction-driven append onto that stream, not a framework-emitted attestation.",
+        "A bindable security Prefer-A requires an authority-separated trust boundary: the evaluator must not accept gate-clearing integrity evidence from a log/path/session the policed party can write or select (`DEFT_RUN_SUMMARY_PATH`, `DEFT_SESSION_ID`, truncate-on-session-start default).",
+        "Dropping the boolean alone is advisory demotion under documented recovery (new session / truncate-delete in `gate-integrity.md`) — honest residual, not Prefer-A-complete as a security repair.",
+        "Do not equate \"drop the waiver\" with \"change the trust boundary.\" - Refuse same-stream `attested_by`, recorded product-state hashes, and #3350 line-count seq-gap as the trust boundary.",
+        "Do not revive body Fix 1–3 without an authority-separated channel.",
+        "Out of scope unless Bound widens later: closing #3350 / #3813 / #3924 as a bundle; treating skill/docs \"record independent_rederivation\" as evidence of a trusted producer; fail-closing empty history without a new trust root named here.",
+        "Do not equate \"drop the waiver\" with \"change the trust boundary.\"",
+        "Refuse same-stream `attested_by`, recorded product-state hashes, and #3350 line-count seq-gap as the trust boundary."
+      ],
+      "admitted_source_sentences": [
+        "Stop treating `payload.independent_rederivation === true` on the agent-writable run-summary as a security waiver that clears unresolved oracle-integrity flags.",
+        "The operational waiver channel today is instruction-driven append onto that stream, not a framework-emitted attestation.",
+        "A bindable security Prefer-A requires an authority-separated trust boundary: the evaluator must not accept gate-clearing integrity evidence from a log/path/session the policed party can write or select (`DEFT_RUN_SUMMARY_PATH`, `DEFT_SESSION_ID`, truncate-on-session-start default).",
+        "Dropping the boolean alone is advisory demotion under documented recovery (new session / truncate-delete in `gate-integrity.md`) — honest residual, not Prefer-A-complete as a security repair.",
+        "Do not equate \"drop the waiver\" with \"change the trust boundary.\" - Refuse same-stream `attested_by`, recorded product-state hashes, and #3350 line-count seq-gap as the trust boundary.",
+        "Do not revive body Fix 1–3 without an authority-separated channel.",
+        "Out of scope unless Bound widens later: closing #3350 / #3813 / #3924 as a bundle; treating skill/docs \"record independent_rederivation\" as evidence of a trusted producer; fail-closing empty history without a new trust root named here."
+      ],
+      "admitted_source_digest": "1397fa1c920696d39d7d1199fb28a5791f71de9c28a59219b00d9b5027254059",
+      "clauses": [
+        {
+          "id": 1,
+          "text": "Stop treating `payload.independent_rederivation === true` on the agent-writable run-summary as a security waiver that clears unresolved oracle-integrity flags. The operational waiver channel today is instruction-driven append onto that stream, not a framework-emitted attestation.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 2,
+          "text": "A bindable security Prefer-A requires an authority-separated trust boundary: the evaluator must not accept gate-clearing integrity evidence from a log/path/session the policed party can write or select (`DEFT_RUN_SUMMARY_PATH`, `DEFT_SESSION_ID`, truncate-on-session-start default).",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 3,
+          "text": "Dropping the boolean alone is advisory demotion under documented recovery (new session / truncate-delete in `gate-integrity.md`) — honest residual, not Prefer-A-complete as a security repair. Do not equate \"drop the waiver\" with \"change the trust boundary.\"",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 4,
+          "text": "Refuse same-stream `attested_by`, recorded product-state hashes, and #3350 line-count seq-gap as the trust boundary. Do not revive body Fix 1–3 without an authority-separated channel.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 5,
+          "text": "Out of scope unless Bound widens later: closing #3350 / #3813 / #3924 as a bundle; treating skill/docs \"record independent_rederivation\" as evidence of a trusted producer; fail-closing empty history without a new trust root named here.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        }
+      ],
+      "ambiguity_attestation": "none_found"
+    },
+    "id": "github.issue.5289844918",
+    "updated": "2026-10-02T12:32:05Z"
+  }
+}

@@ -582,7 +582,7 @@ describe("evaluateProductOracleIntegrity (#3322)", () => {
     expect(verdict.message).toMatch(/UNRESOLVED product-oracle discrepancy \(#3322\)/);
   });
 
-  it("passes when independent re-derivation is recorded", () => {
+  it("does not pass when independent_rederivation is recorded on the run-summary (#3925)", () => {
     const verdict = evaluateProductOracleIntegrity({
       projectRoot: mkdtempSync(join(tmpdir(), "oracle-resolved-")),
       runSummaryText: jsonl([
@@ -595,9 +595,12 @@ describe("evaluateProductOracleIntegrity (#3322)", () => {
         },
       ]),
     });
-    expect(verdict.ok).toBe(true);
+    expect(verdict.ok).toBe(false);
+    expect(verdict.code).toBe(1);
     expect(verdict.flagged).toHaveLength(1);
-    expect(verdict.unresolved).toEqual([]);
+    expect(verdict.unresolved).toHaveLength(1);
+    expect(verdict.message).toMatch(/not a security waiver \(#3925\)/);
+    expect(verdict.message).not.toMatch(/record independent_rederivation=true/);
   });
 
   it("reads DEFT_RUN_SUMMARY_PATH from disk", () => {
@@ -756,13 +759,13 @@ describe("verify:ac evaluation applies oracle integrity (#3322)", () => {
     expect(result.message).toMatch(/UNRESOLVED product-oracle discrepancy \(#3322\)/);
   });
 
-  it("stays green when re-derivation is recorded or the oracle gate is skipped", () => {
+  it("stays red when independent_rederivation is recorded and green when the oracle gate is skipped", () => {
     const plan = {
       title: "t",
       acceptance: { commands: [], none_stated: true, source_rung: "project_floor" as const },
       items: [],
     };
-    const ok = evaluateVerifyAcFromPlan(plan, {
+    const recorded = evaluateVerifyAcFromPlan(plan, {
       projectRoot: mkdtempSync(join(tmpdir(), "oracle-eval-ok-")),
       captureFromNarratives: false,
       hasSuiteFloor: true,
@@ -776,7 +779,8 @@ describe("verify:ac evaluation applies oracle integrity (#3322)", () => {
         },
       ]),
     });
-    expect(ok.ok).toBe(true);
+    expect(recorded.ok).toBe(false);
+    expect(recorded.message).toMatch(/not a security waiver \(#3925\)/);
     const skipped = evaluateVerifyAcFromPlan(plan, {
       projectRoot: mkdtempSync(join(tmpdir(), "oracle-eval-skip-")),
       captureFromNarratives: false,
