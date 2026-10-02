@@ -1,0 +1,719 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #3921",
+    "updated": "2026-10-02T17:52:11Z"
+  },
+  "plan": {
+    "title": "investigation(session): thin prompts re-invoke session ritual ~2x - more turns and context, LESS lifecycle work; the consumer-realistic shape is the worse one and no instrument reports it",
+    "status": "completed",
+    "narratives": {
+      "Description": "investigation(session): thin prompts re-invoke session ritual ~2x - more turns and context, LESS lifecycle work; the consumer-realistic shape is the worse one and no instrument reports it",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/3921",
+      "Overview": "\n\n- Emit a closed `trigger` on every cold run-summary `session_start` payload (closed set covering at least cold | rearm-forced-cold | post-compact | mutation-intent | steal-recover, or the landed closed vocabulary). Do not treat `ceremony_tier`, process-cost, or `orientation_call_count` as closing this seat. Rearm that does not emit `session_start` stays outside the stream.\n- Fail-closed fixture (or gate) asserts one cold `session_start` JSONL event per host session under both thin/consumer and heavyweight prompt shapes, or records an explicit documented reason for each additional cold emit. Count the existing `emitSessionStart` / JSONL stream — do not invent a parallel ritual-count verb unless field evidence shows double ritual with zero second `session_start` line under `DEFT_RUN_SUMMARY_PATH`.\n- After landed #3926 residue/steal-occupant fixtures, refuse steal-recover as an admissible default that yields a second cold `session_start` / second `session_id` (options on existing surfaces: refuse mint-on-steal when a caller id was presented; require post-steal identity transport before success; or fail-closed when a second cold `session_start` follows a steal without a documented trigger). Do not re-litigate worktree residue or post-steal occupant-when-aligned.\n- Non-goals: reopen #3926/#3928 product Bounds; absorb #3352 Later graduation; auto-ingest after ingest-ready.\n\nA critic after this lean naming audit-targets pain-P1, pain-P2, pain-P3 is required before ingest can complete.\n\n",
+      "Labels": "bug, design, agent-experience, process, source-of-truth, urgent, area:cli, eval-signal, design-critique:ingest-ready, framework-gap, core-capabilities, promise:continuity"
+    },
+    "items": [
+      {
+        "title": "Emit a closed `trigger` on every cold run-summary `session_start` payload (closed set covering at least cold | rearm-forced-cold | post-compact | mutation-intent | steal-recover, or the landed closed vocabulary). Do not treat `ceremony_tier`, process-cost, or `orientation_call_count` as closing this seat. Rearm that does not emit `session_start` stays outside the stream.",
+        "status": "completed",
+        "id": "clause.1",
+        "x-directive/disposition": {
+          "disposition": "not_applicable",
+          "reason": "Bound Prefer-A clause satisfied by product PR #5259 ship; pathless derived clause has no bindable artifact_path for leftover-complete. Delivery attested via merge-commit c5c5198120014c7ab98e94e37343e3c9e126d9c3.",
+          "provenance": {
+            "kind": "operator-session",
+            "actor": "dbcall2",
+            "mintedAt": "2026-10-02T17:51:01.000Z",
+            "mintedVia": "leftover-complete-after-5259"
+          },
+          "recorded_at": "2026-10-02T17:51:01.000Z"
+        }
+      },
+      {
+        "title": "Fail-closed fixture (or gate) asserts one cold `session_start` JSONL event per host session under both thin/consumer and heavyweight prompt shapes, or records an explicit documented reason for each additional cold emit. Count the existing `emitSessionStart` / JSONL stream — do not invent a parallel ritual-count verb unless field evidence shows double ritual with zero second `session_start` line under `DEFT_RUN_SUMMARY_PATH`.",
+        "status": "completed",
+        "id": "clause.2",
+        "x-directive/disposition": {
+          "disposition": "not_applicable",
+          "reason": "Bound Prefer-A clause satisfied by product PR #5259 ship; pathless derived clause has no bindable artifact_path for leftover-complete. Delivery attested via merge-commit c5c5198120014c7ab98e94e37343e3c9e126d9c3.",
+          "provenance": {
+            "kind": "operator-session",
+            "actor": "dbcall2",
+            "mintedAt": "2026-10-02T17:51:01.000Z",
+            "mintedVia": "leftover-complete-after-5259"
+          },
+          "recorded_at": "2026-10-02T17:51:01.000Z"
+        }
+      },
+      {
+        "title": "After landed #3926 residue/steal-occupant fixtures, refuse steal-recover as an admissible default that yields a second cold `session_start` / second `session_id` (options on existing surfaces: refuse mint-on-steal when a caller id was presented; require post-steal identity transport before success; or fail-closed when a second cold `session_start` follows a steal without a documented trigger). Do not re-litigate worktree residue or post-steal occupant-when-aligned.",
+        "status": "completed",
+        "id": "clause.3",
+        "x-directive/disposition": {
+          "disposition": "not_applicable",
+          "reason": "Bound Prefer-A clause satisfied by product PR #5259 ship; pathless derived clause has no bindable artifact_path for leftover-complete. Delivery attested via merge-commit c5c5198120014c7ab98e94e37343e3c9e126d9c3.",
+          "provenance": {
+            "kind": "operator-session",
+            "actor": "dbcall2",
+            "mintedAt": "2026-10-02T17:51:01.000Z",
+            "mintedVia": "leftover-complete-after-5259"
+          },
+          "recorded_at": "2026-10-02T17:51:01.000Z"
+        }
+      },
+      {
+        "title": "Non-goals: reopen #3926/#3928 product Bounds; absorb #3352 Later graduation; auto-ingest after ingest-ready.",
+        "status": "completed",
+        "id": "clause.4",
+        "x-directive/disposition": {
+          "disposition": "not_applicable",
+          "reason": "Bound Prefer-A clause satisfied by product PR #5259 ship; pathless derived clause has no bindable artifact_path for leftover-complete. Delivery attested via merge-commit c5c5198120014c7ab98e94e37343e3c9e126d9c3.",
+          "provenance": {
+            "kind": "operator-session",
+            "actor": "dbcall2",
+            "mintedAt": "2026-10-02T17:51:01.000Z",
+            "mintedVia": "leftover-complete-after-5259"
+          },
+          "recorded_at": "2026-10-02T17:51:01.000Z"
+        }
+      },
+      {
+        "id": "clause.5",
+        "title": "clause.5",
+        "status": "completed",
+        "x-directive/disposition": {
+          "disposition": "not_applicable",
+          "reason": "Bound Prefer-A clause satisfied by product PR #5259 ship; pathless derived clause has no bindable artifact_path for leftover-complete. Delivery attested via merge-commit c5c5198120014c7ab98e94e37343e3c9e126d9c3.",
+          "provenance": {
+            "kind": "operator-session",
+            "actor": "dbcall2",
+            "mintedAt": "2026-10-02T17:51:01.000Z",
+            "mintedVia": "leftover-complete-after-5259"
+          },
+          "recorded_at": "2026-10-02T17:51:01.000Z"
+        }
+      },
+      {
+        "id": "clause.6",
+        "title": "clause.6",
+        "status": "completed",
+        "x-directive/disposition": {
+          "disposition": "not_applicable",
+          "reason": "Bound Prefer-A clause satisfied by product PR #5259 ship; pathless derived clause has no bindable artifact_path for leftover-complete. Delivery attested via merge-commit c5c5198120014c7ab98e94e37343e3c9e126d9c3.",
+          "provenance": {
+            "kind": "operator-session",
+            "actor": "dbcall2",
+            "mintedAt": "2026-10-02T17:51:01.000Z",
+            "mintedVia": "leftover-complete-after-5259"
+          },
+          "recorded_at": "2026-10-02T17:51:01.000Z"
+        }
+      },
+      {
+        "id": "clause.7",
+        "title": "clause.7",
+        "status": "completed",
+        "x-directive/disposition": {
+          "disposition": "not_applicable",
+          "reason": "Bound Prefer-A clause satisfied by product PR #5259 ship; pathless derived clause has no bindable artifact_path for leftover-complete. Delivery attested via merge-commit c5c5198120014c7ab98e94e37343e3c9e126d9c3.",
+          "provenance": {
+            "kind": "operator-session",
+            "actor": "dbcall2",
+            "mintedAt": "2026-10-02T17:51:01.000Z",
+            "mintedVia": "leftover-complete-after-5259"
+          },
+          "recorded_at": "2026-10-02T17:51:01.000Z"
+        }
+      },
+      {
+        "id": "clause.8",
+        "title": "clause.8",
+        "status": "completed",
+        "x-directive/disposition": {
+          "disposition": "not_applicable",
+          "reason": "Bound Prefer-A clause satisfied by product PR #5259 ship; pathless derived clause has no bindable artifact_path for leftover-complete. Delivery attested via merge-commit c5c5198120014c7ab98e94e37343e3c9e126d9c3.",
+          "provenance": {
+            "kind": "operator-session",
+            "actor": "dbcall2",
+            "mintedAt": "2026-10-02T17:51:01.000Z",
+            "mintedVia": "leftover-complete-after-5259"
+          },
+          "recorded_at": "2026-10-02T17:51:01.000Z"
+        }
+      },
+      {
+        "id": "clause.9",
+        "title": "clause.9",
+        "status": "completed",
+        "x-directive/disposition": {
+          "disposition": "not_applicable",
+          "reason": "Bound Prefer-A clause satisfied by product PR #5259 ship; pathless derived clause has no bindable artifact_path for leftover-complete. Delivery attested via merge-commit c5c5198120014c7ab98e94e37343e3c9e126d9c3.",
+          "provenance": {
+            "kind": "operator-session",
+            "actor": "dbcall2",
+            "mintedAt": "2026-10-02T17:51:01.000Z",
+            "mintedVia": "leftover-complete-after-5259"
+          },
+          "recorded_at": "2026-10-02T17:51:01.000Z"
+        }
+      },
+      {
+        "id": "clause.10",
+        "title": "clause.10",
+        "status": "completed",
+        "x-directive/disposition": {
+          "disposition": "not_applicable",
+          "reason": "Bound Prefer-A clause satisfied by product PR #5259 ship; pathless derived clause has no bindable artifact_path for leftover-complete. Delivery attested via merge-commit c5c5198120014c7ab98e94e37343e3c9e126d9c3.",
+          "provenance": {
+            "kind": "operator-session",
+            "actor": "dbcall2",
+            "mintedAt": "2026-10-02T17:51:01.000Z",
+            "mintedVia": "leftover-complete-after-5259"
+          },
+          "recorded_at": "2026-10-02T17:51:01.000Z"
+        }
+      },
+      {
+        "id": "clause.11",
+        "title": "clause.11",
+        "status": "completed",
+        "x-directive/disposition": {
+          "disposition": "not_applicable",
+          "reason": "Bound Prefer-A clause satisfied by product PR #5259 ship; pathless derived clause has no bindable artifact_path for leftover-complete. Delivery attested via merge-commit c5c5198120014c7ab98e94e37343e3c9e126d9c3.",
+          "provenance": {
+            "kind": "operator-session",
+            "actor": "dbcall2",
+            "mintedAt": "2026-10-02T17:51:01.000Z",
+            "mintedVia": "leftover-complete-after-5259"
+          },
+          "recorded_at": "2026-10-02T17:51:01.000Z"
+        }
+      },
+      {
+        "id": "clause.12",
+        "title": "clause.12",
+        "status": "completed",
+        "x-directive/disposition": {
+          "disposition": "not_applicable",
+          "reason": "Bound Prefer-A clause satisfied by product PR #5259 ship; pathless derived clause has no bindable artifact_path for leftover-complete. Delivery attested via merge-commit c5c5198120014c7ab98e94e37343e3c9e126d9c3.",
+          "provenance": {
+            "kind": "operator-session",
+            "actor": "dbcall2",
+            "mintedAt": "2026-10-02T17:51:01.000Z",
+            "mintedVia": "leftover-complete-after-5259"
+          },
+          "recorded_at": "2026-10-02T17:51:01.000Z"
+        }
+      }
+    ],
+    "tags": [
+      "bug",
+      "design",
+      "agent-experience",
+      "process",
+      "source-of-truth",
+      "urgent",
+      "area:cli",
+      "eval-signal",
+      "design-critique:ingest-ready",
+      "framework-gap",
+      "core-capabilities",
+      "promise:continuity"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/3921",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #3921: investigation(session): thin prompts re-invoke session ritual ~2x - more turns and context, LESS lifecycle work; the consumer-realistic shape is the worse one and no instrument reports it"
+      }
+    ],
+    "acceptance": {
+      "commands": [
+        {
+          "command": "pnpm exec vitest run packages/core/src/session/session-start-ritual-once.test.ts packages/core/src/session/occupancy.test.ts packages/core/src/run-summary/run-summary.test.ts"
+        }
+      ],
+      "none_stated": false,
+      "source_rung": "derived",
+      "derived_reason": "derived 4 independently testable clauses from the task statement before product edit (#3323)",
+      "sentences": [
+        "investigation(session): thin prompts re-invoke session ritual ~2x - more turns and context, LESS lifecycle work; the consumer-realistic shape is the worse one and no instrument reports it",
+        "Emit a closed `trigger` on every cold run-summary `session_start` payload (closed set covering at least cold | rearm-forced-cold | post-compact | mutation-intent | steal-recover, or the landed closed vocabulary).",
+        "Do not treat `ceremony_tier`, process-cost, or `orientation_call_count` as closing this seat.",
+        "Rearm that does not emit `session_start` stays outside the stream.",
+        "Fail-closed fixture (or gate) asserts one cold `session_start` JSONL event per host session under both thin/consumer and heavyweight prompt shapes, or records an explicit documented reason for each additional cold emit.",
+        "Count the existing `emitSessionStart` / JSONL stream — do not invent a parallel ritual-count verb unless field evidence shows double ritual with zero second `session_start` line under `DEFT_RUN_SUMMARY_PATH`.",
+        "After landed #3926 residue/steal-occupant fixtures, refuse steal-recover as an admissible default that yields a second cold `session_start` / second `session_id` (options on existing surfaces: refuse mint-on-steal when a caller id was presented; require post-steal identity transport before success; or fail-closed when a second cold `session_start` follows a steal without a documented trigger).",
+        "Do not re-litigate worktree residue or post-steal occupant-when-aligned.",
+        "Non-goals: reopen #3926/#3928 product Bounds; absorb #3352 Later graduation; auto-ingest after ingest-ready.",
+        "A critic after this lean naming audit-targets pain-P1, pain-P2, pain-P3 is required before ingest can complete."
+      ],
+      "admitted_source_sentences": [
+        "Emit a closed `trigger` on every cold run-summary `session_start` payload (closed set covering at least cold | rearm-forced-cold | post-compact | mutation-intent | steal-recover, or the landed closed vocabulary).",
+        "Do not treat `ceremony_tier`, process-cost, or `orientation_call_count` as closing this seat.",
+        "Rearm that does not emit `session_start` stays outside the stream.",
+        "Fail-closed fixture (or gate) asserts one cold `session_start` JSONL event per host session under both thin/consumer and heavyweight prompt shapes, or records an explicit documented reason for each additional cold emit.",
+        "Count the existing `emitSessionStart` / JSONL stream — do not invent a parallel ritual-count verb unless field evidence shows double ritual with zero second `session_start` line under `DEFT_RUN_SUMMARY_PATH`.",
+        "After landed #3926 residue/steal-occupant fixtures, refuse steal-recover as an admissible default that yields a second cold `session_start` / second `session_id` (options on existing surfaces: refuse mint-on-steal when a caller id was presented; require post-steal identity transport before success; or fail-closed when a second cold `session_start` follows a steal without a documented trigger).",
+        "Do not re-litigate worktree residue or post-steal occupant-when-aligned.",
+        "Non-goals: reopen #3926/#3928 product Bounds; absorb #3352 Later graduation; auto-ingest after ingest-ready.",
+        "A critic after this lean naming audit-targets pain-P1, pain-P2, pain-P3 is required before ingest can complete."
+      ],
+      "admitted_source_digest": "ec52f5a307620bb09065fcbea259e6ff1ae1fd86872061cf57614b32857bf779",
+      "clauses": [
+        {
+          "id": 1,
+          "text": "Emit a closed `trigger` on every cold run-summary `session_start` payload (closed set covering at least cold | rearm-forced-cold | post-compact | mutation-intent | steal-recover, or the landed closed vocabulary). Do not treat `ceremony_tier`, process-cost, or `orientation_call_count` as closing this seat. Rearm that does not emit `session_start` stays outside the stream.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 2,
+          "text": "Fail-closed fixture (or gate) asserts one cold `session_start` JSONL event per host session under both thin/consumer and heavyweight prompt shapes, or records an explicit documented reason for each additional cold emit. Count the existing `emitSessionStart` / JSONL stream — do not invent a parallel ritual-count verb unless field evidence shows double ritual with zero second `session_start` line under `DEFT_RUN_SUMMARY_PATH`.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 3,
+          "text": "After landed #3926 residue/steal-occupant fixtures, refuse steal-recover as an admissible default that yields a second cold `session_start` / second `session_id` (options on existing surfaces: refuse mint-on-steal when a caller id was presented; require post-steal identity transport before success; or fail-closed when a second cold `session_start` follows a steal without a documented trigger). Do not re-litigate worktree residue or post-steal occupant-when-aligned.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 4,
+          "text": "Non-goals: reopen #3926/#3928 product Bounds; absorb #3352 Later graduation; auto-ingest after ingest-ready.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 5,
+          "text": "Emit a closed `trigger` on every cold run-summary `session_start` payload (closed set covering at least cold | rearm-forced-cold | post-compact | mutation-intent | steal-recover, or the landed closed vocabulary).",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 6,
+          "text": "Do not treat `ceremony_tier`, process-cost, or `orientation_call_count` as closing this seat.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 7,
+          "text": "Rearm that does not emit `session_start` stays outside the stream.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 8,
+          "text": "Fail-closed fixture (or gate) asserts one cold `session_start` JSONL event per host session under both thin/consumer and heavyweight prompt shapes, or records an explicit documented reason for each additional cold emit.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 9,
+          "text": "Count the existing `emitSessionStart` / JSONL stream — do not invent a parallel ritual-count verb unless field evidence shows double ritual with zero second `session_start` line under `DEFT_RUN_SUMMARY_PATH`.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 10,
+          "text": "After landed #3926 residue/steal-occupant fixtures, refuse steal-recover as an admissible default that yields a second cold `session_start` / second `session_id` (options on existing surfaces: refuse mint-on-steal when a caller id was presented; require post-steal identity transport before success; or fail-closed when a second cold `session_start` follows a steal without a documented trigger).",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 11,
+          "text": "Do not re-litigate worktree residue or post-steal occupant-when-aligned.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 12,
+          "text": "A critic after this lean naming audit-targets pain-P1, pain-P2, pain-P3 is required before ingest can complete.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        }
+      ],
+      "ambiguity_attestation": "none_found",
+      "confessions": [
+        "investigation(session): thin prompts re-invoke session ritual ~2x - more turns and context, LESS lifecycle work; the consumer-realistic shape is the worse one and no instrument reports it"
+      ]
+    },
+    "metadata": {
+      "intended_placement": {
+        "schema": "deft.scope.intended_placement.v1",
+        "files": [
+          "packages/core/src/run-summary/types.ts",
+          "packages/core/src/run-summary/emit.ts",
+          "packages/core/src/session/session-start.ts",
+          "packages/core/src/session/occupancy.ts",
+          "packages/core/src/session/session-start-ritual-once.test.ts",
+          "packages/core/src/session/occupancy.test.ts",
+          "packages/core/src/run-summary/run-summary.test.ts"
+        ],
+        "module_boundary": "packages/core/src/session + packages/core/src/run-summary",
+        "cohesion_exemption": "packages/core/src/session/session-start.ts, occupancy.ts, and occupancy.test.ts already exceed FILE_SIZE_REVIEW_TRIGGER_LINES. Bound #3921 adds a closed trigger field and steal-mint refuse in those modules; size is not a fail-closed cap (#1488 / #3424). Split waits on file-size planning."
+      },
+      "issueCommentThread": [
+        {
+          "body": "**Root cause found, and it is NOT defensive re-orientation — it is the occupancy steal cycle (#3926).** Field streams from four thin-prompt trials (internal test results, private): **every trial ran `session_start` exactly twice**, ~37s apart, with two distinct `session_id` values and `orientation_call_count: 4` on each. The second ritual exists solely because the occupancy steal minted an identity the calling shell did not hold, so the post-steal `session:start` reported the workspace occupied by the session the steal had just created; the agent then had to diagnose that, bind `DEFT_SESSION_ID` by hand, and start over. Full mechanism and quotes on #3926.\n\nThis closes the hypothesis list in the issue body: candidates 1 (post-compact re-bind), 2 (defensive re-orientation) and 3 (mutation re-arm) are not supported by the streams; candidate 4 (occupancy/lease interaction) is confirmed.\n\nConsequence for the issue's framing: the thin prompt is not itself the cause. The elevated turn/context counts follow from a lease-resolution loop that a heavier process prompt happens to mask (a heavyweight run spends its early turns on lifecycle scaffolding, so the same steal cycle is a smaller share of a larger total). **Fixing #3926 should resolve most of this issue**; recommend keeping this one open only to confirm the counts drop on the next external run, and closing it against that evidence rather than against the code fix alone.\n\n**Adjacent defect found in the same streams, filed separately:** `tool_turn_denominator` is emitted twice per `session_start` — once carrying `denominator_source: harness_actual` and once with the field absent — plus a third at check time, giving 5-9 denominator events per trial where one per session is correct. That corrupts any ritual-share arithmetic built on the stream (#3352's decision input), so it is not cosmetic.\n\n",
+          "id": 5466235369,
+          "html_url": "https://github.com/deftai/directive/issues/3921#issuecomment-5466235369",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-08-30T02:27:45Z",
+          "updated_at": "2026-08-30T02:27:45Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.5\n```quarantined\nrole: parent\n```\n\n## Current state\n\n#3921 bare arc under #5111 defaults (no-ingest, yolo, recommended Dual-stop).\n\n- Stage A: still-open; critique-recommend false; operator-directed bare arc\n- Comment 5466235369: root cause attributed to occupancy steal cycle; companion #3926 closed completed (PRs #4042/#4053 landed). Adjacent #3928 tool_turn_denominator also closed.\n- Remaining acceptance: named mechanism confirmed in code; fixture for one ritual per session under both prompt shapes (or documented extra); session_start trigger field (cold|rearm|post-compact|mutation-intent|steal-recover) so re-invocation is attributable.\n- Dest: C:\\Users\\msada\\.grok\\worktrees\\deft-directive\\issue-3921-dc\n- pin-kind: origin-default\n- dispatch-sha: 38277e97dcf90c24bf408a93048ad8682aab0099\n- spend-recommend: N=1 (leftover confirmation after landed #3926; closed-AC confirmation/fixture/telemetry remainder)\n\n",
+          "id": 5918477694,
+          "html_url": "https://github.com/deftai/directive/issues/3921#issuecomment-5918477694",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-30T19:47:51Z",
+          "updated_at": "2026-09-30T19:47:51Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.5\n```quarantined\nrole: triage\n```\n\nmechanism-shaped: true\ndesign-critique: warranted, because after #3926 closed the occupancy-steal root cause, #3921 still lacks a fail-closed fixture that thin and heavyweight prompt shapes get one session ritual per session (or a documented reason per extra), and session_start streams still lack an attributable trigger field — so consumer-realistic double-ritual cost can return without an instrument naming why.\n\ncharter: open critique\n\narc-mode: no-ingest\nyolo-standing: yes\nspend: N=1\nspend-ask: resolved\nspend-recommend: N=1\npain: P1, P2, P3\n\nP1. No fixture (or equivalent gate) asserts one session ritual per session under both thin/consumer and heavyweight prompt shapes, or records an explicit documented reason for each additional invocation.\nP2. session_start (run-summary) payload lacks a closed trigger field (cold | rearm | post-compact | mutation-intent | steal-recover or the landed closed set) so re-invocation is not attributable from future streams.\nP3. After #3926 land, thin-prompt double session_start / dual session_id steal-recover loop must not remain the default path; any residual steal→rebind→second ritual path needs a named refuse or single-ritual recover.\n\nOperator bare arc 3921 under #5111 defaults. Companion #3926 closed completed; #3928 closed. Non-goals: re-litigating #3926 product Bound; reopening #3928 denominator duplication; absorbing #3352 Later graduation decision; auto-ingest after ingest-ready; claiming thin prompt itself is the cause (comment 5466235369).\n\nTarget-digest sha256:acad91782296b91a0f4f3a7740e65421c9b2cd38cfd3b2eb433f31119180f540\ndispatch-sha: 38277e97dcf90c24bf408a93048ad8682aab0099\ndest: C:\\Users\\msada\\.grok\\worktrees\\deft-directive\\issue-3921-dc\npin-kind: origin-default\n\n",
+          "id": 5918477948,
+          "html_url": "https://github.com/deftai/directive/issues/3921#issuecomment-5918477948",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-30T19:47:52Z",
+          "updated_at": "2026-09-30T19:47:52Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.5\n```quarantined\nrole: parent\n```\n\npanel-deposit\nround: 1\nsiblings: 1\ninput-ceiling: 5918477948\nfamilies: grok\nseat: grok launcher: spawn_subagent\nspend: N=1\narc-mode: no-ingest\nyolo-standing: yes\ndispatch-sha: 38277e97dcf90c24bf408a93048ad8682aab0099\nnative-admit-note: attempting spawn_subagent; expect deny without active xBRIEF; recovery dest-rooted grok --cwd --prompt-file\n\n",
+          "id": 5918490224,
+          "html_url": "https://github.com/deftai/directive/issues/3921#issuecomment-5918490224",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-30T19:48:39Z",
+          "updated_at": "2026-09-30T19:48:39Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.5\n```quarantined\nrole: parent\n```\n\nseat: grok launcher: grok\nnative spawn_subagent denied/skipped: no active xBRIEF under xbrief/active/; native admit without skip-class is not a critic. Recovery: dest-rooted grok --cwd --prompt-file.\npanel-deposit: 5918490224\nenvelope: C:\\Users\\msada\\.grok\\worktrees\\deft-directive\\issue-3921-dc\\.deft-scratch\\envelope-r1.md\ndispatch-sha: 38277e97dcf90c24bf408a93048ad8682aab0099\ninput-ceiling: 5918477948\n\n",
+          "id": 5918490586,
+          "html_url": "https://github.com/deftai/directive/issues/3921#issuecomment-5918490586",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-30T19:48:40Z",
+          "updated_at": "2026-09-30T19:48:40Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.5\n```quarantined\nrole: critic\n```\n\naudit-targets: none\nseat: grok\nlauncher: grok\nround: 1\ncharter: open critique\nid-ceiling: 5918477948\ndispatch-sha: 38277e97dcf90c24bf408a93048ad8682aab0099\nHEAD-confirmed: 38277e97dcf90c24bf408a93048ad8682aab0099\narc-mode: no-ingest\n\n## Scope\n\nOpen critique of Stop 1 write-back 5918477948 (P1–P3). In-ceiling: 5466235369 (root-cause attribution), 5918477694 (current-state), 5918477948. Companion #3926/#3928 closed; non-goals honored (no re-litigate of #3926 Bound; no reopen #3928; no absorb #3352).\n\nPin-reads at dispatch SHA: `packages/core/src/session/session-start.ts`, `occupancy.ts` / `occupancy.test.ts` (#3926 fixtures), `occupancy-recovery.ts`, `packages/cli/src/occupancy-steal.ts`, `packages/core/src/run-summary/{types,emit,run-summary,share}.ts`.\n\n## Inventory (existing mechanisms before new ones)\n\n- **Run-summary `session_start`:** `RunSummaryEmitter.emitSessionStart` / `SessionStartRunSummaryPayload` (`types.ts`). Payload today: `ceremony_dial`, `preflight`, `ceremony_tier`, `ready`, `exit_code`, `orientation_call_count`, `orientation_compact`, `deposit_sha`, `orientation_later_status`, `orientation_sections`. No closed `trigger` field.\n- **Cold-only emit:** `session-start.ts` constructs `RunSummaryEmitter` and calls `emitSessionStart` on the cold path only (~2435). Rearm records `ceremony_tier: rearm` via `emitSessionStartProcessCost` / result payload; it does not emit a run-summary `session_start` line.\n- **Ceremony tiers:** closed set `cold | rearm` (`SESSION_CEREMONY_TIERS`). Orthogonal to Stop 1's attributable trigger set (cold | rearm | post-compact | mutation-intent | steal-recover).\n- **Occupancy / steal:** `applyWorktreeOccupancy`, `stealOccupancy`, `liveOccupancyOnTree` / other-tree residue (#3926), deny copy without steal argv (#4410), `session:start --steal` passthrough into occupancy input. Identity resolution still ends at mint (`newSessionId` / `randomUUID`) when nothing is presented.\n- **#3926 fixtures already in tree:** other-tree deposit → first `session:start` claims (not occupied); steal then `session:start` **as stealer** with `DEFT_SESSION_ID=stealer` → heartbeat/occupant. Same-tree foreign conflict still denied.\n- **Share / count helpers:** `run-summary/share.ts` takes the *latest* `session_start` for ritual-share arithmetic; it does not assert one start per host session or per prompt shape. #3928 one-denominator-per-`session_id` is landed and out of harvest.\n\n## Findings\n\n### P2 — attributable `trigger` still absent on `session_start`\n\nblocks-the-design\n\n**Evidence.** At `38277e97…`, `SessionStartRunSummaryPayload` has no `trigger` (or synonym). Cold emit stamps `ceremony_tier: \"cold\"` plus orientation graduation fields; rearm never calls `emitSessionStart`. `orientation_call_count` is the #3286 Later-graduation counter, not re-invocation cause.\n\n**Failure mode.** Future thin-prompt streams can still show two `session_start` lines with distinct `session_id`s (the 5466235369 shape) and nothing in the JSONL names *why* the second ran. Consumer-realistic double-ritual cost returns without an instrument.\n\n**Disposition.** Any successor lean that treats `ceremony_tier`, process-cost, or `orientation_call_count` as closing P2 cannot bind. P2 still requires a closed trigger on the run-summary `session_start` payload (or an explicit schema decision that another existing event is the SoT — none inventoriable today).\n\n### P1 — no one-ritual-per-session fixture under thin and heavyweight shapes\n\nblocks-the-design\n\n**Evidence.** Grep across session / run-summary / CLI tests at this SHA finds no fixture asserting one `session_start` (or one cold ritual) per host session under thin vs heavyweight prompt shapes, and no documented-reason-per-extra gate. #3926 suites prove claim-over-residue and steal→occupant when identity is aligned; they do not count emit events across prompt shapes. `share.ts` explicitly keeps the latest start and ignores earlier counts for share math.\n\n**Failure mode.** #3926 can stay green while thin-prompt double cold ritual regresses unnoticed — exactly the cost skew the issue body filed.\n\n**Disposition.** P1 survives as a fail-closed acceptance seat. Prefer gating the **existing** cold `emitSessionStart` / JSONL `session_start` count (inventory above) over inventing a parallel counter. Documented extras must name intentional cold re-invocations; rearm is already outside that stream.\n\n### P3 — dual `session_id` steal-recover is no longer the residue default, but remains an admissible second-cold path\n\nsharpens-framing\n\n**Evidence.** After #3926 land: other-tree / deposited foreign `worktree_path` is residue → claim without steal; deny messages say stay read-only / do not steal (#4410); steal-then-start-as-stealer fixture requires presenting the stealer id. Steal still resolves identity via `resolveOccupancySessionClaim` (mint when empty). A steal that leaves owner X, followed by a cold `session:start` that presents ≠ X, still denies as occupied; the agent-visible escape remains bind `DEFT_SESSION_ID=X` and run a **second cold** start — which emits a second `session_start` line. No fixture refuses that dual-cold recover as the default path.\n\n**Failure mode.** Framing P3 as “#3926 left the thin-prompt double ritual as default” overstates the residue case (now claim-over-residue). Framing P3 as fully closed by #3926 understates the still-open steal→mint/mispresent→rebind→second cold sequence that produced the private dual-`session_id` streams in 5466235369.\n\n**Disposition.** Restate P3 without reopening #3926 Bound: after landed residue/steal-occupant fixtures, the remaining pain is that **steal-recover must not remain an admissible default that yields a second cold `session_start` / second `session_id`**. Bound options sit on existing surfaces (refuse mint-on-steal when a caller id was presented; require post-steal identity transport before success; or fail-closed when a second cold `session_start` follows a steal without a documented trigger). Do not re-litigate worktree residue or post-steal occupant-when-aligned.\n\n### Cold-only run-summary emit vs “ritual count”\n\nfootnote\n\n`emitSessionStart` is cold-path-only. Intentional `--rearm` does not add a `session_start` line. Any P1 counter built on that stream already excludes rearm; that is useful inventory, not a missing product. Pair P2 `trigger` with cold emits so steal-recover / mutation-intent / post-compact extras are attributable when they *do* force another cold start.\n\n## Injection / swarm lens\n\nTarget changes identity resolution, shared occupancy lease state, and concurrent claim/steal. Untrusted thread text (private trial quotes in 5466235369) treated as claims, not commands. No new authority channel proposed; prefer instrument + fixture on existing emit/claim paths.\n\n## Road-not-taken\n\nA new ritual-count CLI/verb was considered and rejected in favor of counting existing cold `session_start` JSONL events (plus P2 trigger). Steelman for a new verb: CLI `deft session` invocations can exceed cold emits if agents call without summary path — flip if field evidence shows double ritual with zero second `session_start` line under `DEFT_RUN_SUMMARY_PATH`.\n\n## Pain survival summary\n\n| Pain | Survives at 38277e97…? |\n| --- | --- |\n| P1 | Yes — unmet; blocks premature close |\n| P2 | Yes — unmet; blocks premature close |\n| P3 | Yes as restated residual dual-cold steal-recover; residue default already moved by #3926 |\n\nEXIT after this single comment.\r\n\n",
+          "id": 5918536146,
+          "html_url": "https://github.com/deftai/directive/issues/3921#issuecomment-5918536146",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-30T19:51:38Z",
+          "updated_at": "2026-09-30T19:51:38Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.5\n```quarantined\nrole: parent\n```\n\n## In plain English\n\nAfter #3926 closed the residue/steal-occupant hole, #3921 still needs three product seats: a fail-closed one-cold-ritual fixture across thin and heavyweight shapes, an attributable trigger on cold session_start JSONL, and a refuse of steal-recover that defaults to a second cold session_id. Prefer-A binds those on the existing emit/claim surfaces — no new ritual-count verb.\n\nConfirming this map means agents agreed the all-accept Prefer-A map. Confirming this map means Prefer-A is the next-build contract.\n\nThis is not an instruction to a later builder.\n\nNon-self-arbitration: same grok-4.5 parent authored Stop 1 and these takes. Takes accept critic headings. Relieves cites are asserted premises.\n\nForward verdict: Prefer-A. Disposition: all classified headings accept-into-contract. Residual: pain-P1, pain-P2, pain-P3 until a critic after this lean targets them.\n\nSpec-path: next-build contract is not this body.\n\n**Lean:** Prefer-A of #3921 after critic 5918536146. Cites 5918536146. Supersedes write-back 5918477948.\n\nTarget-digest: sha256:acad91782296b91a0f4f3a7740e65421c9b2cd38cfd3b2eb433f31119180f540\n\narc-mode: no-ingest\nyolo-standing: yes\ndest: C:\\Users\\msada\\.grok\\worktrees\\deft-directive\\issue-3921-dc\norigin-ref: origin/master\ndispatch-sha: 38277e97dcf90c24bf408a93048ad8682aab0099\n\nTakes:\n\n- 5918536146 / P2 blocks-the-design — session_start trigger still absent — accept-into-contract\n- 5918536146 / P1 blocks-the-design — no one-ritual fixture under both prompt shapes — accept-into-contract\n- 5918536146 / P3 sharpens-framing — restated residual dual-cold steal-recover (not residue default) — accept-into-contract\n- 5918536146 / Cold-only emit vs ritual count — footnote — accept-into-contract\n\nrelieves: P1\nrelieves: P2\nrelieves: P3\n\naudit:pain-P1 sha=38277e97dcf90c24bf408a93048ad8682aab0099 pointer=comment:5918536146 reading=asserted\naudit:pain-P2 sha=38277e97dcf90c24bf408a93048ad8682aab0099 pointer=comment:5918536146 reading=asserted\naudit:pain-P3 sha=38277e97dcf90c24bf408a93048ad8682aab0099 pointer=comment:5918536146 reading=asserted\n\n## Bound remedy\n\n- Emit a closed `trigger` on every cold run-summary `session_start` payload (closed set covering at least cold | rearm-forced-cold | post-compact | mutation-intent | steal-recover, or the landed closed vocabulary). Do not treat `ceremony_tier`, process-cost, or `orientation_call_count` as closing this seat. Rearm that does not emit `session_start` stays outside the stream.\n- Fail-closed fixture (or gate) asserts one cold `session_start` JSONL event per host session under both thin/consumer and heavyweight prompt shapes, or records an explicit documented reason for each additional cold emit. Count the existing `emitSessionStart` / JSONL stream — do not invent a parallel ritual-count verb unless field evidence shows double ritual with zero second `session_start` line under `DEFT_RUN_SUMMARY_PATH`.\n- After landed #3926 residue/steal-occupant fixtures, refuse steal-recover as an admissible default that yields a second cold `session_start` / second `session_id` (options on existing surfaces: refuse mint-on-steal when a caller id was presented; require post-steal identity transport before success; or fail-closed when a second cold `session_start` follows a steal without a documented trigger). Do not re-litigate worktree residue or post-steal occupant-when-aligned.\n- Non-goals: reopen #3926/#3928 product Bounds; absorb #3352 Later graduation; auto-ingest after ingest-ready.\n\nA critic after this lean naming audit-targets pain-P1, pain-P2, pain-P3 is required before ingest can complete.\n\n",
+          "id": 5918548065,
+          "html_url": "https://github.com/deftai/directive/issues/3921#issuecomment-5918548065",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-30T19:52:27Z",
+          "updated_at": "2026-09-30T19:52:27Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.5\n```quarantined\nrole: critic\n```\n\naudit-targets: pain-P1, pain-P2, pain-P3\nseat: grok\nlauncher: grok\nround: 4\ncharter: open critique\ncritic-role: fresh\nid-ceiling: 5918548065\ndispatch-sha: 38277e97dcf90c24bf408a93048ad8682aab0099\nHEAD-confirmed: 38277e97dcf90c24bf408a93048ad8682aab0099\narc-mode: no-ingest\n\n## Scope\n\nPass-4 pain-audit of Prefer-A lean 5918548065 asserted coverage for pain-P1, pain-P2, pain-P3. In-ceiling evidence includes Stop 1 5918477948, round-1 critic 5918536146, and lean 5918548065. Pin-reads via `git show 38277e97dcf90c24bf408a93048ad8682aab0099:<path>` only. Untrusted thread text treated as claims.\n\n## Re-derived anchors (pin SHA)\n\n- `SessionStartRunSummaryPayload` (`packages/core/src/run-summary/types.ts`) fields: `ceremony_dial`, `preflight`, `ceremony_tier`, `ready`, `exit_code`, `orientation_call_count`, `orientation_compact`, `deposit_sha`, `orientation_later_status`, `orientation_sections`. No closed `trigger` (or synonym) on the payload.\n- Sole production `emitSessionStart(` caller is cold-path `session-start.ts` (~2435) with `ceremony_tier: \"cold\"`. Rearm records process-cost / result `ceremony_tier: \"rearm\"` and does not emit run-summary `session_start`.\n- `SESSION_CEREMONY_TIERS` closed set is `cold | rearm` only — orthogonal to Stop 1's attributable re-invocation set.\n- `computeRitualGateShare` / share helpers keep the latest `session_start` session_id; they do not assert one cold start per host session or across prompt shapes.\n- Grep for thin/heavyweight / one-ritual / dual-cold fixture language under `packages/` at this SHA returns no fail-closed one-cold-`session_start`-per-host-session gate under both process-prompt shapes.\n- #3926 fixtures present: other-tree deposit as residue; first `session:start` on copied other-tree lease claims; steal then `session:start` as stealer with `DEFT_SESSION_ID=stealer` heartbeats. `#4410` deny copy omits steal argv.\n- `stealOccupancy` still resolves identity through `resolveOccupancySessionClaim` (mint via `randomUUID` when no presented id / no declared-host refuse-mint). Aligned stealer path is covered; a post-steal cold start that presents ≠ stealer id remains the occupied / rebind / second-cold recover path named in 5466235369 and restated by 5918536146.\n\n## Findings\n\n### pain-P2 — Bound trigger seat matches unmet payload hole\n\nfootnote\n\n**Evidence.** Pin-read of `SessionStartRunSummaryPayload` and the single cold `emitSessionStart` call site matches round-1 critic 5918536146. Lean Bound requires a closed `trigger` on every cold run-summary `session_start`, and explicitly refuses `ceremony_tier` / process-cost / `orientation_call_count` as closers. Closed set named on Bound (`cold | rearm-forced-cold | post-compact | mutation-intent | steal-recover` or landed vocabulary) sits on the cold stream the tree actually emits.\n\n**Failure mode if Bound were weaker.** Treating `ceremony_tier: cold` as attributable re-invocation cause would leave dual-`session_id` streams unexplained.\n\n**Disposition.** Asserted relieve for P2 is honest next-build coverage of the Stop 1 seat. No harvest change.\n\n### pain-P1 — Bound one-cold-emit fixture matches unmet acceptance seat\n\nfootnote\n\n**Evidence.** No fixture at this SHA asserts one cold `session_start` JSONL event per host session under both thin/consumer and heavyweight process-prompt shapes, or records a documented reason per extra cold emit. Bound pins the counter to existing `emitSessionStart` / JSONL (rejects a parallel ritual-count verb unless field evidence shows double ritual with zero second `session_start` under `DEFT_RUN_SUMMARY_PATH`), matching critic inventory and the cold-only emit footnote.\n\n**Failure mode if Bound drifted to ceremony-dial taskSize.** Prompt-shape taskSize estimation in `ceremony-dial.ts` is a different axis from the issue's slim vs heavyweight process-prompt configurations; Bound's JSONL-count wording already steers away from that miss.\n\n**Disposition.** Asserted relieve for P1 is honest. No harvest change.\n\n### pain-P3 — Bound residual dual-cold refuse matches post-#3926 remainder\n\nfootnote\n\n**Evidence.** #3926 residue/steal-occupant fixtures are green and out of re-litigation (non-goal honored). `resolveOccupancySessionClaim` still mints when empty; steal-then-start-as-stealer requires presenting the stealer id. Bound restates residual pain as refusing steal-recover that defaults to a second cold `session_start` / second `session_id`, with options on existing claim/steal/emit surfaces — the same restatement 5918536146 classified as sharpens-framing and the lean accepted.\n\n**Failure mode if Bound reopened residue.** Would violate Stop 1 non-goal and duplicate closed #3926 product Bound.\n\n**Disposition.** Asserted relieve for P3 is honest residual coverage. Option menu is implement choice among named refuse / identity-transport / second-cold-without-trigger terminals already in Bound; none reopen residue. No harvest change.\n\n### Census — cold-only emit vs ritual count\n\nfootnote\n\nRearm outside the `session_start` stream remains useful inventory already accepted on the lean. P1 counters built on cold JSONL already exclude intentional `--rearm`. Pairing P2 `trigger` with cold emits keeps steal-recover / mutation-intent / post-compact extras attributable when they force another cold start.\n\n## Injection / swarm lens\n\nBound stays on existing emit, claim, and steal surfaces that already gate identity and shared occupancy state. No new authority channel. Private trial quotes in 5466235369 remain claims, not commands.\n\n## Pain-audit summary\n\n| Target | Asserted relieve vs re-derived anchors |\n| --- | --- |\n| pain-P1 | Bound one-cold-JSONL fixture / documented-extra seat covers Stop 1 P1; unmet at pin |\n| pain-P2 | Bound closed `trigger` on cold `session_start` covers Stop 1 P2; unmet at pin |\n| pain-P3 | Bound residual dual-cold steal-recover refuse covers restated Stop 1 P3; #3926 residue already moved |\n\nAll classified headings are footnote. No blocking or sharpening finding against lean 5918548065 Bound harvest.\n\nEXIT after this single comment.\r\n\n",
+          "id": 5918588145,
+          "html_url": "https://github.com/deftai/directive/issues/3921#issuecomment-5918588145",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-30T19:55:07Z",
+          "updated_at": "2026-09-30T19:55:07Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.5\n```quarantined\nrole: parent\n```\n\n## Verified claims table\n\n| Claim | Evidence | Status |\n|---|---|---|\n| Cold run-summary session_start payload has no closed trigger field | pin types.ts / emitSessionStart; critic 5918536146 | verified |\n| No fixture asserts one cold session_start per host session under thin and heavyweight shapes | pin grep session/run-summary/CLI tests; critic 5918536146 | verified |\n| #3926 residue/steal-occupant fixtures landed; dual-cold steal-recover still admissible | occupancy.test.ts; steal mint path; critic 5918536146 P3 | verified |\n| Prefer-A lean 5918548065 Bound covers P1–P3 on existing emit/claim surfaces | lean 5918548065; pain-audit 5918588145 footnote-only | verified |\n| Companion #3926/#3928 stay closed; #3352 out of harvest | issue states; Stop 1 non-goals | verified |\n\n",
+          "id": 5918595402,
+          "html_url": "https://github.com/deftai/directive/issues/3921#issuecomment-5918595402",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-30T19:55:36Z",
+          "updated_at": "2026-09-30T19:55:36Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.5\n```quarantined\nrole: parent\n```\n\n## In plain English\n\nPrefer-A for #3921 after #3926: emit a closed trigger on every cold session_start JSONL line; fail-closed fixture for one cold start per host session under thin and heavyweight shapes (or documented extras); refuse steal-recover as a default second cold session_id. Count existing emitSessionStart — no new ritual-count verb. Do not reopen #3926/#3928 or absorb #3352.\n\nBound contract: successor lean 5918548065\n\ndesign-critique: synthesis accepted, because agents agreed (empty disagreement set)\n\nRound-1 critic 5918536146 headings accepted into the Prefer-A lean. Pain-audit 5918588145 footnote-only; no Bound-remedy harvest change. Verified-claims table posted as the prior comment. Yolo standing confirms the all-accept map. Stop 1 5918477948. dest C:\\Users\\msada\\.grok\\worktrees\\deft-directive\\issue-3921-dc. arc-mode: no-ingest. yolo-standing: yes.\n\n",
+          "id": 5918595652,
+          "html_url": "https://github.com/deftai/directive/issues/3921#issuecomment-5918595652",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-30T19:55:37Z",
+          "updated_at": "2026-09-30T19:55:37Z",
+          "author_association": "COLLABORATOR"
+        }
+      ],
+      "issueBody": "**TL;DR: on thin/slim prompts — the CONSUMER-REALISTIC configuration — directive invokes session ritual roughly twice as often as it does under a heavyweight process prompt, with ~47% more turns and ~32% more context, while doing LESS lifecycle work. Measured on comparable-size tasks (internal test results, private): ~12 vs ~6 `deft session` invocations, ~47 vs ~32 turns, ~319k vs ~242k chat, and FEWER scope-artifact references (~115 vs ~157). More orientation, less product process. Investigation issue: find what re-triggers the ritual and stop it.**\n\n**Evidence (internal test results, private).** Two comparable-size tasks on the same framework version, one run under the heavyweight process prompt and one under a slim task-only prompt. The slim prompt is the configuration a real consumer gets (a prior fidelity probe established that), so this is not an edge case — it is the default deployment shape.\n\nNote the shape of the delta: fewer scope-lifecycle references but MORE session invocations. The agent is not doing more product process; it is re-orienting repeatedly.\n\n## Candidate mechanisms to check (forensics against the collected stream)\n\n1. **Soft post-compact AGENTS re-bind (#3171 / #2769)** firing more than once per session, or firing on non-compaction events.\n2. **Defensive re-orientation:** with no process checklist in the prompt, the agent re-runs `session:start` / `session:ready` before each scope or after each uncertainty, because nothing anchors the routing decision.\n3. **Mutation-intent re-arm** re-triggering per write burst rather than once per session.\n4. **Occupancy/lease interaction (#3433)** causing a re-acquire cycle.\n\nForensic method (no new instrumentation needed): the run-summary stream carries one `session_start` event per invocation with `orientation_call_count`; count them per trial and diff the two configurations. If `session_start` count matches the observed `deft session` count, the ritual is genuinely re-running and the question is what re-triggers it.\n\n## Why this matters beyond one bank\n\nEvery cost analysis this program has produced was measured under the heavyweight prompt. If ritual re-invocation is prompt-shape-sensitive, then the consumer-realistic cost profile is WORSE than the one being tracked, in a way no current instrument reports. That interacts directly with #3821 (per-check emission) and with the setup-cost reporting issue filed alongside this one.\n\n## Acceptance sketch\n\n- A named mechanism, with the trigger identified in code.\n- A fixture asserting one session ritual per session under both prompt shapes (or an explicit, documented reason for each additional invocation).\n- Telemetry: `session_start` payload carries a `trigger` field (cold | rearm | post-compact | mutation-intent) so re-invocation is attributable from any future stream.\n\nRelates #3171 / #2769 (soft re-bind), #3433 (occupancy lease), #3821 (per-check emission — sibling instrument), #3823 (umbrella), #2176 (session routing).\n\n",
+      "x-directive/plan-id": {
+        "version": 1,
+        "source": "github-rest-id",
+        "github_issue_id": 5289767878,
+        "origin": "deftai/directive#3921",
+        "id": "github.issue.5289767878"
+      },
+      "x-directive/admitted-target-digest": {
+        "schema": "deft.scope.admitted-target-digest.v1",
+        "algorithm": "sha256",
+        "sha256": "acad91782296b91a0f4f3a7740e65421c9b2cd38cfd3b2eb433f31119180f540"
+      },
+      "swarm": {
+        "file_scope": [
+          "packages/core/src/run-summary/types.ts",
+          "packages/core/src/run-summary/emit.ts",
+          "packages/core/src/session/session-start.ts",
+          "packages/core/src/session/occupancy.ts",
+          "packages/core/src/session/session-start-ritual-once.test.ts",
+          "packages/core/src/session/occupancy.test.ts",
+          "packages/core/src/run-summary/run-summary.test.ts"
+        ],
+        "file_scope_confidence": "high",
+        "verify_commands": [
+          "pnpm exec vitest run packages/core/src/session/session-start-ritual-once.test.ts packages/core/src/session/occupancy.test.ts packages/core/src/run-summary/run-summary.test.ts"
+        ]
+      },
+      "deliveryDisposition": "delivered",
+      "handoffState": "delivered",
+      "completionProvenance": {
+        "repository": null,
+        "implementationCommit": null,
+        "prNumber": 5259,
+        "prBase": null,
+        "mergeCommit": "c5c5198120014c7ab98e94e37343e3c9e126d9c3",
+        "deliveryBranch": "master",
+        "deliveryCommit": "c5c5198120014c7ab98e94e37343e3c9e126d9c3",
+        "verifiedAt": "2026-10-02T17:52:11Z",
+        "verifier": "scope:complete",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null,
+        "completedSessionId": "host:grok:v1:MDFhMGZkYjctYjczNS03NzAxLWE1NzAtMmI1ZmU1MWZjOTE4"
+      },
+      "completedAt": "2026-10-02T17:52:11Z",
+      "completedSessionId": "host:grok:v1:MDFhMGZkYjctYjczNS03NzAxLWE1NzAtMmI1ZmU1MWZjOTE4",
+      "capacityBucket": "technical-debt",
+      "lifecycleWrite": {
+        "action": "complete",
+        "writtenAt": "2026-10-02T17:52:11Z"
+      }
+    },
+    "id": "github.issue.5289767878",
+    "updated": "2026-10-02T17:52:11Z"
+  }
+}
