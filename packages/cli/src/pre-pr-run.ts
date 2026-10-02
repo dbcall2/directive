@@ -104,22 +104,26 @@ export function parseArgs(argv: string[]): ParsedArgs {
       parsed.evaluate = true;
     } else if (arg === "--repo" || arg?.startsWith("--repo=")) {
       const value = arg === "--repo" ? argv[i + 1] : arg.slice("--repo=".length);
-      if (value === undefined) return { ...parsed, error: "argument --repo: expected one argument" };
+      if (value === undefined)
+        return { ...parsed, error: "argument --repo: expected one argument" };
       parsed.repo = value;
       if (arg === "--repo") i += 1;
     } else if (arg === "--base-sha" || arg?.startsWith("--base-sha=")) {
       const value = arg === "--base-sha" ? argv[i + 1] : arg.slice("--base-sha=".length);
-      if (value === undefined) return { ...parsed, error: "argument --base-sha: expected one argument" };
+      if (value === undefined)
+        return { ...parsed, error: "argument --base-sha: expected one argument" };
       parsed.baseSha = value;
       if (arg === "--base-sha") i += 1;
     } else if (arg === "--head-sha" || arg?.startsWith("--head-sha=")) {
       const value = arg === "--head-sha" ? argv[i + 1] : arg.slice("--head-sha=".length);
-      if (value === undefined) return { ...parsed, error: "argument --head-sha: expected one argument" };
+      if (value === undefined)
+        return { ...parsed, error: "argument --head-sha: expected one argument" };
       parsed.headSha = value;
       if (arg === "--head-sha") i += 1;
     } else if (arg === "--tree-hash" || arg?.startsWith("--tree-hash=")) {
       const value = arg === "--tree-hash" ? argv[i + 1] : arg.slice("--tree-hash=".length);
-      if (value === undefined) return { ...parsed, error: "argument --tree-hash: expected one argument" };
+      if (value === undefined)
+        return { ...parsed, error: "argument --tree-hash: expected one argument" };
       parsed.treeHash = value;
       if (arg === "--tree-hash") i += 1;
     } else if (arg === "--pr-body-hash" || arg?.startsWith("--pr-body-hash=")) {
@@ -146,7 +150,8 @@ export function parseArgs(argv: string[]): ParsedArgs {
       if (arg === "--approved-revision") i += 1;
     } else if (arg === "--scope" || arg?.startsWith("--scope=")) {
       const value = arg === "--scope" ? argv[i + 1] : arg.slice("--scope=".length);
-      if (value === undefined) return { ...parsed, error: "argument --scope: expected one argument" };
+      if (value === undefined)
+        return { ...parsed, error: "argument --scope: expected one argument" };
       parsed.scope.push(value);
       if (arg === "--scope") i += 1;
     } else if (arg === "--acceptance" || arg?.startsWith("--acceptance=")) {
@@ -175,7 +180,8 @@ export function parseArgs(argv: string[]): ParsedArgs {
       parsed.skillVersion = value;
       if (arg === "--skill-version") i += 1;
     } else if (arg === "--policy-version" || arg?.startsWith("--policy-version=")) {
-      const value = arg === "--policy-version" ? argv[i + 1] : arg.slice("--policy-version=".length);
+      const value =
+        arg === "--policy-version" ? argv[i + 1] : arg.slice("--policy-version=".length);
       if (value === undefined) {
         return { ...parsed, error: "argument --policy-version: expected one argument" };
       }
@@ -183,7 +189,8 @@ export function parseArgs(argv: string[]): ParsedArgs {
       if (arg === "--policy-version") i += 1;
     } else if (arg === "--run-id" || arg?.startsWith("--run-id=")) {
       const value = arg === "--run-id" ? argv[i + 1] : arg.slice("--run-id=".length);
-      if (value === undefined) return { ...parsed, error: "argument --run-id: expected one argument" };
+      if (value === undefined)
+        return { ...parsed, error: "argument --run-id: expected one argument" };
       parsed.runId = value;
       if (arg === "--run-id") i += 1;
     } else {

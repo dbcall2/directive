@@ -120,20 +120,29 @@ describe("controller observations", () => {
       }).ok,
     ).toBe(true);
     expect(store.getById(rec.id)?.state).toBe("running");
-    expect(observeCommandPhase(store, "missing", {
-      phaseId: "branch_policy",
-      command: "deft verify:branch",
-      exitCode: 0,
-      inputHash: rec.inputHash,
-      skipReason: null,
-    }).code).toBe("deny-missing-record");
+    expect(
+      observeCommandPhase(store, "missing", {
+        phaseId: "branch_policy",
+        command: "deft verify:branch",
+        exitCode: 0,
+        inputHash: rec.inputHash,
+        skipReason: null,
+      }).code,
+    ).toBe("deny-missing-record");
     expect(completeRun(store, mintPublisher(), "missing").code).toBe("deny-missing-record");
   });
 
   it("refuses a second publish and a semantic digest mismatch", () => {
     const store = new InProcessPrePrStore();
     const rec = start(store, "ppr_second");
-    for (const phase of ["branch_policy", "plan_sequence", "lint_iteration", "coverage_headroom", "render_export", "merge_chokepoint"] as const) {
+    for (const phase of [
+      "branch_policy",
+      "plan_sequence",
+      "lint_iteration",
+      "coverage_headroom",
+      "render_export",
+      "merge_chokepoint",
+    ] as const) {
       observeCommandPhase(store, rec.id, {
         phaseId: phase,
         command: "cmd",

@@ -7,11 +7,11 @@
 
 import {
   isAllowedSkip,
-  phaseSpec,
   PRE_PR_CONTROLLER_VERSION,
   PRE_PR_PHASES,
   PRE_PR_WORKFLOW_VERSION,
   type PrePrPhaseId,
+  phaseSpec,
 } from "./phases.js";
 import {
   isPublisher,
@@ -142,7 +142,10 @@ export function observeCommandPhase(
 ): PrePrDecision {
   const spec = phaseSpec(observation.phaseId);
   if (spec.kind !== "command-observable") {
-    return deny("deny-input-mismatch", `phase ${observation.phaseId} is semantic, not command-observable`);
+    return deny(
+      "deny-input-mismatch",
+      `phase ${observation.phaseId} is semantic, not command-observable`,
+    );
   }
   const { decision } = mutate(store, runId, (record) => {
     if (observation.inputHash !== record.inputHash) {
@@ -229,11 +232,7 @@ export function submitReviewerReport(
   return decision;
 }
 
-export function interruptRun(
-  store: PrePrExecutionStore,
-  runId: string,
-  now?: Date,
-): PrePrDecision {
+export function interruptRun(store: PrePrExecutionStore, runId: string, now?: Date): PrePrDecision {
   const { decision } = mutate(store, runId, (record) => ({
     ...record,
     state: "interrupted" as const,
@@ -295,7 +294,10 @@ export function runObservablesComplete(record: PrePrExecutionRecord): PrePrDecis
         ? commandSatisfied(record, spec.id)
         : semanticSatisfied(record, spec.id);
     if (!ok) {
-      return deny("deny-omitted-phase", `required phase ${spec.id} has no controller-observed pass`);
+      return deny(
+        "deny-omitted-phase",
+        `required phase ${spec.id} has no controller-observed pass`,
+      );
     }
   }
   if (!record.finalNoChange) {

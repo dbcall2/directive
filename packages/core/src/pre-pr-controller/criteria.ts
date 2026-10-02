@@ -45,10 +45,7 @@ export function bumpGeneration(current: ApprovedCriteria, next: CriteriaSource):
   });
 }
 
-export function isHeadSideWeakening(
-  approved: ApprovedCriteria,
-  head: ApprovedCriteria,
-): boolean {
+export function isHeadSideWeakening(approved: ApprovedCriteria, head: ApprovedCriteria): boolean {
   if (head.sourceRevisionSha !== approved.sourceRevisionSha) return true;
   if (head.digest !== approved.digest) return true;
   if (head.scopeDigest !== approved.scopeDigest) return true;

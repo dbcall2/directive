@@ -14,14 +14,11 @@ export const DISK_STORE_NOT_SOT =
 export const RUN_ID_LOOKUP_HINT =
   "author-supplied pre-PR run id is a lookup hint only; the private store is authoritative";
 
-export const MARK_COMPLETE_NOT_AUTHORITY =
-  "generic mark-complete cannot mint a pre-PR pass";
+export const MARK_COMPLETE_NOT_AUTHORITY = "generic mark-complete cannot mint a pre-PR pass";
 
-export const SKILL_FILE_OPEN_NOT_COMPLETION =
-  "opening the pre-PR skill file is not completion";
+export const SKILL_FILE_OPEN_NOT_COMPLETION = "opening the pre-PR skill file is not completion";
 
-export const ONE_PR_UNIT_NOT_PRE_PR =
-  "one-PR-unit verdict is not pre-PR success";
+export const ONE_PR_UNIT_NOT_PRE_PR = "one-PR-unit verdict is not pre-PR success";
 
 export const CHECKBOX_NOT_AUTHORITY =
   "checkbox parsers, gitignored pr:ready markers, and author-supplied completion tokens remain non-authority";
@@ -29,12 +26,7 @@ export const CHECKBOX_NOT_AUTHORITY =
 export const PUBLISHER_REQUIRED =
   "passing pre-PR records require controller publisher credentials the implementing agent does not hold";
 
-export type PrePrRunState =
-  | "started"
-  | "running"
-  | "failed"
-  | "interrupted"
-  | "complete";
+export type PrePrRunState = "started" | "running" | "failed" | "interrupted" | "complete";
 
 export type PrePrOutcome = "none" | "pass" | "block";
 

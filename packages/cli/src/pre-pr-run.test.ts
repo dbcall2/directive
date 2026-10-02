@@ -1,5 +1,8 @@
+import {
+  MARK_COMPLETE_NOT_AUTHORITY,
+  SKILL_FILE_OPEN_NOT_COMPLETION,
+} from "@deftai/directive-core/pre-pr-controller";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { MARK_COMPLETE_NOT_AUTHORITY, SKILL_FILE_OPEN_NOT_COMPLETION } from "@deftai/directive-core/pre-pr-controller";
 import { parseArgs, run } from "./pre-pr-run.js";
 
 describe("deft pre-pr:run", () => {

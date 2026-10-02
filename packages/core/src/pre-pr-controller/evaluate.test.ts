@@ -9,7 +9,11 @@ import {
   submitReviewerReport,
 } from "./controller.js";
 import { bumpGeneration, digestApprovedCriteria } from "./criteria.js";
-import { canReuseCommandResult, evaluateLivePrePrCheck, evaluatePrePrEvidence } from "./evaluate.js";
+import {
+  canReuseCommandResult,
+  evaluateLivePrePrCheck,
+  evaluatePrePrEvidence,
+} from "./evaluate.js";
 import { PRE_PR_PHASES, RENDER_EXPORT_RULE } from "./phases.js";
 import { InProcessPrePrStore, mintPublisher, writePrePrRecordDisk } from "./store.js";
 import {
@@ -119,13 +123,15 @@ describe("Limb 6 pre-PR evidence (identical code/body, different trusted evidenc
     expect(evaluatePrePrEvidence({ ...base, authorToken: "I ran pre-pr" }).code).toBe(
       "deny-author-token",
     );
-    expect(evaluatePrePrEvidence({ ...base, diskJsonPath: ".deft/pre-pr-controller/x.json" }).code).toBe(
-      "deny-disk-not-sot",
-    );
+    expect(
+      evaluatePrePrEvidence({ ...base, diskJsonPath: ".deft/pre-pr-controller/x.json" }).code,
+    ).toBe("deny-disk-not-sot");
     expect(evaluatePrePrEvidence({ ...base, onePrUnitOk: true }).code).toBe(
       "deny-one-pr-unit-not-pre-pr",
     );
-    expect(evaluatePrePrEvidence({ ...base, onePrUnitOk: true }).message).toContain(ONE_PR_UNIT_NOT_PRE_PR);
+    expect(evaluatePrePrEvidence({ ...base, onePrUnitOk: true }).message).toContain(
+      ONE_PR_UNIT_NOT_PRE_PR,
+    );
     expect(CHECKBOX_NOT_AUTHORITY.length).toBeGreaterThan(0);
     expect(writePrePrRecordDisk(".", {} as PrePrExecutionRecord).code).toBe("deny-disk-not-sot");
     expect(writePrePrRecordDisk(".", {} as PrePrExecutionRecord).message).toBe(DISK_STORE_NOT_SOT);
@@ -146,7 +152,12 @@ describe("Limb 6 pre-PR evidence (identical code/body, different trusted evidenc
     expect(crossRepo.code).toBe("deny-binding");
     const shaDrift = evaluatePrePrEvidence({
       record,
-      liveBinding: { repo: REPO, baseSha: BASE, headSha: "cccccccccccccccccccccccccccccccccccccccc", prNodeId: PR_NODE },
+      liveBinding: {
+        repo: REPO,
+        baseSha: BASE,
+        headSha: "cccccccccccccccccccccccccccccccccccccccc",
+        prNodeId: PR_NODE,
+      },
       approvedCriteria: approved,
       currentGeneration: 1,
     });

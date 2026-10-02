@@ -3,19 +3,19 @@
  * Private store is authoritative; presented run ids are lookup hints.
  */
 
-import { evaluateCriteriaAuthority } from "./criteria.js";
 import { runObservablesComplete } from "./controller.js";
+import { evaluateCriteriaAuthority } from "./criteria.js";
 import type { PrePrExecutionStore } from "./store.js";
 import { resolveRecordFromStore } from "./store.js";
 import {
   type ApprovedCriteria,
   CHECKBOX_NOT_AUTHORITY,
-  deny,
   DISK_STORE_NOT_SOT,
+  deny,
+  ONE_PR_UNIT_NOT_PRE_PR,
   type PrePrDecision,
   type PrePrExecutionRecord,
   type PrePrLiveBinding,
-  ONE_PR_UNIT_NOT_PRE_PR,
   RUN_ID_LOOKUP_HINT,
 } from "./types.js";
 
@@ -55,7 +55,10 @@ export function evaluatePrePrEvidence(input: EvaluatePrePrEvidenceInput): PrePrD
     return deny("deny-not-bearer", RUN_ID_LOOKUP_HINT);
   }
   if (input.record === null) {
-    return deny("deny-missing-record", "no controller-issued pre-PR completion record in the private store");
+    return deny(
+      "deny-missing-record",
+      "no controller-issued pre-PR completion record in the private store",
+    );
   }
   return evaluateStoredRecord(input, input.record);
 }
@@ -69,10 +72,7 @@ function evaluateStoredRecord(
     return deny("deny-binding", `pre-PR record ${record.id} is bound to repo ${record.repo}`);
   }
   if (record.baseSha !== live.baseSha || record.headSha !== live.headSha) {
-    return deny(
-      "deny-binding",
-      `pre-PR record ${record.id} does not match live base/head SHAs`,
-    );
+    return deny("deny-binding", `pre-PR record ${record.id} does not match live base/head SHAs`);
   }
   if (record.prNodeId !== null && live.prNodeId !== null && record.prNodeId !== live.prNodeId) {
     return deny("deny-binding", `pre-PR record ${record.id} is bound to a different PR node id`);
@@ -129,7 +129,10 @@ export function canReuseCommandResult(input: {
   readonly previousExitCode: number;
 }): PrePrDecision {
   if (input.previousInputHash !== input.currentInputHash) {
-    return deny("deny-reuse-mismatch", "reuse of a check result requires a full input-binding match");
+    return deny(
+      "deny-reuse-mismatch",
+      "reuse of a check result requires a full input-binding match",
+    );
   }
   if (input.previousCommand !== input.currentCommand) {
     return deny("deny-reuse-mismatch", "reuse of a check result requires the same command");

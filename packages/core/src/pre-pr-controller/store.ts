@@ -91,7 +91,10 @@ export function requirePublisher(value: unknown): PrePrDecision {
   if (isPublisher(value)) {
     return { ok: true, code: "allow-pass", message: "publisher present" };
   }
-  return deny("deny-publisher-required", "passing pre-PR records require controller publisher credentials");
+  return deny(
+    "deny-publisher-required",
+    "passing pre-PR records require controller publisher credentials",
+  );
 }
 
 export function opaqueRunId(explicit?: string): string {
@@ -122,7 +125,10 @@ export function loadPrePrRecord(
   return store.getById(runId);
 }
 
-export function writePrePrRecordDisk(_projectRoot: string, _record: PrePrExecutionRecord): PrePrDecision {
+export function writePrePrRecordDisk(
+  _projectRoot: string,
+  _record: PrePrExecutionRecord,
+): PrePrDecision {
   return deny("deny-disk-not-sot", DISK_STORE_NOT_SOT);
 }
 
