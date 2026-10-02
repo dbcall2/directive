@@ -81,6 +81,8 @@ const GATE_REMEDIES: Readonly<Record<string, string>> = {
   "ts:check-lane": "Fix lint/type/test failures; re-run task ts:check-lane",
   "verify:forward-coverage":
     "Add tests for new source files and uncovered changed branches (task verify:forward-coverage)",
+  "verify:changelog-unreleased":
+    "Add a `- ` entry under CHANGELOG.md [Unreleased] (same language as task change:changelog:check)",
   "verify:test-boundary":
     "Move tests to the allowed placement or update plan.policy test-boundary allowlist",
   "verify:class-checks": "Move or remove the path; class checks have no approve, skip, or phrase",
