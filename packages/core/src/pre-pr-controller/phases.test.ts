@@ -41,6 +41,8 @@ describe("pre-pr-controller phases (Limb 2)", () => {
     expect(isAllowedSkip("plan_sequence", ALLOWED_SKIP_REASONS.plan_sequence ?? "")).toBe(true);
     expect(isAllowedSkip("plan_sequence", "agent skipped")).toBe(false);
     expect(isAllowedSkip("merge_chokepoint", "busy")).toBe(false);
+    expect(isAllowedSkip("plan_sequence", "")).toBe(false);
+    expect(isAllowedSkip("plan_sequence", null)).toBe(false);
     expect(requiredPhases().every((p) => p.required)).toBe(true);
   });
 });

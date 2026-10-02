@@ -27,6 +27,18 @@ describe("criteria authority", () => {
     });
     expect(isHeadSideWeakening(approved, head)).toBe(true);
     expect(isHeadSideWeakening(approved, approved)).toBe(false);
+    expect(
+      isHeadSideWeakening(
+        approved,
+        digestApprovedCriteria({ ...source, acceptanceText: "other ac" }),
+      ),
+    ).toBe(true);
+    expect(
+      isHeadSideWeakening(
+        approved,
+        digestApprovedCriteria({ ...source, scopePaths: ["other.ts"] }),
+      ),
+    ).toBe(true);
   });
 
   it("bumps generation and refuses stale or out-of-order publication", () => {

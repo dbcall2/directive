@@ -70,4 +70,56 @@ describe("deft pre-pr:run", () => {
   it("parseArgs rejects unknown flags", () => {
     expect(parseArgs(["--nope"]).error).toMatch(/unrecognized/);
   });
+
+  it("covers help, equals-form flags, evaluate, and missing required args", () => {
+    const out: string[] = [];
+    const err: string[] = [];
+    vi.spyOn(process.stdout, "write").mockImplementation((chunk) => {
+      out.push(String(chunk));
+      return true;
+    });
+    vi.spyOn(process.stderr, "write").mockImplementation((chunk) => {
+      err.push(String(chunk));
+      return true;
+    });
+    expect(run(["--help"])).toBe(0);
+    expect(out.join("")).toContain("deft pre-pr:run");
+    expect(run(["--complete"])).toBe(2);
+    expect(run(["--evaluate", "--json"])).toBe(2);
+    expect(
+      run([
+        "--evaluate",
+        "--repo=deftai/directive",
+        "--base-sha=aaa",
+        "--head-sha=bbb",
+        "--run-id=missing",
+        "--json",
+      ]),
+    ).toBe(1);
+    expect(run([])).toBe(2);
+    const parsed = parseArgs([
+      "--repo=deftai/directive",
+      "--base-sha=aaa",
+      "--head-sha=bbb",
+      "--tree-hash=ccc",
+      "--pr-body-hash=ddd",
+      "--pr-node-id=PR_1",
+      "--approved-revision=aaa",
+      "--scope=a.ts",
+      "--acceptance=ac",
+      "--generation=2",
+      "--skill-version=0.2",
+      "--policy-version=2",
+      "--run-id=ppr_eq",
+    ]);
+    expect(parsed.error).toBeUndefined();
+    expect(parsed.generation).toBe(2);
+    expect(parsed.prNodeId).toBe("PR_1");
+    expect(parseArgs(["--repo"]).error).toMatch(/expected one argument/);
+    expect(parseArgs(["--generation", "0"]).error).toMatch(/positive integer/);
+    expect(parseArgs(["-h"]).help).toBe(true);
+    expect(parseArgs(["--policy-version", "2"]).policyVersion).toBe("2");
+    expect(run(["--nope"])).toBe(2);
+    expect(err.join("")).toMatch(/unrecognized/);
+  });
 });

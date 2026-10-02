@@ -10,6 +10,7 @@ import {
   requirePublisher,
   resetDefaultPrePrStore,
   resolveRecordFromStore,
+  setDefaultPrePrStore,
   writePrePrRecordDisk,
 } from "./store.js";
 import { DISK_STORE_NOT_SOT, type PrePrExecutionRecord } from "./types.js";
@@ -28,6 +29,10 @@ describe("pre-pr private store", () => {
     expect(isPublisher(mintPublisher())).toBe(true);
     const def = resetDefaultPrePrStore();
     expect(getDefaultPrePrStore()).toBe(def);
+    const other = new InProcessPrePrStore();
+    setDefaultPrePrStore(other);
+    expect(getDefaultPrePrStore()).toBe(other);
+    resetDefaultPrePrStore();
   });
 
   it("indexes by PR node id after put", () => {
@@ -38,7 +43,10 @@ describe("pre-pr private store", () => {
     } as PrePrExecutionRecord;
     store.put(record);
     expect(store.getByPrNodeId("PR_kwDOX")?.id).toBe("ppr_node");
+    expect(store.getByPrNodeId("missing")).toBeNull();
     expect(resolveRecordFromStore(store, { prNodeId: "PR_kwDOX" })?.id).toBe("ppr_node");
+    expect(resolveRecordFromStore(store, { id: "ppr_node" })?.id).toBe("ppr_node");
+    expect(resolveRecordFromStore(store, {})).toBeNull();
     expect(store.list()).toHaveLength(1);
   });
 });

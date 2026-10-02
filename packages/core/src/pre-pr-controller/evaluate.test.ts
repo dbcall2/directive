@@ -9,7 +9,7 @@ import {
   submitReviewerReport,
 } from "./controller.js";
 import { bumpGeneration, digestApprovedCriteria } from "./criteria.js";
-import { canReuseCommandResult, evaluatePrePrEvidence } from "./evaluate.js";
+import { canReuseCommandResult, evaluateLivePrePrCheck, evaluatePrePrEvidence } from "./evaluate.js";
 import { PRE_PR_PHASES, RENDER_EXPORT_RULE } from "./phases.js";
 import { InProcessPrePrStore, mintPublisher, writePrePrRecordDisk } from "./store.js";
 import {
@@ -151,6 +151,13 @@ describe("Limb 6 pre-PR evidence (identical code/body, different trusted evidenc
       currentGeneration: 1,
     });
     expect(shaDrift.code).toBe("deny-binding");
+    const otherPr = evaluatePrePrEvidence({
+      record,
+      liveBinding: { repo: REPO, baseSha: BASE, headSha: HEAD, prNodeId: "PR_other" },
+      approvedCriteria: approved,
+      currentGeneration: 1,
+    });
+    expect(otherPr.code).toBe("deny-binding");
   });
 });
 
@@ -257,6 +264,51 @@ describe("Limb 4 criteria authority", () => {
         lastInvalidationAt: "2099-01-01T00:00:00Z",
       }).code,
     ).toBe("deny-out-of-order");
+  });
+});
+
+describe("live evaluate and interrupted records", () => {
+  it("maps interrupted records and presented ids through the live check", () => {
+    const store = new InProcessPrePrStore();
+    const runId = startPassingRun(store, "ppr_live");
+    interruptRun(store, runId);
+    const live = { repo: REPO, baseSha: BASE, headSha: HEAD, prNodeId: PR_NODE };
+    expect(
+      evaluatePrePrEvidence({
+        record: store.getById(runId),
+        liveBinding: live,
+        approvedCriteria: approved,
+        currentGeneration: 1,
+      }).code,
+    ).toBe("deny-interrupted");
+    const empty = new InProcessPrePrStore();
+    startPassingRun(empty, "ppr_incomplete");
+    expect(
+      evaluatePrePrEvidence({
+        record: empty.getById("ppr_incomplete"),
+        liveBinding: live,
+        approvedCriteria: approved,
+        currentGeneration: 1,
+      }).code,
+    ).toBe("deny-incomplete");
+    expect(
+      evaluateLivePrePrCheck({
+        store: new InProcessPrePrStore(),
+        liveBinding: live,
+        presentedRunId: "ghost",
+        approvedCriteria: approved,
+        currentGeneration: 1,
+      }).code,
+    ).toBe("deny-not-bearer");
+    expect(
+      canReuseCommandResult({
+        previousInputHash: "abc",
+        currentInputHash: "abc",
+        previousCommand: "deft check",
+        currentCommand: "deft check",
+        previousExitCode: 2,
+      }).code,
+    ).toBe("deny-command-failure");
   });
 });
 
