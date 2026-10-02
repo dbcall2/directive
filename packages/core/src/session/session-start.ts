@@ -71,6 +71,7 @@ import { resolvePolicy } from "../policy/resolve.js";
 import { maybeFormatProductSignalConsentPrompt } from "../product-signal/consent-prompt.js";
 import { formatFrameworkCommand } from "../render/framework-commands.js";
 import { RunSummaryEmitter } from "../run-summary/emit.js";
+import type { SessionStartTrigger } from "../run-summary/types.js";
 import {
   formatScmReadinessLines,
   type ProbeScmReadinessOptions,
@@ -1242,6 +1243,25 @@ function occupancyReport(occupancy: OccupancyDecision): {
     session_id: occupancy.sessionId,
     occupant_id: occupancy.record?.sessionId ?? occupancy.sessionId,
   };
+}
+
+/**
+ * Closed `trigger` for a cold `session_start` JSONL line (#3921).
+ * Resolve from occupancy + the ritual that existed *before* writeRitualState
+ * (the write clears compact_resume_at). Orthogonal to ceremony_tier.
+ */
+export function resolveSessionStartTrigger(input: {
+  readonly occupancyAction?: OccupancyDecision["action"];
+  readonly priorRitual?: RitualState | null;
+}): SessionStartTrigger {
+  if (input.occupancyAction === "stolen") return "steal-recover";
+  const raw = input.priorRitual?.raw;
+  if (typeof raw?.compact_resume_at === "string") return "post-compact";
+  if (input.occupancyAction === "heartbeat" && input.priorRitual != null) {
+    return "mutation-intent";
+  }
+  if (raw?.rearm_needed === true) return "rearm-forced-cold";
+  return "cold";
 }
 
 function occupancyDeniedResult(
@@ -2489,6 +2509,8 @@ export function runSessionStart(
         }
       : {}),
   };
+  // Capture prior ritual before writeRitualState clears compact_resume_at (#3921).
+  const [priorRitual] = readRitualState(projectRoot);
   let statePath: string;
   try {
     statePath = (options.writeRitualState ?? writeRitualState)(projectRoot, payload);
@@ -2539,6 +2561,10 @@ export function runSessionStart(
         env: options.env,
       });
       emitter.emitSessionStart({
+        trigger: resolveSessionStartTrigger({
+          occupancyAction: persistedOccupancy.action,
+          priorRitual,
+        }),
         ceremony_dial: dialDict,
         preflight: preflightDict ?? undefined,
         ceremony_tier: COLD_CEREMONY_TIER,

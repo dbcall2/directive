@@ -30,11 +30,13 @@ import {
   RUN_SUMMARY_SCHEMA_VERSION,
   RUN_SUMMARY_STDOUT_PREFIX,
   RUN_SUMMARY_WRITE_WARNING,
+  SESSION_START_TRIGGERS,
   type RunSummaryDestination,
   type RunSummaryEventKind,
   type RunSummaryLine,
   type RunSummaryPayload,
   type SessionStartRunSummaryPayload,
+  type SessionStartTrigger,
   type ToolTurnDenominatorRunSummaryPayload,
   type ToolTurnDenominatorSource,
   type VerificationRunSummaryPayload,
@@ -487,7 +489,12 @@ export class RunSummaryEmitter {
   }
 
   emitSessionStart(payload: SessionStartRunSummaryPayload): EmitRunSummaryResult {
-    return this.emit("session_start", payload);
+    const raw = payload.trigger;
+    const trigger: SessionStartTrigger =
+      raw !== undefined && (SESSION_START_TRIGGERS as readonly string[]).includes(raw)
+        ? raw
+        : "cold";
+    return this.emit("session_start", { ...payload, trigger });
   }
 
   emitDialTransition(payload: DialTransitionRunSummaryPayload): EmitRunSummaryResult {

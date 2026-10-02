@@ -64,7 +64,27 @@ export interface RunSummaryBaseFields {
   readonly total_tool_turns?: number;
 }
 
+/**
+ * Closed vocabulary for why a cold `session_start` JSONL line was emitted (#3921).
+ * Orthogonal to `ceremony_tier` (cold | rearm). Rearm that does not emit
+ * `session_start` stays outside the stream.
+ */
+export const SESSION_START_TRIGGERS = [
+  "cold",
+  "rearm-forced-cold",
+  "post-compact",
+  "mutation-intent",
+  "steal-recover",
+] as const;
+export type SessionStartTrigger = (typeof SESSION_START_TRIGGERS)[number];
+
 export interface SessionStartRunSummaryPayload {
+  /**
+   * Why this cold `session_start` line exists (#3921). Emitter defaults
+   * missing or invalid values to `cold`. Do not treat `ceremony_tier`,
+   * process-cost, or `orientation_call_count` as this seat.
+   */
+  readonly trigger?: SessionStartTrigger;
   readonly ceremony_dial?: Record<string, unknown>;
   readonly preflight?: Record<string, unknown>;
   readonly ceremony_tier?: string;

@@ -1149,7 +1149,14 @@ export function applyWorktreeOccupancy(
 
   if (input.steal === true) {
     if (primaryBlocked) return primaryClaimRefusal(projectRoot, incoming, path);
-    return stealOccupancy(projectRoot, { ...input, sessionId: incoming, now });
+    // Injected sessionId makes presented source look explicit; forward minted
+    // provenance so stealOccupancy can refuse mint-on-steal (#3921).
+    return stealOccupancy(projectRoot, {
+      ...input,
+      sessionId: incoming,
+      now,
+      identityProvenance: input.identityProvenance ?? claim.provenance,
+    });
   }
 
   if (primaryBlocked) {
@@ -1306,6 +1313,18 @@ function maybeRecordChildOccupancyOnClaim(
   }
 }
 
+/** #3921: steal must not mint a writer id the calling shell does not hold. */
+export const OCCUPANCY_STEAL_REFUSES_MINT_MESSAGE =
+  "occupancy:steal refuses to mint a writer identity. Pass --session-id or DEFT_SESSION_ID so the calling shell already holds the post-steal owner. A minted steal binds the lease to an id the caller does not present, which yields a second cold session_start (#3921).";
+
+function occupancyStealUsesMintedWriter(
+  input: ApplyOccupancyInput,
+  claim: OccupancySessionClaim,
+): boolean {
+  if (input.identityProvenance === "minted") return true;
+  return claim.status === "ok" && (claim.provenance === "minted" || claim.source === "mint");
+}
+
 export function stealOccupancy(
   projectRoot: string,
   input: ApplyOccupancyInput = {},
@@ -1315,6 +1334,16 @@ export function stealOccupancy(
   const claim = resolveOccupancySessionClaim(input);
   if (claim.status === "refuse-mint") return occupancyMintRefusalDecision(projectRoot, claim);
   const incoming = claim.sessionId;
+  if (occupancyStealUsesMintedWriter(input, claim)) {
+    return {
+      action: "denied",
+      sessionId: incoming,
+      record: readOccupancy(projectRoot),
+      path,
+      message: OCCUPANCY_STEAL_REFUSES_MINT_MESSAGE,
+      code: 1,
+    };
+  }
   if (
     primaryCheckoutClaimBlocked(
       projectRoot,

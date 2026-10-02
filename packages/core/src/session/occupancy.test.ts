@@ -46,6 +46,7 @@ import {
   OCCUPANCY_MAX_LEASE_MS,
   OCCUPANCY_REFRESH_AFTER_MS,
   OCCUPANCY_STALE_WARN_MS,
+  OCCUPANCY_STEAL_REFUSES_MINT_MESSAGE,
   OCCUPANCY_TTL_MS,
   type OccupancyRecord,
   occupancyAdmission,
@@ -380,6 +381,51 @@ describe("worktree occupancy lease (#3433)", () => {
     expect(stolen.message).toContain("when re-arm is eligible");
     expect(stolen.message).not.toContain("--session-id=new");
     expect(readOccupancy(root)?.sessionId).toBe("new");
+  });
+
+  it("refuses mint-on-steal so the caller already holds the post-steal identity (#3921)", () => {
+    const root = tempRoot();
+    const now = new Date("2026-08-17T12:00:00Z");
+    applyWorktreeOccupancy(root, { sessionId: "old", now });
+    const minted = stealOccupancy(root, {
+      occupant: "old",
+      confirm: true,
+      now: new Date("2026-08-17T12:01:00Z"),
+      newSessionId: () => "minted-stealer",
+      env: {},
+    });
+    expect(minted.code).toBe(1);
+    expect(minted.action).toBe("denied");
+    expect(minted.message).toBe(OCCUPANCY_STEAL_REFUSES_MINT_MESSAGE);
+    expect(readOccupancy(root)?.sessionId).toBe("old");
+  });
+
+  it("refuses steal when identityProvenance is minted even if sessionId is injected (#3921)", () => {
+    const root = tempRoot();
+    const now = new Date("2026-08-17T12:00:00Z");
+    applyWorktreeOccupancy(root, { sessionId: "old", now });
+    const injected = stealOccupancy(root, {
+      sessionId: "minted-uuid",
+      identityProvenance: "minted",
+      occupant: "old",
+      confirm: true,
+      now: new Date("2026-08-17T12:01:00Z"),
+    });
+    expect(injected.code).toBe(1);
+    expect(injected.action).toBe("denied");
+    expect(injected.message).toContain("refuses to mint a writer identity");
+    expect(readOccupancy(root)?.sessionId).toBe("old");
+    const viaApply = applyWorktreeOccupancy(root, {
+      steal: true,
+      occupant: "old",
+      confirm: true,
+      identityProvenance: "minted",
+      now: new Date("2026-08-17T12:02:00Z"),
+      newSessionId: () => "injected-then-explicit",
+    });
+    expect(viaApply.code).toBe(1);
+    expect(viaApply.action).toBe("denied");
+    expect(readOccupancy(root)?.sessionId).toBe("old");
   });
 
   it("refuses steal without confirm or a matching occupant name", () => {

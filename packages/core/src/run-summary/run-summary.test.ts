@@ -27,7 +27,7 @@ import {
   RUN_SUMMARY_WRITE_WARNING,
   resolveRunSummaryDestination,
 } from "./path.js";
-import { RUN_SUMMARY_SCHEMA_VERSION } from "./types.js";
+import { RUN_SUMMARY_SCHEMA_VERSION, SESSION_START_TRIGGERS } from "./types.js";
 
 const tempDirs: string[] = [];
 afterEach(() => {
@@ -148,6 +148,14 @@ describe("RunSummaryEmitter (#3282)", () => {
     expect(lines[0]?.schema_version).toBe(RUN_SUMMARY_SCHEMA_VERSION);
     expect(lines[0]?.session_id).toBe("sess-abc");
     expect(lines[0]?.event).toBe("session_start");
+    expect((lines[0]?.payload as { trigger?: string }).trigger).toBe("cold");
+    expect(SESSION_START_TRIGGERS).toEqual([
+      "cold",
+      "rearm-forced-cold",
+      "post-compact",
+      "mutation-intent",
+      "steal-recover",
+    ]);
     expect(lines[0]?.seq).toBe(1);
     expect(lines[1]?.event).toBe("check_invocation");
     expect(lines[1]?.seq).toBe(2);
@@ -181,6 +189,29 @@ describe("RunSummaryEmitter (#3282)", () => {
     expect(stamped[3]?.event).toBe("acceptance_stamp");
     expect(stamped[3]?.schema_version).toBe(RUN_SUMMARY_SCHEMA_VERSION);
     expect(stamped[3]?.payload.rung).toBe("derived");
+  });
+
+  it("defaults missing or invalid session_start trigger to cold (#3921)", () => {
+    const root = freshRoot("run-summary-trigger-default-");
+    const out = join(root, "summary.jsonl");
+    const emitter = new RunSummaryEmitter({
+      projectRoot: root,
+      sessionId: "sess-trigger",
+      frameworkVersion: "1.2.3",
+      env: { [ENV_RUN_SUMMARY_PATH]: out },
+    });
+    emitter.emitSessionStart({ ready: true });
+    emitter.emitSessionStart({
+      ready: true,
+      trigger: "not-a-trigger" as unknown as (typeof SESSION_START_TRIGGERS)[number],
+    });
+    emitter.emitSessionStart({ ready: true, trigger: "post-compact" });
+    const starts = readFileSync(out, "utf8")
+      .trim()
+      .split("\n")
+      .map((l) => JSON.parse(l) as { event: string; payload: { trigger?: string } })
+      .filter((e) => e.event === "session_start");
+    expect(starts.map((e) => e.payload.trigger)).toEqual(["cold", "cold", "post-compact"]);
   });
 
   it("prefixes stdout with DEFT-TLM: when path is -", () => {
