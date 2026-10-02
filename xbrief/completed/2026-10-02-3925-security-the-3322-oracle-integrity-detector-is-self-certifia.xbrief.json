@@ -2,7 +2,7 @@
   "xBRIEFInfo": {
     "version": "0.8",
     "description": "Scope xBRIEF ingested from GitHub issue #3925",
-    "updated": "2026-10-02T14:25:42Z"
+    "updated": "2026-10-02T15:10:00Z"
   },
   "plan": {
     "title": "SECURITY: the #3322 oracle-integrity detector is self-certifiable - independent_rederivation is read from the agent-writable stream and filters the flag away; field transcript shows an agent identifying the bypass",
@@ -30,9 +30,9 @@
         "status": "completed",
         "id": "clause.2",
         "x-directive/evidence": {
-          "kind": "test",
-          "pointer": "packages/core/src/verify-ac/flag.test.ts",
-          "recorded_at": "2026-10-02T14:23:50Z",
+          "kind": "review",
+          "pointer": "content/docs/gate-integrity.md on f2a0930a0 (PR 5250) -- Prefer-A authority-separated trust boundary not shipped; page records DEFT_RUN_SUMMARY_PATH / DEFT_SESSION_ID / truncate-on-session-start remain cheaper disablers (honest residual)",
+          "recorded_at": "2026-10-02T15:10:00Z",
           "recorded_by": "host:grok:v1:MDFhMGZjOTAtZjIxNS03NmQzLWI4N2YtNDA3YzNlY2Y5MTEz"
         }
       },
@@ -41,9 +41,9 @@
         "status": "completed",
         "id": "clause.3",
         "x-directive/evidence": {
-          "kind": "test",
-          "pointer": "packages/core/src/verify-ac/flag.test.ts",
-          "recorded_at": "2026-10-02T14:23:50Z",
+          "kind": "review",
+          "pointer": "content/docs/gate-integrity.md on f2a0930a0 -- new section Presence-keyed independent_rederivation is not a security waiver names advisory demotion and new-session / truncate-delete recovery",
+          "recorded_at": "2026-10-02T15:10:00Z",
           "recorded_by": "host:grok:v1:MDFhMGZjOTAtZjIxNS03NmQzLWI4N2YtNDA3YzNlY2Y5MTEz"
         }
       },
@@ -52,9 +52,9 @@
         "status": "completed",
         "id": "clause.4",
         "x-directive/evidence": {
-          "kind": "test",
-          "pointer": "packages/core/src/verify-ac/flag.test.ts",
-          "recorded_at": "2026-10-02T14:23:50Z",
+          "kind": "review",
+          "pointer": "packages/core/src/verify-ac/flag.ts on f2a0930a0 -- drop-waiver only; no attested_by, product-state hashes, or #3350 seq-gap channel added",
+          "recorded_at": "2026-10-02T15:10:00Z",
           "recorded_by": "host:grok:v1:MDFhMGZjOTAtZjIxNS03NmQzLWI4N2YtNDA3YzNlY2Y5MTEz"
         }
       },
@@ -63,9 +63,9 @@
         "status": "completed",
         "id": "clause.5",
         "x-directive/evidence": {
-          "kind": "test",
-          "pointer": "packages/core/src/verify-ac/flag.test.ts",
-          "recorded_at": "2026-10-02T14:23:50Z",
+          "kind": "review",
+          "pointer": "PR 5250 merge f2a0930a0 -- did not close #3350 / #3813 / #3924; did not treat skill/docs record independent_rederivation as a trusted producer; did not fail-close empty history",
+          "recorded_at": "2026-10-02T15:10:00Z",
           "recorded_by": "host:grok:v1:MDFhMGZjOTAtZjIxNS03NmQzLWI4N2YtNDA3YzNlY2Y5MTEz"
         }
       },
@@ -74,9 +74,9 @@
         "status": "completed",
         "id": "clause.6",
         "x-directive/evidence": {
-          "kind": "test",
-          "pointer": "packages/core/src/verify-ac/flag.test.ts",
-          "recorded_at": "2026-10-02T14:23:50Z",
+          "kind": "review",
+          "pointer": "PR 5250 merge f2a0930a0 -- body Fix 1-3 (attested_by, recorded hashes, seq-gap) not revived; drop-waiver only",
+          "recorded_at": "2026-10-02T15:10:00Z",
           "recorded_by": "host:grok:v1:MDFhMGZjOTAtZjIxNS03NmQzLWI4N2YtNDA3YzNlY2Y5MTEz"
         }
       },
@@ -85,9 +85,9 @@
         "status": "completed",
         "id": "clause.7",
         "x-directive/evidence": {
-          "kind": "test",
-          "pointer": "packages/core/src/verify-ac/flag.test.ts",
-          "recorded_at": "2026-10-02T14:23:50Z",
+          "kind": "review",
+          "pointer": "PR 5250 merge f2a0930a0 -- out-of-scope non-goals honored: #3350 / #3813 / #3924 left open; no trusted-producer claim from skill/docs; no empty-history fail-close",
+          "recorded_at": "2026-10-02T15:10:00Z",
           "recorded_by": "host:grok:v1:MDFhMGZjOTAtZjIxNS03NmQzLWI4N2YtNDA3YzNlY2Y5MTEz"
         }
       }
@@ -704,9 +704,9 @@
           "ambiguous": false,
           "provenance": "statement",
           "x-directive/evidence": {
-            "kind": "test",
-            "pointer": "packages/core/src/verify-ac/flag.test.ts",
-            "recorded_at": "2026-10-02T14:23:50Z",
+            "kind": "review",
+            "pointer": "packages/core/src/verify-ac/flag.ts on f2a0930a0 -- independent_rederivation remains a diagnostic copy from the agent-writable payload; no framework-emitted attestation channel added",
+            "recorded_at": "2026-10-02T15:10:00Z",
             "recorded_by": "host:grok:v1:MDFhMGZjOTAtZjIxNS03NmQzLWI4N2YtNDA3YzNlY2Y5MTEz"
           }
         },
@@ -717,9 +717,9 @@
           "ambiguous": false,
           "provenance": "statement",
           "x-directive/evidence": {
-            "kind": "test",
-            "pointer": "packages/core/src/verify-ac/flag.test.ts",
-            "recorded_at": "2026-10-02T14:23:50Z",
+            "kind": "review",
+            "pointer": "content/docs/gate-integrity.md on f2a0930a0 (PR 5250) -- Prefer-A authority-separated trust boundary not shipped; page records DEFT_RUN_SUMMARY_PATH / DEFT_SESSION_ID / truncate-on-session-start remain cheaper disablers (honest residual)",
+            "recorded_at": "2026-10-02T15:10:00Z",
             "recorded_by": "host:grok:v1:MDFhMGZjOTAtZjIxNS03NmQzLWI4N2YtNDA3YzNlY2Y5MTEz"
           }
         },
@@ -730,9 +730,9 @@
           "ambiguous": false,
           "provenance": "statement",
           "x-directive/evidence": {
-            "kind": "test",
-            "pointer": "packages/core/src/verify-ac/flag.test.ts",
-            "recorded_at": "2026-10-02T14:23:50Z",
+            "kind": "review",
+            "pointer": "content/docs/gate-integrity.md on f2a0930a0 -- new section Presence-keyed independent_rederivation is not a security waiver names advisory demotion and new-session / truncate-delete recovery",
+            "recorded_at": "2026-10-02T15:10:00Z",
             "recorded_by": "host:grok:v1:MDFhMGZjOTAtZjIxNS03NmQzLWI4N2YtNDA3YzNlY2Y5MTEz"
           }
         },
@@ -743,9 +743,9 @@
           "ambiguous": false,
           "provenance": "statement",
           "x-directive/evidence": {
-            "kind": "test",
-            "pointer": "packages/core/src/verify-ac/flag.test.ts",
-            "recorded_at": "2026-10-02T14:23:50Z",
+            "kind": "review",
+            "pointer": "packages/core/src/verify-ac/flag.ts on f2a0930a0 -- drop-waiver only; no attested_by, product-state hashes, or #3350 seq-gap channel added",
+            "recorded_at": "2026-10-02T15:10:00Z",
             "recorded_by": "host:grok:v1:MDFhMGZjOTAtZjIxNS03NmQzLWI4N2YtNDA3YzNlY2Y5MTEz"
           }
         },
@@ -756,9 +756,9 @@
           "ambiguous": false,
           "provenance": "statement",
           "x-directive/evidence": {
-            "kind": "test",
-            "pointer": "packages/core/src/verify-ac/flag.test.ts",
-            "recorded_at": "2026-10-02T14:23:50Z",
+            "kind": "review",
+            "pointer": "PR 5250 merge f2a0930a0 -- body Fix 1-3 (attested_by, recorded hashes, seq-gap) not revived; drop-waiver only",
+            "recorded_at": "2026-10-02T15:10:00Z",
             "recorded_by": "host:grok:v1:MDFhMGZjOTAtZjIxNS03NmQzLWI4N2YtNDA3YzNlY2Y5MTEz"
           }
         },
@@ -769,9 +769,9 @@
           "ambiguous": false,
           "provenance": "statement",
           "x-directive/evidence": {
-            "kind": "test",
-            "pointer": "packages/core/src/verify-ac/flag.test.ts",
-            "recorded_at": "2026-10-02T14:23:50Z",
+            "kind": "review",
+            "pointer": "PR 5250 merge f2a0930a0 -- out-of-scope non-goals honored: #3350 / #3813 / #3924 left open; no trusted-producer claim from skill/docs; no empty-history fail-close",
+            "recorded_at": "2026-10-02T15:10:00Z",
             "recorded_by": "host:grok:v1:MDFhMGZjOTAtZjIxNS03NmQzLWI4N2YtNDA3YzNlY2Y5MTEz"
           }
         }
@@ -779,6 +779,6 @@
       "ambiguity_attestation": "none_found"
     },
     "id": "github.issue.5289844918",
-    "updated": "2026-10-02T14:25:42Z"
+    "updated": "2026-10-02T15:10:00Z"
   }
 }
