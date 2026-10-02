@@ -583,16 +583,13 @@
       "source_rung": "derived",
       "derived_reason": "derived 5 independently testable clauses from the task statement before product edit (#3323)",
       "sentences": [
-        "SECURITY: the #3322 oracle-integrity detector is self-certifiable - independent_rederivation is read from the agent-writable stream and filters the flag away; field transcript shows an agent identifying the bypass",
         "Stop treating `payload.independent_rederivation === true` on the agent-writable run-summary as a security waiver that clears unresolved oracle-integrity flags.",
         "The operational waiver channel today is instruction-driven append onto that stream, not a framework-emitted attestation.",
         "A bindable security Prefer-A requires an authority-separated trust boundary: the evaluator must not accept gate-clearing integrity evidence from a log/path/session the policed party can write or select (`DEFT_RUN_SUMMARY_PATH`, `DEFT_SESSION_ID`, truncate-on-session-start default).",
         "Dropping the boolean alone is advisory demotion under documented recovery (new session / truncate-delete in `gate-integrity.md`) — honest residual, not Prefer-A-complete as a security repair.",
         "Do not equate \"drop the waiver\" with \"change the trust boundary.\" - Refuse same-stream `attested_by`, recorded product-state hashes, and #3350 line-count seq-gap as the trust boundary.",
         "Do not revive body Fix 1–3 without an authority-separated channel.",
-        "Out of scope unless Bound widens later: closing #3350 / #3813 / #3924 as a bundle; treating skill/docs \"record independent_rederivation\" as evidence of a trusted producer; fail-closing empty history without a new trust root named here.",
-        "Do not equate \"drop the waiver\" with \"change the trust boundary.\"",
-        "Refuse same-stream `attested_by`, recorded product-state hashes, and #3350 line-count seq-gap as the trust boundary."
+        "Out of scope unless Bound widens later: closing #3350 / #3813 / #3924 as a bundle; treating skill/docs \"record independent_rederivation\" as evidence of a trusted producer; fail-closing empty history without a new trust root named here."
       ],
       "admitted_source_sentences": [
         "Stop treating `payload.independent_rederivation === true` on the agent-writable run-summary as a security waiver that clears unresolved oracle-integrity flags.",
@@ -607,34 +604,48 @@
       "clauses": [
         {
           "id": 1,
-          "text": "Stop treating `payload.independent_rederivation === true` on the agent-writable run-summary as a security waiver that clears unresolved oracle-integrity flags. The operational waiver channel today is instruction-driven append onto that stream, not a framework-emitted attestation.",
+          "text": "Stop treating `payload.independent_rederivation === true` on the agent-writable run-summary as a security waiver that clears unresolved oracle-integrity flags.",
           "artifact_path": null,
           "ambiguous": false,
           "provenance": "statement"
         },
         {
           "id": 2,
-          "text": "A bindable security Prefer-A requires an authority-separated trust boundary: the evaluator must not accept gate-clearing integrity evidence from a log/path/session the policed party can write or select (`DEFT_RUN_SUMMARY_PATH`, `DEFT_SESSION_ID`, truncate-on-session-start default).",
+          "text": "The operational waiver channel today is instruction-driven append onto that stream, not a framework-emitted attestation.",
           "artifact_path": null,
           "ambiguous": false,
           "provenance": "statement"
         },
         {
           "id": 3,
-          "text": "Dropping the boolean alone is advisory demotion under documented recovery (new session / truncate-delete in `gate-integrity.md`) — honest residual, not Prefer-A-complete as a security repair. Do not equate \"drop the waiver\" with \"change the trust boundary.\"",
+          "text": "A bindable security Prefer-A requires an authority-separated trust boundary: the evaluator must not accept gate-clearing integrity evidence from a log/path/session the policed party can write or select (`DEFT_RUN_SUMMARY_PATH`, `DEFT_SESSION_ID`, truncate-on-session-start default).",
           "artifact_path": null,
           "ambiguous": false,
           "provenance": "statement"
         },
         {
           "id": 4,
-          "text": "Refuse same-stream `attested_by`, recorded product-state hashes, and #3350 line-count seq-gap as the trust boundary. Do not revive body Fix 1–3 without an authority-separated channel.",
+          "text": "Dropping the boolean alone is advisory demotion under documented recovery (new session / truncate-delete in `gate-integrity.md`) — honest residual, not Prefer-A-complete as a security repair.",
           "artifact_path": null,
           "ambiguous": false,
           "provenance": "statement"
         },
         {
           "id": 5,
+          "text": "Do not equate \"drop the waiver\" with \"change the trust boundary.\" - Refuse same-stream `attested_by`, recorded product-state hashes, and #3350 line-count seq-gap as the trust boundary.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 6,
+          "text": "Do not revive body Fix 1–3 without an authority-separated channel.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 7,
           "text": "Out of scope unless Bound widens later: closing #3350 / #3813 / #3924 as a bundle; treating skill/docs \"record independent_rederivation\" as evidence of a trusted producer; fail-closing empty history without a new trust root named here.",
           "artifact_path": null,
           "ambiguous": false,
