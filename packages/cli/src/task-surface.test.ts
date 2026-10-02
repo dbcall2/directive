@@ -20,12 +20,27 @@ describe("consumer task surface inline python cleanup (#2022 Phase 2)", () => {
     expect(readTaskfile("change.yml")).toContain("changelog-check");
   });
 
-  it("verify.yml changelog-unreleased reuses changelog-check (#633)", () => {
+  it("verify.yml changelog-unreleased reuses changelog-check --against-merge-base (#633)", () => {
     const text = readTaskfile("verify.yml");
     expect(text).toContain("changelog-unreleased:");
     expect(text).toContain(
-      "ENGINE_CMD: 'changelog-check --project-root \"{{.USER_WORKING_DIR}}\"'",
+      "ENGINE_CMD: 'changelog-check --project-root \"{{.USER_WORKING_DIR}}\" --against-merge-base'",
     );
+  });
+
+  it("change.yml changelog-check stays presence-only (#633)", () => {
+    const text = readTaskfile("change.yml");
+    expect(text).toContain("changelog-check --project-root");
+    expect(text).not.toContain("--against-merge-base");
+  });
+
+  it("changelog-check CLI parses --against-merge-base (#633)", () => {
+    const text = readFileSync(
+      join(REPO_ROOT, "packages", "cli", "src", "changelog-check.ts"),
+      "utf8",
+    );
+    expect(text).toContain("--against-merge-base");
+    expect(text).toContain("againstMergeBase");
   });
 
   it("commit.yml dispatches commit-lint via deft-ts", () => {

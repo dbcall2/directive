@@ -17,6 +17,13 @@ const UNRELEASED_RE = /## \[Unreleased\][ \t]*\n([\s\S]*?)(?=\n## \[|$)/;
 const CHANGE_NAME_RE = /^[\w][\w-]*$/;
 const COMMIT_TYPES = "feat|fix|docs|chore|refactor|test|style|perf|ci|build|revert";
 const COMMIT_SUBJECT_RE = new RegExp(`^(${COMMIT_TYPES})(\\(.+\\))?!?: .+`);
+const GIT_SHOW_MAX_BUFFER = 16 * 1024 * 1024;
+const MERGE_BASE_REFS = ["origin/master", "origin/main"] as const;
+
+export type ChangelogCheckOptions = {
+  /** Framework-source only. Default off so consumer `change:changelog:check` stays presence-only. */
+  againstMergeBase?: boolean;
+};
 
 /** Refuse task-surface writes that escape via repo-controlled symlinks (#2807). */
 function projectionTarget(projectDir: string, ...relSegments: string[]): string {
@@ -60,9 +67,77 @@ function tasksTemplate(name: string): unknown {
   };
 }
 
+function gitText(cwd: string, args: readonly string[]): string | null {
+  try {
+    return execFileSync("git", args, {
+      cwd,
+      encoding: "utf8",
+      maxBuffer: GIT_SHOW_MAX_BUFFER,
+    });
+  } catch {
+    return null;
+  }
+}
+
+/** Lines under `## [Unreleased]` that start with `- ` (trimmed). Same language as changelog-check. */
+function extractUnreleasedDashEntries(text: string): string[] {
+  const normalized = text.replace(/\r\n/g, "\n");
+  const match = UNRELEASED_RE.exec(normalized);
+  if (match === null) {
+    return [];
+  }
+  const body = match[1] ?? "";
+  return body
+    .split("\n")
+    .filter((line) => line.trimStart().startsWith("- "))
+    .map((line) => line.trim());
+}
+
+function resolveChangelogMergeBase(root: string): { sha: string } | { error: string } {
+  for (const ref of MERGE_BASE_REFS) {
+    const sha = gitText(root, ["merge-base", "HEAD", ref])?.trim();
+    if (sha !== undefined && sha.length > 0) {
+      return { sha };
+    }
+  }
+  return {
+    error: "no merge-base against origin/master or origin/main. Recovery: git fetch origin master.",
+  };
+}
+
+function compareUnreleasedAgainstMergeBase(
+  root: string,
+  currentEntries: readonly string[],
+  io: TaskSurfaceIo,
+): number {
+  const mergeBase = resolveChangelogMergeBase(root);
+  if ("error" in mergeBase) {
+    io.writeOut(`FAIL: ${mergeBase.error}\n`);
+    return 2;
+  }
+  const head = gitText(root, ["rev-parse", "HEAD"])?.trim();
+  if (head === mergeBase.sha) {
+    return 0;
+  }
+  const baseText = gitText(root, ["show", `${mergeBase.sha}:CHANGELOG.md`]);
+  const baseEntries = baseText === null ? [] : extractUnreleasedDashEntries(baseText);
+  const baseSet = new Set(baseEntries);
+  const added = currentEntries.filter((entry) => !baseSet.has(entry));
+  if (added.length === 0) {
+    io.writeOut('FAIL: [Unreleased] section has no new "- " entries versus merge-base\n');
+    return 1;
+  }
+  return 0;
+}
+
 /** Port of ``task change:changelog:check`` inline Python (#2022 Phase 2). */
-export function runChangelogCheck(projectRoot: string, io: TaskSurfaceIo): number {
-  const path = join(resolve(projectRoot), "CHANGELOG.md");
+export function runChangelogCheck(
+  projectRoot: string,
+  io: TaskSurfaceIo,
+  options: ChangelogCheckOptions = {},
+): number {
+  const root = resolve(projectRoot);
+  const path = join(root, "CHANGELOG.md");
   if (!existsSync(path) || !statSync(path).isFile()) {
     io.writeOut("FAIL: CHANGELOG.md not found\n");
     return 1;
@@ -76,11 +151,16 @@ export function runChangelogCheck(projectRoot: string, io: TaskSurfaceIo): numbe
     io.writeOut("FAIL: No [Unreleased] section found in CHANGELOG.md\n");
     return 1;
   }
-  const body = match[1] ?? "";
-  const entries = body.split("\n").filter((line) => line.trimStart().startsWith("- "));
+  const entries = extractUnreleasedDashEntries(text);
   if (entries.length === 0) {
     io.writeOut('FAIL: [Unreleased] section has no entries (no lines starting with "- ")\n');
     return 1;
+  }
+  if (options.againstMergeBase === true) {
+    const compared = compareUnreleasedAgainstMergeBase(root, entries, io);
+    if (compared !== 0) {
+      return compared;
+    }
   }
   io.writeOut(`OK: CHANGELOG.md [Unreleased] section has ${entries.length} entries\n`);
   return 0;

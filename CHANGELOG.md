@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`verify:changelog-unreleased` fails when the Unreleased `- ` set is unchanged versus merge-base (#633).** Shares `changelog-check --against-merge-base` (default off for `task change:changelog:check`). Restores N/A-with-reason on detector-named PR checklist items. Tracking #633.
 - **Release Step 5 coverage-final diagnostic + skip-ci unpaid ledger (#5239).** Step 5 coverage decline messaging no longer depends on parent `DEFT_RELEASE_PREFLIGHT`. Production `--allow-skip-ci=#N` refuses unpaid citations (open/unknown issue or prior CHANGELOG spend) unless `--allow-unpaid-skip-ci=#N` matches. Hang named-cause treats last-file as cursor only. Spend record for the v0.119.13 cut: `--allow-skip-ci=5239`. Tracking #5239.
 - **Closeout no-xbrief probe fails closed on missing repo, PR-head lookup, or HEAD verify errors (#3875).** A missing linked worktree still skips cleanly; an unverified slug/forge/HEAD read no longer returns success. Hermetic review suites opt out of closeout explicitly. Tracking #3875.
 - **Completed-write guard validates disposition provenance; item-status default-open inverted (#3819).** Completed xBRIEF writes require typed human-origin dispositions; malformed or missing status no longer skips provenance checks. Tracking #3819.

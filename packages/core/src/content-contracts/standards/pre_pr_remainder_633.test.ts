@@ -16,8 +16,9 @@ describe("pre-PR remainder #633", () => {
     expect(checklist).toContain("verify:changelog-unreleased");
     expect(checklist).toMatch(/- \[ \] `\/deft:change/);
     expect(checklist).toMatch(/- \[ \] `CHANGELOG\.md`/);
+    expect(checklist).toMatch(/N\/A for <3 file changes/);
+    expect(checklist).toMatch(/N\/A for test-only \/ CI-only changes/);
     expect(checklist).not.toMatch(/Tests pass locally/);
-    expect(checklist).not.toMatch(/\bN\/A\b/);
     expect(postMerge).not.toMatch(/^- \[ \]/m);
     expect(postMerge).toContain("gh api repos/<owner>/<repo>/issues/<N>");
     expect(postMerge).toContain("Merge gate (task check)");
@@ -31,6 +32,7 @@ describe("pre-PR remainder #633", () => {
     const nextTask = rest.search(/\n {2}[a-z][a-z0-9-]*:/);
     const block = nextTask === -1 ? rest : rest.slice(0, nextTask);
     expect(block).toContain("changelog-check");
+    expect(block).toContain("--against-merge-base");
     expect(block).not.toMatch(/ENGINE_CMD: '(?!changelog-check)/);
   });
 });

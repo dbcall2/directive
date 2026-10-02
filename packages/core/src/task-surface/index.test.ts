@@ -142,6 +142,98 @@ describe("task-surface", () => {
     expect(runChangelogCheck(project, io)).toBe(1);
   });
 
+  function initChangelogGit(changelog: string): string {
+    const project = makeProject();
+    writeFileSync(join(project, "CHANGELOG.md"), changelog, "utf8");
+    execFileSync("git", ["init", "-q", "-b", "master"], { cwd: project });
+    execFileSync("git", ["-c", "user.email=ci@test", "-c", "user.name=ci", "add", "CHANGELOG.md"], {
+      cwd: project,
+    });
+    execFileSync(
+      "git",
+      ["-c", "user.email=ci@test", "-c", "user.name=ci", "commit", "-q", "-m", "init changelog"],
+      { cwd: project },
+    );
+    execFileSync("git", ["update-ref", "refs/remotes/origin/master", "HEAD"], { cwd: project });
+    return project;
+  }
+
+  function commitFile(project: string, rel: string, contents: string, message: string): void {
+    writeFileSync(join(project, rel), contents, "utf8");
+    execFileSync("git", ["-c", "user.email=ci@test", "-c", "user.name=ci", "add", rel], {
+      cwd: project,
+    });
+    execFileSync(
+      "git",
+      ["-c", "user.email=ci@test", "-c", "user.name=ci", "commit", "-q", "-m", message],
+      { cwd: project },
+    );
+  }
+
+  it("against-merge-base fails when Unreleased - set is unchanged vs merge-base (#633)", () => {
+    const existing = "## [Unreleased]\n\n- pre-existing\n\n## [0.1.0]\n";
+    const project = initChangelogGit(existing);
+    execFileSync("git", ["checkout", "-q", "-b", "feat"], { cwd: project });
+    commitFile(project, "README.md", "no changelog\n", "feat: other change");
+    const { lines, io } = captureIo();
+    expect(runChangelogCheck(project, io, { againstMergeBase: true })).toBe(1);
+    expect(lines.join("")).toContain('no new "- " entries versus merge-base');
+  });
+
+  it("against-merge-base passes when a - bullet is added vs merge-base (#633)", () => {
+    const existing = "## [Unreleased]\n\n- pre-existing\n\n## [0.1.0]\n";
+    const project = initChangelogGit(existing);
+    execFileSync("git", ["checkout", "-q", "-b", "feat"], { cwd: project });
+    commitFile(project, "README.md", "no changelog\n", "feat: other change");
+    writeFileSync(
+      join(project, "CHANGELOG.md"),
+      "## [Unreleased]\n\n- pre-existing\n- added this PR\n\n## [0.1.0]\n",
+      "utf8",
+    );
+    const { lines, io } = captureIo();
+    expect(runChangelogCheck(project, io, { againstMergeBase: true })).toBe(0);
+    expect(lines.join("")).toContain("2 entries");
+  });
+
+  it("changelog-check without --against-merge-base stays presence-only (#633)", () => {
+    const existing = "## [Unreleased]\n\n- pre-existing\n\n## [0.1.0]\n";
+    const project = initChangelogGit(existing);
+    execFileSync("git", ["checkout", "-q", "-b", "feat"], { cwd: project });
+    commitFile(project, "README.md", "no changelog\n", "feat: other change");
+    const { lines, io } = captureIo();
+    expect(runChangelogCheck(project, io)).toBe(0);
+    expect(lines.join("")).toContain("1 entries");
+  });
+
+  it("against-merge-base skips added-bullet when HEAD equals merge-base", () => {
+    const existing = "## [Unreleased]\n\n- pre-existing\n\n## [0.1.0]\n";
+    const project = initChangelogGit(existing);
+    const { lines, io } = captureIo();
+    expect(runChangelogCheck(project, io, { againstMergeBase: true })).toBe(0);
+    expect(lines.join("")).toContain("1 entries");
+  });
+
+  it("against-merge-base is config-fail when merge-base cannot be resolved", () => {
+    const project = makeProject();
+    writeFileSync(
+      join(project, "CHANGELOG.md"),
+      "## [Unreleased]\n\n- added thing\n\n## [0.1.0]\n",
+      "utf8",
+    );
+    execFileSync("git", ["init", "-q"], { cwd: project });
+    execFileSync("git", ["-c", "user.email=ci@test", "-c", "user.name=ci", "add", "CHANGELOG.md"], {
+      cwd: project,
+    });
+    execFileSync(
+      "git",
+      ["-c", "user.email=ci@test", "-c", "user.name=ci", "commit", "-q", "-m", "init"],
+      { cwd: project },
+    );
+    const { lines, io } = captureIo();
+    expect(runChangelogCheck(project, io, { againstMergeBase: true })).toBe(2);
+    expect(lines.join("")).toContain("no merge-base");
+  });
+
   it("change-init rejects duplicate directory", () => {
     const project = makeProject();
     const { io } = captureIo();

@@ -23,8 +23,8 @@ rationale: "Replace this quoted sentence with the actual documentation-impact ra
 
 ## Checklist
 
-- [ ] `/deft:change <name>` — proposed and explicitly confirmed (`yes`/`confirmed`/`approve`) before implementation. Detector: `verify:scope-provenance` / `verify:intent-constraint`.
-- [ ] `CHANGELOG.md` — added entry under `[Unreleased]`. Detector: `verify:changelog-unreleased` on `check:framework-source`.
+- [ ] `/deft:change <name>` — proposed and explicitly confirmed (`yes`/`confirmed`/`approve`) before implementation (or N/A for <3 file changes; for solo projects, N/A only if not cross-cutting, architectural, or high-risk). Detector: `verify:scope-provenance` / `verify:intent-constraint`.
+- [ ] `CHANGELOG.md` — added entry under `[Unreleased]` (or N/A for test-only / CI-only changes). Detector: `verify:changelog-unreleased` on `check:framework-source`.
 
 ## Post-Merge
 
