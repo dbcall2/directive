@@ -74,6 +74,32 @@ describe("Plan.narratives source provenance (#479)", () => {
     expect(errors).toEqual([]);
   });
 
+  it("requires Source when Verifier or VerifiedAt keys are present, including empty strings", () => {
+    const verifierEmpty: string[] = [];
+    validatePlanNarrativesProvenance({ Verifier: "" }, "n", verifierEmpty);
+    expect(verifierEmpty.some((e) => e.includes("Source is required"))).toBe(true);
+
+    const verifiedAtEmpty: string[] = [];
+    validatePlanNarrativesProvenance({ VerifiedAt: "" }, "n", verifiedAtEmpty);
+    expect(verifiedAtEmpty.some((e) => e.includes("Source is required"))).toBe(true);
+
+    const evidencePlusVerifier: string[] = [];
+    validatePlanNarrativesProvenance(
+      { Evidence: "mission outcome pointer", Verifier: "" },
+      "n",
+      evidencePlusVerifier,
+    );
+    expect(evidencePlusVerifier.some((e) => e.includes("Source is required"))).toBe(true);
+
+    const evidencePlusVerifiedAt: string[] = [];
+    validatePlanNarrativesProvenance(
+      { Evidence: "mission outcome pointer", VerifiedAt: "2026-10-02T18:00:00Z" },
+      "n",
+      evidencePlusVerifiedAt,
+    );
+    expect(evidencePlusVerifiedAt.some((e) => e.includes("Source is required"))).toBe(true);
+  });
+
   it("requires Source plus evidence, verifier, and time for a verified atomic claim", () => {
     const errors: string[] = [];
     validatePlanNarrativesProvenance({ Confidence: "high", Verifier: "task check" }, "n", errors);

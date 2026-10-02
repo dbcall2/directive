@@ -88,7 +88,9 @@ function hasXClaim(item: Record<string, unknown>): boolean {
   const xc = xclaim as Record<string, unknown>;
   const reason = xc.ruledOutReason;
   const hasReason = typeof reason === "string" && reason.trim().length > 0;
-  return hasReason || evidenceRefs(xc).length > 0;
+  // Incomplete failed claims still need an invalidates edge. Skip only when
+  // both ruledOutReason and evidenceRefs are non-empty (investigation path).
+  return hasReason && evidenceRefs(xc).length > 0;
 }
 
 function collectPlanItemIds(items: unknown): Set<string> {

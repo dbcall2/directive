@@ -68,8 +68,9 @@ function sourceIsPureNamedClass(source: unknown): boolean {
 }
 
 function claimUnitKeysBind(narratives: Record<string, unknown>): boolean {
-  // Verifier/VerifiedAt are claim-unit-only. Evidence is also a mission-style section.
-  return isNonEmptyString(narratives.Verifier) || isNonEmptyString(narratives.VerifiedAt);
+  // Verifier/VerifiedAt are claim-unit-only. Key presence (including "") binds.
+  // Evidence is also a mission-style section and does not bind alone.
+  return "Verifier" in narratives || "VerifiedAt" in narratives;
 }
 
 function atomicClaimPresent(narratives: Record<string, unknown>): boolean {

@@ -308,8 +308,8 @@ describe("verify-investigation branch coverage", () => {
         [{ id: "reason-only", status: "failed", metadata: { "x-claim": { ruledOutReason: "x" } } }],
         [],
         "f.json",
-      ),
-    ).toEqual([]);
+      ).some((e) => e.includes("reason-only") && e.includes("invalidates")),
+    ).toBe(true);
     expect(
       collectFailedPlanItemInvalidatesErrors(
         [
@@ -321,8 +321,46 @@ describe("verify-investigation branch coverage", () => {
         ],
         [],
         "f.json",
-      ),
-    ).toEqual([]);
+      ).some((e) => e.includes("refs-only") && e.includes("invalidates")),
+    ).toBe(true);
+    expect(
+      collectFailedPlanItemInvalidatesErrors(
+        [
+          {
+            id: "parent",
+            status: "pending",
+            items: [
+              {
+                id: "nested-reason-only",
+                status: "failed",
+                metadata: { "x-claim": { ruledOutReason: "x" } },
+              },
+            ],
+          },
+        ],
+        [],
+        "f.json",
+      ).some((e) => e.includes("nested-reason-only")),
+    ).toBe(true);
+    expect(
+      collectFailedPlanItemInvalidatesErrors(
+        [
+          {
+            id: "parent",
+            status: "pending",
+            subItems: [
+              {
+                id: "nested-refs-only",
+                status: "failed",
+                metadata: { "x-claim": { evidenceRefs: ["EV-1"] } },
+              },
+            ],
+          },
+        ],
+        [],
+        "f.json",
+      ).some((e) => e.includes("nested-refs-only")),
+    ).toBe(true);
 
     const items = [
       { id: "survivor", status: "completed" },
