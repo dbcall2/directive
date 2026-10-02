@@ -14,9 +14,9 @@ import {
   sweepScratchDirs,
 } from "./subagent-monitor.js";
 import {
+  cmdVerifyInvestigation,
   collectFailedPlanItemInvalidatesErrors,
   collectInvalidatesTargets,
-  cmdVerifyInvestigation,
   loadLedger,
   parseVerifyInvestigationArgs,
   validateLedger,
@@ -228,9 +228,9 @@ describe("verify-investigation branch coverage", () => {
     ];
     const edged = validateLedger(data);
     expect(edged.hard_failures.some((f) => f.code === "HF-ITEM-NO-EDGE")).toBe(false);
-    expect(collectInvalidatesTargets((data.plan as Record<string, unknown>).edges).has("leaf-fail")).toBe(
-      true,
-    );
+    expect(
+      collectInvalidatesTargets((data.plan as Record<string, unknown>).edges).has("leaf-fail"),
+    ).toBe(true);
     expect(
       collectFailedPlanItemInvalidatesErrors(
         (data.plan as Record<string, unknown>).items,

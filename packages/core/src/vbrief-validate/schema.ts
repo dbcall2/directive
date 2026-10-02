@@ -15,10 +15,7 @@ import {
   VALID_PLAN_STATUSES,
   VALID_VBRIEF_VERSIONS,
 } from "./constants.js";
-import {
-  validatePlanNarrativesProvenance,
-  validateReferenceTrustLevels,
-} from "./provenance.js";
+import { validatePlanNarrativesProvenance, validateReferenceTrustLevels } from "./provenance.js";
 
 export type JsonObject = Record<string, unknown>;
 

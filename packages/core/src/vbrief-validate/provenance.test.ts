@@ -48,11 +48,7 @@ describe("Plan.narratives source provenance (#479)", () => {
 
   it("rejects Confidence outside high|medium|low", () => {
     const errors: string[] = [];
-    validatePlanNarrativesProvenance(
-      { Confidence: "pretty-sure" },
-      "n",
-      errors,
-    );
+    validatePlanNarrativesProvenance({ Confidence: "pretty-sure" }, "n", errors);
     expect(errors.some((e) => e.includes("Confidence invalid"))).toBe(true);
 
     const nonString: string[] = [];
@@ -62,11 +58,7 @@ describe("Plan.narratives source provenance (#479)", () => {
 
   it("requires Source plus evidence, verifier, and time for a verified atomic claim", () => {
     const errors: string[] = [];
-    validatePlanNarrativesProvenance(
-      { Confidence: "high", Evidence: "task check" },
-      "n",
-      errors,
-    );
+    validatePlanNarrativesProvenance({ Confidence: "high", Evidence: "task check" }, "n", errors);
     expect(errors.some((e) => e.includes("Source is required"))).toBe(true);
 
     const verifiedMissing: string[] = [];
@@ -81,9 +73,7 @@ describe("Plan.narratives source provenance (#479)", () => {
       "n",
       verifiedMissing,
     );
-    expect(verifiedMissing.some((e) => e.includes("Confidence does not substitute"))).toBe(
-      true,
-    );
+    expect(verifiedMissing.some((e) => e.includes("Confidence does not substitute"))).toBe(true);
     expect(verifiedMissing.some((e) => e.includes("Verifier is required"))).toBe(true);
     expect(verifiedMissing.some((e) => e.includes("VerifiedAt is required"))).toBe(true);
 
@@ -239,9 +229,7 @@ describe("validateVbriefSchema provenance placement (#479)", () => {
       },
     };
     expect(
-      validateVbriefSchema(bad, "trust-bad.json").some((e) =>
-        e.includes("TrustLevel invalid"),
-      ),
+      validateVbriefSchema(bad, "trust-bad.json").some((e) => e.includes("TrustLevel invalid")),
     ).toBe(true);
   });
 
@@ -254,9 +242,7 @@ describe("validateVbriefSchema provenance placement (#479)", () => {
       },
     };
     expect(
-      validateVbriefSchema(missing, "fail-no-edge.json").some((e) =>
-        e.includes("invalidates"),
-      ),
+      validateVbriefSchema(missing, "fail-no-edge.json").some((e) => e.includes("invalidates")),
     ).toBe(true);
 
     const edged = {
@@ -286,9 +272,9 @@ describe("validateVbriefSchema provenance placement (#479)", () => {
         ],
       },
     };
-    expect(
-      validateVbriefSchema(nested, "fail-sub.json").some((e) => e.includes("<no-id>")),
-    ).toBe(true);
+    expect(validateVbriefSchema(nested, "fail-sub.json").some((e) => e.includes("<no-id>"))).toBe(
+      true,
+    );
   });
 });
 
