@@ -23,7 +23,7 @@ describe("real-git leftover land (#4714 R9)", () => {
     const retained = mkdtempSync(join(tmpdir(), "deft-4714-retained-"));
     const fresh = mkdtempSync(join(tmpdir(), "deft-4714-fresh-"));
     try {
-      git(bare, ["init", "--bare"]);
+      git(bare, ["init", "--bare", "-b", "master"]);
       git(primary, ["init"]);
       git(primary, ["remote", "add", "origin", bare]);
       git(primary, ["config", "user.email", "4714@test.local"]);
