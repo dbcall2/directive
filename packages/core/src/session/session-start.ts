@@ -1245,22 +1245,44 @@ function occupancyReport(occupancy: OccupancyDecision): {
   };
 }
 
+function priorRitualSessionId(prior: RitualState | null | undefined): string | null {
+  if (prior == null) return null;
+  if (typeof prior.sessionId === "string" && prior.sessionId.length > 0) {
+    return prior.sessionId;
+  }
+  const rawId = prior.raw?.session_id;
+  return typeof rawId === "string" && rawId.length > 0 ? rawId : null;
+}
+
+function priorRitualBelongsToAdmittedSession(
+  prior: RitualState | null | undefined,
+  sessionId: string | undefined,
+): boolean {
+  if (typeof sessionId !== "string" || sessionId.length === 0) return false;
+  const priorId = priorRitualSessionId(prior);
+  return priorId !== null && priorId === sessionId;
+}
+
 /**
  * Closed `trigger` for a cold `session_start` JSONL line (#3921).
  * Resolve from occupancy + the ritual that existed *before* writeRitualState
  * (the write clears compact_resume_at). Orthogonal to ceremony_tier.
+ * Compact / re-arm markers apply only when that prior ritual belongs to the
+ * admitted sessionId; a leftover marker after lease expiry is `cold`.
  */
 export function resolveSessionStartTrigger(input: {
   readonly occupancyAction?: OccupancyDecision["action"];
   readonly priorRitual?: RitualState | null;
+  readonly sessionId?: string;
 }): SessionStartTrigger {
   if (input.occupancyAction === "stolen") return "steal-recover";
   const raw = input.priorRitual?.raw;
-  if (typeof raw?.compact_resume_at === "string") return "post-compact";
+  const sameSession = priorRitualBelongsToAdmittedSession(input.priorRitual, input.sessionId);
+  if (sameSession && typeof raw?.compact_resume_at === "string") return "post-compact";
   if (input.occupancyAction === "heartbeat" && input.priorRitual != null) {
     return "mutation-intent";
   }
-  if (raw?.rearm_needed === true) return "rearm-forced-cold";
+  if (sameSession && raw?.rearm_needed === true) return "rearm-forced-cold";
   return "cold";
 }
 
@@ -2564,6 +2586,7 @@ export function runSessionStart(
         trigger: resolveSessionStartTrigger({
           occupancyAction: persistedOccupancy.action,
           priorRitual,
+          sessionId: coldSessionId,
         }),
         ceremony_dial: dialDict,
         preflight: preflightDict ?? undefined,

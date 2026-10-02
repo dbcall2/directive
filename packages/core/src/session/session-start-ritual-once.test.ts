@@ -6,7 +6,12 @@ import type { EnvironmentContext } from "../platform/shell-context.js";
 import { parseRunSummaryJsonl } from "../run-summary/share.js";
 import { ENV_RUN_SUMMARY_PATH } from "../run-summary/types.js";
 import type { GitRunResult } from "./git.js";
-import { applyWorktreeOccupancy, readOccupancy, stealOccupancy } from "./occupancy.js";
+import {
+  applyWorktreeOccupancy,
+  OCCUPANCY_TTL_MS,
+  readOccupancy,
+  stealOccupancy,
+} from "./occupancy.js";
 import { markRitualStaleAfterCompact } from "./ritual-sentinel.js";
 import {
   resolveSessionStartTrigger,
@@ -101,25 +106,71 @@ describe("resolveSessionStartTrigger (#3921)", () => {
     expect(
       resolveSessionStartTrigger({
         occupancyAction: "heartbeat",
-        priorRitual: { raw: { compact_resume_at: "2026-08-17T12:00:00Z" } } as never,
+        sessionId: "s",
+        priorRitual: {
+          sessionId: "s",
+          raw: { compact_resume_at: "2026-08-17T12:00:00Z", session_id: "s" },
+        } as never,
       }),
     ).toBe("post-compact");
     expect(
       resolveSessionStartTrigger({
         occupancyAction: "heartbeat",
+        sessionId: "s",
         priorRitual: { raw: {}, sessionId: "s" } as never,
       }),
     ).toBe("mutation-intent");
     expect(
       resolveSessionStartTrigger({
         occupancyAction: "claimed",
-        priorRitual: { raw: { rearm_needed: true } } as never,
+        sessionId: "s",
+        priorRitual: { sessionId: "s", raw: { rearm_needed: true, session_id: "s" } } as never,
       }),
     ).toBe("rearm-forced-cold");
     expect(resolveSessionStartTrigger({ occupancyAction: "claimed" })).toBe("cold");
     expect(
       resolveSessionStartTrigger({
         occupancyAction: "heartbeat",
+      }),
+    ).toBe("cold");
+  });
+
+  it("keeps steal-recover first even when a foreign compact marker remains", () => {
+    expect(
+      resolveSessionStartTrigger({
+        occupancyAction: "stolen",
+        sessionId: "stealer",
+        priorRitual: {
+          sessionId: "old-owner",
+          raw: { compact_resume_at: "2026-08-17T12:00:00Z", session_id: "old-owner" },
+        } as never,
+      }),
+    ).toBe("steal-recover");
+  });
+
+  it("does not inherit compact or rearm markers from a foreign or missing prior session id", () => {
+    expect(
+      resolveSessionStartTrigger({
+        occupancyAction: "claimed",
+        sessionId: "new-claimant",
+        priorRitual: {
+          sessionId: "old-owner",
+          raw: { compact_resume_at: "2026-08-17T12:00:00Z", session_id: "old-owner" },
+        } as never,
+      }),
+    ).toBe("cold");
+    expect(
+      resolveSessionStartTrigger({
+        occupancyAction: "claimed",
+        sessionId: "new-claimant",
+        priorRitual: { raw: { compact_resume_at: "2026-08-17T12:00:00Z" } } as never,
+      }),
+    ).toBe("cold");
+    expect(
+      resolveSessionStartTrigger({
+        occupancyAction: "claimed",
+        sessionId: "new-claimant",
+        priorRitual: { sessionId: "old-owner", raw: { rearm_needed: true } } as never,
       }),
     ).toBe("cold");
   });
@@ -193,6 +244,41 @@ describe("one cold session_start JSONL event per host session (#3921)", () => {
     const starts = sessionStarts(out).filter((e) => e.session_id === sessionId);
     expect(starts.map((e) => e.trigger)).toEqual(["cold", "post-compact"]);
     expect(coldStarts(out).filter((e) => e.session_id === sessionId)).toHaveLength(1);
+  });
+
+  it("emits cold for a new claimant after the prior occupant's compact marker and lease expire", () => {
+    const root = tempRoot();
+    const out = join(root, "summary.jsonl");
+    const t0 = new Date("2026-08-17T12:00:00Z");
+    expect(
+      runSessionStart(root, {
+        ...baseOptions(root, out),
+        sessionId: "old-owner",
+        now: t0,
+      }).code,
+    ).toBe(0);
+    const marked = markRitualStaleAfterCompact(root, {
+      now: new Date("2026-08-17T12:05:00Z"),
+    });
+    expect(marked.changed).toBe(true);
+    const later = new Date(t0.getTime() + OCCUPANCY_TTL_MS + 1);
+    expect(
+      runSessionStart(root, {
+        ...baseOptions(root, out),
+        sessionId: "new-claimant",
+        now: later,
+      }).code,
+    ).toBe(0);
+    expect(
+      sessionStarts(out)
+        .filter((e) => e.session_id === "old-owner")
+        .map((e) => e.trigger),
+    ).toEqual(["cold"]);
+    expect(
+      sessionStarts(out)
+        .filter((e) => e.session_id === "new-claimant")
+        .map((e) => e.trigger),
+    ).toEqual(["cold"]);
   });
 });
 
