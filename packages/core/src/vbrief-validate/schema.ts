@@ -296,6 +296,7 @@ export function validateVbriefSchema(
           planObj.narratives,
           `${filepath}: plan.narratives`,
           errors,
+          { grandfatherUnkeyed: planObj.status === "completed" },
         );
       }
 
@@ -320,7 +321,12 @@ export function validateVbriefSchema(
         warnings.push(...refIssues.warnings);
       }
       validateReferenceTrustLevels(planObj.references, filepath, errors);
-      if (Array.isArray(planObj.items)) {
+      // Whole-story fail/cancel is a lifecycle outcome, not investigation rule-out.
+      if (
+        Array.isArray(planObj.items) &&
+        planObj.status !== "failed" &&
+        planObj.status !== "cancelled"
+      ) {
         errors.push(
           ...collectFailedPlanItemInvalidatesErrors(planObj.items, planObj.edges, filepath),
         );

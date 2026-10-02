@@ -52,6 +52,9 @@ describe("validateVbriefSchema xBRIEF v0.8 (#2107)", () => {
         narratives: {
           Source: "verified:review",
           Confidence: "high",
+          Evidence: "review comment",
+          Verifier: "reviewer",
+          VerifiedAt: "2026-10-02T18:00:00Z",
         },
         items: [
           {

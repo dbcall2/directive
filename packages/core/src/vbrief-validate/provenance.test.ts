@@ -32,7 +32,7 @@ describe("Plan.narratives source provenance (#479)", () => {
     expect(CONFIDENCE_VALUES).toEqual(["high", "medium", "low"]);
   });
 
-  it("accepts historical Source strings without atomic-claim keys", () => {
+  it("grandfathers historical Source strings that are not named-class tokens", () => {
     const errors: string[] = [];
     validatePlanNarrativesProvenance(
       {
@@ -46,6 +46,14 @@ describe("Plan.narratives source provenance (#479)", () => {
     expect(errors).toEqual([]);
   });
 
+  it("requires Evidence, Verifier, and VerifiedAt when Source is named class verified even if those keys are absent", () => {
+    const errors: string[] = [];
+    validatePlanNarrativesProvenance({ Source: "verified:task-check" }, "n", errors);
+    expect(errors.some((e) => e.includes("Evidence is required"))).toBe(true);
+    expect(errors.some((e) => e.includes("Verifier is required"))).toBe(true);
+    expect(errors.some((e) => e.includes("VerifiedAt is required"))).toBe(true);
+  });
+
   it("rejects Confidence outside high|medium|low", () => {
     const errors: string[] = [];
     validatePlanNarrativesProvenance({ Confidence: "pretty-sure" }, "n", errors);
@@ -56,9 +64,19 @@ describe("Plan.narratives source provenance (#479)", () => {
     expect(nonString.some((e) => e.includes("Confidence invalid"))).toBe(true);
   });
 
+  it("treats Evidence-only as a narrative section, not an atomic claim", () => {
+    const errors: string[] = [];
+    validatePlanNarrativesProvenance(
+      { Confidence: "high", Evidence: "mission outcome pointer" },
+      "n",
+      errors,
+    );
+    expect(errors).toEqual([]);
+  });
+
   it("requires Source plus evidence, verifier, and time for a verified atomic claim", () => {
     const errors: string[] = [];
-    validatePlanNarrativesProvenance({ Confidence: "high", Evidence: "task check" }, "n", errors);
+    validatePlanNarrativesProvenance({ Confidence: "high", Verifier: "task check" }, "n", errors);
     expect(errors.some((e) => e.includes("Source is required"))).toBe(true);
 
     const verifiedMissing: string[] = [];
@@ -180,6 +198,19 @@ describe("validateVbriefSchema provenance placement (#479)", () => {
     };
     expect(validateVbriefSchema(planLevel, "plan-ok.json")).toEqual([]);
 
+    const completedHistorical = {
+      ...MINIMAL_V08,
+      plan: {
+        ...MINIMAL_V08.plan,
+        status: "completed",
+        narratives: {
+          Source: "verified:codebase-surface-map-2026-07-03; verified:umbrella-2203-current-shape",
+          Confidence: "medium",
+        },
+      },
+    };
+    expect(validateVbriefSchema(completedHistorical, "completed-hist.json")).toEqual([]);
+
     const badConfidence = {
       ...MINIMAL_V08,
       plan: {
@@ -258,6 +289,41 @@ describe("validateVbriefSchema provenance placement (#479)", () => {
     };
     expect(validateVbriefSchema(edged, "fail-edged.json")).toEqual([]);
 
+    const ghostFrom = {
+      ...MINIMAL_V08,
+      plan: {
+        ...MINIMAL_V08.plan,
+        items: [
+          { id: "clause.3", title: "Ruled out", status: "failed" },
+          { id: "clause.4", title: "Survivor", status: "completed" },
+        ],
+        edges: [{ from: "ghost", to: "clause.3", type: "invalidates" }],
+      },
+    };
+    expect(
+      validateVbriefSchema(ghostFrom, "fail-ghost.json").some((e) => e.includes("invalidates")),
+    ).toBe(true);
+
+    const emptyXClaim = {
+      ...MINIMAL_V08,
+      plan: {
+        ...MINIMAL_V08.plan,
+        items: [
+          {
+            id: "clause.3",
+            title: "Ruled out",
+            status: "failed",
+            metadata: { "x-claim": {} },
+          },
+        ],
+      },
+    };
+    expect(
+      validateVbriefSchema(emptyXClaim, "fail-empty-xclaim.json").some((e) =>
+        e.includes("invalidates"),
+      ),
+    ).toBe(true);
+
     const nested = {
       ...MINIMAL_V08,
       plan: {
@@ -275,6 +341,28 @@ describe("validateVbriefSchema provenance placement (#479)", () => {
     expect(validateVbriefSchema(nested, "fail-sub.json").some((e) => e.includes("<no-id>"))).toBe(
       true,
     );
+  });
+
+  it("skips invalidates on whole-story fail or cancel", () => {
+    const failedPlan = {
+      ...MINIMAL_V08,
+      plan: {
+        ...MINIMAL_V08.plan,
+        status: "failed",
+        items: [{ id: "clause.3", title: "Ruled out", status: "failed" }],
+      },
+    };
+    expect(validateVbriefSchema(failedPlan, "plan-failed.json")).toEqual([]);
+
+    const cancelledPlan = {
+      ...MINIMAL_V08,
+      plan: {
+        ...MINIMAL_V08.plan,
+        status: "cancelled",
+        items: [{ id: "clause.3", title: "Ruled out", status: "failed" }],
+      },
+    };
+    expect(validateVbriefSchema(cancelledPlan, "plan-cancelled.json")).toEqual([]);
   });
 });
 

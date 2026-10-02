@@ -908,27 +908,56 @@ describe("runTransition", () => {
         status: "running",
         updated: staleEnvelope,
         items: [
-          { title: "pending-item", status: "pending", ...aceEvidence("pending-item") },
-          { title: "proposed-item", status: "proposed", ...aceEvidence("proposed-item") },
-          { title: "running-item", status: "running", ...aceEvidence("running-item") },
-          { title: "cancelled-item", status: "cancelled", ...aceEvidence("cancelled-item") },
-          { title: "failed-item", status: "failed", ...aceEvidence("failed-item") },
           {
+            id: "pending-item",
+            title: "pending-item",
+            status: "pending",
+            ...aceEvidence("pending-item"),
+          },
+          {
+            id: "proposed-item",
+            title: "proposed-item",
+            status: "proposed",
+            ...aceEvidence("proposed-item"),
+          },
+          {
+            id: "running-item",
+            title: "running-item",
+            status: "running",
+            ...aceEvidence("running-item"),
+          },
+          {
+            id: "cancelled-item",
+            title: "cancelled-item",
+            status: "cancelled",
+            ...aceEvidence("cancelled-item"),
+          },
+          {
+            id: "failed-item",
+            title: "failed-item",
+            status: "failed",
+            ...aceEvidence("failed-item"),
+          },
+          {
+            id: "already-completed",
             title: "already-completed",
             status: "completed",
             ...aceEvidence("already-completed"),
           },
           {
+            id: "parent-with-sub",
             title: "parent-with-sub",
             status: "pending",
             ...aceEvidence("parent-with-sub"),
             subItems: [
               {
+                id: "sub-pending",
                 title: "sub-pending",
                 status: "pending",
                 ...aceEvidence("sub-pending"),
               },
               {
+                id: "sub-cancelled",
                 title: "sub-cancelled",
                 status: "cancelled",
                 ...aceEvidence("sub-cancelled"),
@@ -936,6 +965,7 @@ describe("runTransition", () => {
             ],
           },
         ],
+        edges: [{ from: "already-completed", to: "failed-item", type: "invalidates" }],
       },
     });
     const fixed = new Date("2026-07-27T15:30:00.000Z");

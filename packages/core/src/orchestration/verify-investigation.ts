@@ -82,21 +82,46 @@ function hasXClaim(item: Record<string, unknown>): boolean {
     return false;
   }
   const xclaim = (meta as Record<string, unknown>)["x-claim"];
-  return typeof xclaim === "object" && xclaim !== null && !Array.isArray(xclaim);
+  if (typeof xclaim !== "object" || xclaim === null || Array.isArray(xclaim)) {
+    return false;
+  }
+  const xc = xclaim as Record<string, unknown>;
+  const reason = xc.ruledOutReason;
+  const hasReason = typeof reason === "string" && reason.trim().length > 0;
+  return hasReason || evidenceRefs(xc).length > 0;
 }
 
-/** Collect `to` ids of `invalidates` edges. */
-export function collectInvalidatesTargets(edges: unknown): Set<string> {
+function collectPlanItemIds(items: unknown): Set<string> {
+  const ids = new Set<string>();
+  if (!Array.isArray(items)) {
+    return ids;
+  }
+  walkPlanItems(items, (item) => {
+    if (typeof item.id === "string" && item.id.length > 0) {
+      ids.add(item.id);
+    }
+  });
+  return ids;
+}
+
+/** Collect `to` ids of `invalidates` edges whose `from` is an existing plan item id. */
+export function collectInvalidatesTargets(edges: unknown, items: unknown = []): Set<string> {
   const invalidatesTargets = new Set<string>();
   if (!Array.isArray(edges)) {
     return invalidatesTargets;
   }
+  const knownFrom = collectPlanItemIds(items);
   for (const edge of edges) {
     if (typeof edge !== "object" || edge === null || Array.isArray(edge)) {
       continue;
     }
     const e = edge as Record<string, unknown>;
-    if (e.type === "invalidates" && typeof e.to === "string") {
+    if (
+      e.type === "invalidates" &&
+      typeof e.to === "string" &&
+      typeof e.from === "string" &&
+      knownFrom.has(e.from)
+    ) {
       invalidatesTargets.add(e.to);
     }
   }
@@ -135,7 +160,7 @@ export function collectFailedPlanItemInvalidatesErrors(
   if (!Array.isArray(items)) {
     return [];
   }
-  const targets = collectInvalidatesTargets(edges);
+  const targets = collectInvalidatesTargets(edges, items);
   const errors: string[] = [];
   walkPlanItems(items, (item) => {
     if (item.status !== "failed") {
@@ -289,7 +314,7 @@ export function validateLedger(data: Record<string, unknown>): ValidationResult 
     }
   }
 
-  const invalidatesTargets = collectInvalidatesTargets(plan.edges);
+  const invalidatesTargets = collectInvalidatesTargets(plan.edges, items);
 
   let completedBranches = 0;
   for (const top of items) {

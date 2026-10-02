@@ -24,6 +24,7 @@ describe("scope main and context branches", () => {
   });
 
   it("resolveProjectRoot walks from nested directory", () => {
+    delete process.env.DEFT_PROJECT_ROOT;
     root = mkdtempSync(join(tmpdir(), "ctx-walk-"));
     mkdirSync(join(root, "xbrief"));
     mkdirSync(join(root, "sub", "deep"), { recursive: true });

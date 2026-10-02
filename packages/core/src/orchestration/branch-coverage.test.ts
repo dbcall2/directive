@@ -229,7 +229,10 @@ describe("verify-investigation branch coverage", () => {
     const edged = validateLedger(data);
     expect(edged.hard_failures.some((f) => f.code === "HF-ITEM-NO-EDGE")).toBe(false);
     expect(
-      collectInvalidatesTargets((data.plan as Record<string, unknown>).edges).has("leaf-fail"),
+      collectInvalidatesTargets(
+        (data.plan as Record<string, unknown>).edges,
+        (data.plan as Record<string, unknown>).items,
+      ).has("leaf-fail"),
     ).toBe(true);
     expect(
       collectFailedPlanItemInvalidatesErrors(
@@ -261,6 +264,123 @@ describe("verify-investigation branch coverage", () => {
         "f.json",
       ),
     ).toEqual([]);
+  });
+
+  it("empty x-claim does not skip invalidates; ghost from does not rule out a failed item", () => {
+    expect(
+      collectFailedPlanItemInvalidatesErrors(
+        [{ id: "empty-xclaim", status: "failed", metadata: { "x-claim": {} } }],
+        [],
+        "f.json",
+      ).some((e) => e.includes("empty-xclaim") && e.includes("invalidates")),
+    ).toBe(true);
+
+    expect(
+      collectFailedPlanItemInvalidatesErrors(
+        [
+          {
+            id: "parent",
+            status: "pending",
+            items: [{ id: "nested-empty", status: "failed", metadata: { "x-claim": {} } }],
+          },
+        ],
+        [],
+        "f.json",
+      ).some((e) => e.includes("nested-empty")),
+    ).toBe(true);
+
+    expect(
+      collectFailedPlanItemInvalidatesErrors(
+        [
+          {
+            id: "parent",
+            status: "pending",
+            subItems: [{ id: "sub-empty", status: "failed", metadata: { "x-claim": {} } }],
+          },
+        ],
+        [],
+        "f.json",
+      ).some((e) => e.includes("sub-empty")),
+    ).toBe(true);
+
+    expect(
+      collectFailedPlanItemInvalidatesErrors(
+        [{ id: "reason-only", status: "failed", metadata: { "x-claim": { ruledOutReason: "x" } } }],
+        [],
+        "f.json",
+      ),
+    ).toEqual([]);
+    expect(
+      collectFailedPlanItemInvalidatesErrors(
+        [
+          {
+            id: "refs-only",
+            status: "failed",
+            metadata: { "x-claim": { evidenceRefs: ["EV-1"] } },
+          },
+        ],
+        [],
+        "f.json",
+      ),
+    ).toEqual([]);
+
+    const items = [
+      { id: "survivor", status: "completed" },
+      { id: "failed-item", status: "failed" },
+    ];
+    const ghostEdges = [{ from: "ghost", to: "failed-item", type: "invalidates" }];
+    expect(collectInvalidatesTargets(ghostEdges, items).has("failed-item")).toBe(false);
+    expect(
+      collectFailedPlanItemInvalidatesErrors(items, ghostEdges, "f.json").some((e) =>
+        e.includes("failed-item"),
+      ),
+    ).toBe(true);
+
+    const realEdges = [{ from: "survivor", to: "failed-item", type: "invalidates" }];
+    expect(collectInvalidatesTargets(realEdges, items).has("failed-item")).toBe(true);
+    expect(collectFailedPlanItemInvalidatesErrors(items, realEdges, "f.json")).toEqual([]);
+
+    const nestedItems = [
+      { id: "p", status: "pending", subItems: [{ id: "child", status: "completed" }] },
+      { id: "failed-item", status: "failed" },
+    ];
+    expect(
+      collectInvalidatesTargets(
+        [{ from: "child", to: "failed-item", type: "invalidates" }],
+        nestedItems,
+      ).has("failed-item"),
+    ).toBe(true);
+
+    const data = base();
+    (data.plan as Record<string, unknown>).items = [
+      {
+        id: "b1",
+        status: "completed",
+        items: [
+          {
+            id: "leaf-fail",
+            title: "Ruled out",
+            status: "failed",
+            metadata: { "x-claim": {} },
+          },
+        ],
+      },
+    ];
+    const emptyNested = validateLedger(data);
+    expect(emptyNested.hard_failures.some((f) => f.code === "HF-ITEM-NO-EDGE")).toBe(true);
+
+    (data.plan as Record<string, unknown>).items = [
+      {
+        id: "b1",
+        status: "completed",
+        items: [{ id: "leaf-fail", title: "Ruled out", status: "failed" }],
+      },
+    ];
+    (data.plan as Record<string, unknown>).edges = [
+      { from: "ghost", to: "leaf-fail", type: "invalidates" },
+    ];
+    const ghostLedger = validateLedger(data);
+    expect(ghostLedger.hard_failures.some((f) => f.code === "HF-ITEM-NO-EDGE")).toBe(true);
   });
 
   it("blocked claim emits soft warning only", () => {

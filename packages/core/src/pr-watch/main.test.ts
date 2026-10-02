@@ -3,6 +3,7 @@ import {
   mkdtempSync,
   readFileSync,
   renameSync,
+  rmSync,
   symlinkSync,
   writeFileSync,
 } from "node:fs";
@@ -681,10 +682,20 @@ describe("pr:watch wait heartbeat (#5020)", () => {
 
 describe("runWatch (exit-code passthrough + JSON)", () => {
   let stdout = "";
+  const tmpRoots: string[] = [];
   afterEach(() => {
     stdout = "";
     vi.restoreAllMocks();
+    for (const root of tmpRoots.splice(0)) {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
+
+  const isolatedRoot = (): string => {
+    const root = mkdtempSync(join(tmpdir(), "pr-watch-iso-"));
+    tmpRoots.push(root);
+    return root;
+  };
 
   const spyStdout = () => {
     vi.spyOn(process.stdout, "write").mockImplementation((chunk: unknown) => {
@@ -697,9 +708,20 @@ describe("runWatch (exit-code passthrough + JSON)", () => {
   it("returns exit 0 and emits AC-4 JSON on a CLEAN verdict", () => {
     spyStdout();
     const probeFn = () => makeProbe({ isClean: true });
-    const code = runWatch(["1056", "--json", "--one-shot", "--repo", "deftai/directive"], {
-      probeFn,
-    });
+    const code = runWatch(
+      [
+        "1056",
+        "--json",
+        "--one-shot",
+        "--repo",
+        "deftai/directive",
+        "--project-root",
+        isolatedRoot(),
+      ],
+      {
+        probeFn,
+      },
+    );
     expect(code).toBe(EXIT_CLEAN);
     const payload = JSON.parse(stdout) as Record<string, unknown>;
     expect(payload.verdict).toBe("CLEAN");
@@ -715,7 +737,10 @@ describe("runWatch (exit-code passthrough + JSON)", () => {
         shaMatch: true,
         cleanGateHoldout: "has_blocking",
       });
-    const code = runWatch(["1056", "--one-shot", "--repo", "deftai/directive"], { probeFn });
+    const code = runWatch(
+      ["1056", "--one-shot", "--repo", "deftai/directive", "--project-root", isolatedRoot()],
+      { probeFn },
+    );
     expect(code).toBe(EXIT_NEW_P0_P1);
     expect(stdout).toContain("NEW_P0_P1");
   });

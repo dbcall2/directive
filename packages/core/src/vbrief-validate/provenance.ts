@@ -59,18 +59,41 @@ function isVerifiedAt(value: string): boolean {
   return !Number.isNaN(Date.parse(value));
 }
 
+function sourceIsPureNamedClass(source: unknown): boolean {
+  if (!isNonEmptyString(source)) {
+    return false;
+  }
+  const tokens = parseSourceTokens(source);
+  return tokens.length > 0 && tokens.every((token) => sourceTokenClass(token) !== null);
+}
+
+function claimUnitKeysBind(narratives: Record<string, unknown>): boolean {
+  // Verifier/VerifiedAt are claim-unit-only. Evidence is also a mission-style section.
+  return isNonEmptyString(narratives.Verifier) || isNonEmptyString(narratives.VerifiedAt);
+}
+
 function atomicClaimPresent(narratives: Record<string, unknown>): boolean {
-  return ATOMIC_CLAIM_KEYS.some((key) => key in narratives);
+  if (sourceIsPureNamedClass(narratives.Source) || claimUnitKeysBind(narratives)) {
+    return true;
+  }
+  // Evidence binds the unit only with Source (mission style uses Evidence without Source).
+  return isNonEmptyString(narratives.Evidence) && isNonEmptyString(narratives.Source);
+}
+
+export interface ProvenanceOptions {
+  /** Completed records keep unkeyed historical Source readable (#3383 / vbrief.md ~). */
+  readonly grandfatherUnkeyed?: boolean;
 }
 
 /**
  * Validate Plan.narratives Source/Confidence vocabulary and atomic claim unit.
- * Grandfathers historical Source strings unless an atomic-claim key is present.
+ * Grandfathers historical Source strings that are not named-class tokens.
  */
 export function validatePlanNarrativesProvenance(
   narratives: unknown,
   path: string,
   errors: string[],
+  options?: ProvenanceOptions,
 ): void {
   if (typeof narratives !== "object" || narratives === null || Array.isArray(narratives)) {
     return;
@@ -85,6 +108,10 @@ export function validatePlanNarrativesProvenance(
           `(expected one of ${CONFIDENCE_VALUES.join(", ")})`,
       );
     }
+  }
+
+  if (options?.grandfatherUnkeyed && !claimUnitKeysBind(n)) {
+    return;
   }
 
   if (!atomicClaimPresent(n)) {
