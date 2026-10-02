@@ -155,11 +155,24 @@
             },
             "Source": {
               "type": "string",
-              "description": "How a fact was established. Recommended values: verified:<method>, observed:<method>, inferred:<reason>, assumed."
+              "description": "How a fact was established (#479). Named classes: verified, observed, inferred, assumed, propagated. Optional :<method-or-reason> suffix. Multiple tokens separated by '; '. Confidence does not substitute for evidence. Bind Source, Evidence, Verifier, and VerifiedAt on this same Plan.narratives object as the atomic claim unit."
             },
             "Confidence": {
               "type": "string",
-              "description": "Agent certainty level. Recommended values: high, medium, low."
+              "enum": ["high", "medium", "low"],
+              "description": "Agent certainty (#479). Does not substitute for Evidence on a verified claim."
+            },
+            "Evidence": {
+              "type": "string",
+              "description": "Pointer or event backing the atomic claim unit (#479). Required when Source includes class verified."
+            },
+            "Verifier": {
+              "type": "string",
+              "description": "Who or what verified the atomic claim unit (#479). Required when Source includes class verified."
+            },
+            "VerifiedAt": {
+              "$ref": "#/$defs/dateTime",
+              "description": "ISO-8601 time of verification for the atomic claim unit (#479). Required when Source includes class verified."
             }
           },
           "additionalProperties": {
@@ -531,6 +544,11 @@
               "type": "string",
               "pattern": "^x-[a-zA-Z0-9_-]+/",
               "description": "A xBRIEF reference type. Canonical types: x-xbrief/plan, x-xbrief/github-issue, x-xbrief/github-pr, x-xbrief/commit, x-xbrief/external, x-xbrief/research, x-xbrief/adr. Custom consumer types SHOULD use x-<consumer>/ namespace (e.g. x-myapp/ticket)."
+            },
+            "TrustLevel": {
+              "type": "string",
+              "enum": ["verified", "internal", "external"],
+              "description": "Trust classification (#480 / #479). verified = confirmed against the working tree; internal = originated inside the trust boundary; external = originated outside. Missing field reads as external, never verified. Promotion from external to verified requires explicit revalidation."
             }
           }
         }

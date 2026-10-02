@@ -76,6 +76,85 @@ function evidenceRefs(xclaim: Record<string, unknown>): string[] {
   return refs.map((r) => String(r));
 }
 
+function hasXClaim(item: Record<string, unknown>): boolean {
+  const meta = item.metadata;
+  if (typeof meta !== "object" || meta === null || Array.isArray(meta)) {
+    return false;
+  }
+  const xclaim = (meta as Record<string, unknown>)["x-claim"];
+  return typeof xclaim === "object" && xclaim !== null && !Array.isArray(xclaim);
+}
+
+/** Collect `to` ids of `invalidates` edges. */
+export function collectInvalidatesTargets(edges: unknown): Set<string> {
+  const invalidatesTargets = new Set<string>();
+  if (!Array.isArray(edges)) {
+    return invalidatesTargets;
+  }
+  for (const edge of edges) {
+    if (typeof edge !== "object" || edge === null || Array.isArray(edge)) {
+      continue;
+    }
+    const e = edge as Record<string, unknown>;
+    if (e.type === "invalidates" && typeof e.to === "string") {
+      invalidatesTargets.add(e.to);
+    }
+  }
+  return invalidatesTargets;
+}
+
+function walkPlanItems(
+  items: unknown[],
+  visit: (item: Record<string, unknown>, depth: number) => void,
+  depth = 0,
+): void {
+  for (const node of items) {
+    if (typeof node !== "object" || node === null || Array.isArray(node)) {
+      continue;
+    }
+    const item = node as Record<string, unknown>;
+    visit(item, depth);
+    if (Array.isArray(item.items)) {
+      walkPlanItems(item.items, visit, depth + 1);
+    }
+    if (Array.isArray(item.subItems)) {
+      walkPlanItems(item.subItems, visit, depth + 1);
+    }
+  }
+}
+
+/**
+ * Failed plan items (any depth) without an `invalidates` edge targeting them.
+ * Investigation `x-claim` leaves keep the #1621 ruledOutReason path.
+ */
+export function collectFailedPlanItemInvalidatesErrors(
+  items: unknown,
+  edges: unknown,
+  filepath: string,
+): string[] {
+  if (!Array.isArray(items)) {
+    return [];
+  }
+  const targets = collectInvalidatesTargets(edges);
+  const errors: string[] = [];
+  walkPlanItems(items, (item) => {
+    if (item.status !== "failed") {
+      return;
+    }
+    if (hasXClaim(item)) {
+      return;
+    }
+    const id = typeof item.id === "string" ? item.id : "<no-id>";
+    if (!targets.has(id)) {
+      errors.push(
+        `${filepath}: plan item ${id} is 'failed' but has no invalidates edge ` +
+          `(a failed item is ruled out only by an invalidates edge)`,
+      );
+    }
+  });
+  return errors;
+}
+
 /** Load + structurally validate a ledger file. */
 export function loadLedger(path: string): Record<string, unknown> {
   if (!existsSync(path)) {
@@ -210,18 +289,7 @@ export function validateLedger(data: Record<string, unknown>): ValidationResult 
     }
   }
 
-  const invalidatesTargets = new Set<string>();
-  const edges = plan.edges;
-  if (Array.isArray(edges)) {
-    for (const edge of edges) {
-      if (typeof edge === "object" && edge !== null && !Array.isArray(edge)) {
-        const e = edge as Record<string, unknown>;
-        if (e.type === "invalidates" && typeof e.to === "string") {
-          invalidatesTargets.add(e.to);
-        }
-      }
-    }
-  }
+  const invalidatesTargets = collectInvalidatesTargets(plan.edges);
 
   let completedBranches = 0;
   for (const top of items) {
@@ -241,6 +309,22 @@ export function validateLedger(data: Record<string, unknown>): ValidationResult 
       completedBranches += 1;
     }
   }
+
+  walkPlanItems(items, (item, depth) => {
+    if (depth === 0) {
+      return;
+    }
+    if (item.status !== "failed" || hasXClaim(item)) {
+      return;
+    }
+    const iid = typeof item.id === "string" ? item.id : "<no-id>";
+    if (!invalidatesTargets.has(iid)) {
+      result.hard_failures.push({
+        code: "HF-ITEM-NO-EDGE",
+        message: `plan item ${iid} is 'failed' but has no invalidates edge -- a failed item is ruled out only by an invalidates edge`,
+      });
+    }
+  });
 
   if (completedBranches > 1) {
     result.soft_warnings.push({

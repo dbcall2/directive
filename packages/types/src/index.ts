@@ -51,6 +51,7 @@ export {
   type KnownReferenceType,
   RESERVED_REFERENCE_TYPE_ALIASES,
   referenceTypeMatches,
+  TRUST_LEVELS,
   type TrustLevel,
   type UnknownReservedReferenceType,
   type VBriefReference,

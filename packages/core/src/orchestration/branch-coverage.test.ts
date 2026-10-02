@@ -14,6 +14,8 @@ import {
   sweepScratchDirs,
 } from "./subagent-monitor.js";
 import {
+  collectFailedPlanItemInvalidatesErrors,
+  collectInvalidatesTargets,
   cmdVerifyInvestigation,
   loadLedger,
   parseVerifyInvestigationArgs,
@@ -206,6 +208,59 @@ describe("verify-investigation branch coverage", () => {
     const result = validateLedger(data);
     expect(result.hard_failures.some((f) => f.code === "HF-DANGLING-EV")).toBe(true);
     expect(result.hard_failures.some((f) => f.code === "HF-FAILED-CLAIM")).toBe(false);
+    expect(result.hard_failures.some((f) => f.code === "HF-ITEM-NO-EDGE")).toBe(false);
+  });
+
+  it("generalizes invalidates refusal from failed branches to nested plan items", () => {
+    const data = base();
+    (data.plan as Record<string, unknown>).items = [
+      {
+        id: "b1",
+        status: "completed",
+        items: [{ id: "leaf-fail", title: "Ruled out", status: "failed" }],
+      },
+    ];
+    const missing = validateLedger(data);
+    expect(missing.hard_failures.some((f) => f.code === "HF-ITEM-NO-EDGE")).toBe(true);
+
+    (data.plan as Record<string, unknown>).edges = [
+      { from: "b1", to: "leaf-fail", type: "invalidates" },
+    ];
+    const edged = validateLedger(data);
+    expect(edged.hard_failures.some((f) => f.code === "HF-ITEM-NO-EDGE")).toBe(false);
+    expect(collectInvalidatesTargets((data.plan as Record<string, unknown>).edges).has("leaf-fail")).toBe(
+      true,
+    );
+    expect(
+      collectFailedPlanItemInvalidatesErrors(
+        (data.plan as Record<string, unknown>).items,
+        (data.plan as Record<string, unknown>).edges,
+        "ledger.json",
+      ),
+    ).toEqual([]);
+    expect(collectFailedPlanItemInvalidatesErrors("nope", [], "f.json")).toEqual([]);
+    expect(collectInvalidatesTargets("nope").size).toBe(0);
+    expect(collectInvalidatesTargets([null, "x", { type: "blocks", to: "a" }]).size).toBe(0);
+    expect(
+      collectFailedPlanItemInvalidatesErrors(
+        [null, "x", { id: "ok", title: "ok", status: "pending" }],
+        [{ type: "invalidates" }],
+        "f.json",
+      ),
+    ).toEqual([]);
+    expect(
+      collectFailedPlanItemInvalidatesErrors(
+        [
+          {
+            id: "xclaim-fail",
+            status: "failed",
+            metadata: { "x-claim": { ruledOutReason: "x", evidenceRefs: ["EV-1"] } },
+          },
+        ],
+        [],
+        "f.json",
+      ),
+    ).toEqual([]);
   });
 
   it("blocked claim emits soft warning only", () => {

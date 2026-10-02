@@ -117,11 +117,43 @@ Canonical reference types (all prefixed `x-vbrief/` per the v0.6 schema): `x-vbr
 ]
 ```
 
+### Source and Confidence (#479)
+
+Named vocabulary for how a plan-level claim was established. Measured placement is **`plan.narratives`** (`Source` and `Confidence` already exist there as strings). `PlanItem.narrative` stays an untyped string map in this ship -- no named Source/Confidence keys on items (no named consumer).
+
+**Source classes** (case-sensitive, lowercase). Optional `:<method-or-reason>` suffix. Multiple tokens MAY be separated by `; `:
+
+- `verified` -- an external verification event produced this claim (`task check` passed, a test ran, the operator confirmed)
+- `observed` -- direct observation without a named verifier event
+- `inferred` -- agent reasoning from observed code or docs without external verification
+- `assumed` -- proceeding without a check because cost or scope does not warrant one
+- `propagated` -- source is another vBRIEF entry; include the source path so audits can trace false-memory chains
+
+**Confidence** (case-sensitive): `high` | `medium` | `low`. Confidence does not substitute for evidence.
+
+**Atomic claim unit** -- bind these keys on the same `plan.narratives` object:
+
+- `Source` -- named class (and optional method suffix)
+- `Evidence` -- pointer or event that backs the claim
+- `Verifier` -- who or what verified it
+- `VerifiedAt` -- ISO-8601 time of verification
+
+**Rule body:**
+
+- ! When `plan.narratives` carries `Evidence`, `Verifier`, or `VerifiedAt`, `Source` MUST be present and each `;`-separated token MUST use a named class above
+- ! When `Source` includes class `verified`, `Evidence`, `Verifier`, and `VerifiedAt` MUST be present and non-empty
+- ! `Confidence`, when present, MUST be `high`, `medium`, or `low`
+- ⊗ Treat `Confidence` as a substitute for `Evidence` on a `verified` claim
+- ⊗ Add named `Source` / `Confidence` keys on `PlanItem.narrative` as if they were the Plan.narratives contract -- item narrative remains a free string map until a named consumer ships
+- ~ Historical `Source` strings without the atomic-claim keys remain readable; new verified claims SHOULD bind the atomic unit
+
+`task vbrief:validate` enforces the rule body on `plan.narratives`. Cross-reference: `### TrustLevel (#480)` (authorial provenance on `references[]`; orthogonal to Source).
+
 ### TrustLevel (#480)
 
 Additive extension to the source-provenance shape, sourced from the **AI Agent Traps** paper's Cognitive State / Latent Memory Poisoning trap class (see [`../meta/security.md`](../meta/security.md) `### 2. Cognitive State (Latent Memory Poisoning)`). Every vBRIEF that ingests externally-sourced content carries an explicit trust classification so future sessions reading the vBRIEF can apply the appropriate validation discipline before treating the content as authoritative.
 
-**Coordinates with #479** (`feat(vbrief,resilience): prevent false memory propagation and context rot in agent sessions`): #479 is the source-provenance umbrella covering the broader false-memory-propagation surface. As of the #480 landing #479 is OPEN; this section is the additive extension defining the `TrustLevel` field shape and rule body. If / when #479 lands a richer source-provenance contract, the `TrustLevel` field MUST be carried forward unchanged (the value enum + the promotion-prohibition rule are the load-bearing surface) -- treat #479 as the parent umbrella and this section as the trust-classification slice.
+**Coordinates with #479** (`feat(vbrief,resilience): prevent false memory propagation and context rot in agent sessions`): #479 is the source-provenance umbrella covering the broader false-memory-propagation surface. This section is the additive extension defining the `TrustLevel` field shape and rule body. #479 lands `verified` in the TypeScript `TrustLevel` union and on `VBriefReference` schema; the value enum and the promotion-prohibition rule in this section stay unchanged -- treat #479 as the parent umbrella and this section as the trust-classification slice.
 
 **Value enum** (case-sensitive, lowercase):
 

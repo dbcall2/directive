@@ -25,7 +25,10 @@ export const KNOWN_REFERENCE_TYPES = [
 
 export type KnownReferenceType = (typeof KNOWN_REFERENCE_TYPES)[number];
 
-export type TrustLevel = "internal" | "external";
+/** Canonical TrustLevel values (#480). `verified` is the #479 type/schema member. */
+export const TRUST_LEVELS = ["verified", "internal", "external"] as const;
+
+export type TrustLevel = (typeof TRUST_LEVELS)[number];
 
 /** Schema-conformant vBRIEF/xBRIEF reference (`VBriefReference` in core schema). */
 export interface VBriefReference {

@@ -2,6 +2,7 @@ import {
   describeUnknownReservedReferenceType,
   type UnknownReservedReferenceType,
 } from "@deftai/directive-types";
+import { collectFailedPlanItemInvalidatesErrors } from "../orchestration/verify-investigation.js";
 import { pyStrRepr, pythonTypeName } from "../triage/scope/python-repr.js";
 import {
   PLAN_ITEM_ID_PATTERN,
@@ -14,6 +15,10 @@ import {
   VALID_PLAN_STATUSES,
   VALID_VBRIEF_VERSIONS,
 } from "./constants.js";
+import {
+  validatePlanNarrativesProvenance,
+  validateReferenceTrustLevels,
+} from "./provenance.js";
 
 export type JsonObject = Record<string, unknown>;
 
@@ -290,6 +295,11 @@ export function validateVbriefSchema(
 
       if ("narratives" in planObj) {
         validateNarratives(planObj.narratives, `${filepath}: plan.narratives`, errors);
+        validatePlanNarrativesProvenance(
+          planObj.narratives,
+          `${filepath}: plan.narratives`,
+          errors,
+        );
       }
 
       if ("items" in planObj) {
@@ -311,6 +321,12 @@ export function validateVbriefSchema(
       errors.push(...refIssues.errors);
       if (warnings !== undefined) {
         warnings.push(...refIssues.warnings);
+      }
+      validateReferenceTrustLevels(planObj.references, filepath, errors);
+      if (Array.isArray(planObj.items)) {
+        errors.push(
+          ...collectFailedPlanItemInvalidatesErrors(planObj.items, planObj.edges, filepath),
+        );
       }
     }
   }

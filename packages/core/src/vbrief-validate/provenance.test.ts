@@ -1,0 +1,310 @@
+import { describe, expect, it } from "vitest";
+import {
+  CONFIDENCE_VALUES,
+  isSourceToken,
+  parseSourceTokens,
+  SOURCE_CLASSES,
+  sourceTokenClass,
+  validatePlanNarrativesProvenance,
+  validateReferenceTrustLevels,
+} from "./provenance.js";
+import { validateVbriefSchema } from "./schema.js";
+
+const MINIMAL_V08 = {
+  xBRIEFInfo: { version: "0.8" },
+  plan: {
+    title: "xBRIEF v0.8 fixture",
+    status: "draft",
+    items: [],
+  },
+} as const;
+
+describe("Plan.narratives source provenance (#479)", () => {
+  it("parses semicolon-separated source tokens and named classes", () => {
+    expect(parseSourceTokens("verified:task-check; inferred:code-read")).toEqual([
+      "verified:task-check",
+      "inferred:code-read",
+    ]);
+    expect(sourceTokenClass("verified: task check")).toBe("verified");
+    expect(isSourceToken("assumed")).toBe(true);
+    expect(isSourceToken("scoping-comment:#2197")).toBe(false);
+    expect(SOURCE_CLASSES).toContain("propagated");
+    expect(CONFIDENCE_VALUES).toEqual(["high", "medium", "low"]);
+  });
+
+  it("accepts historical Source strings without atomic-claim keys", () => {
+    const errors: string[] = [];
+    validatePlanNarrativesProvenance(
+      {
+        Source:
+          "verified:codebase-read-resolution-2026-07-04; verified:issue-2197-body; scoping-comment:#2197",
+        Confidence: "medium",
+      },
+      "hist: plan.narratives",
+      errors,
+    );
+    expect(errors).toEqual([]);
+  });
+
+  it("rejects Confidence outside high|medium|low", () => {
+    const errors: string[] = [];
+    validatePlanNarrativesProvenance(
+      { Confidence: "pretty-sure" },
+      "n",
+      errors,
+    );
+    expect(errors.some((e) => e.includes("Confidence invalid"))).toBe(true);
+
+    const nonString: string[] = [];
+    validatePlanNarrativesProvenance({ Confidence: 1 }, "n", nonString);
+    expect(nonString.some((e) => e.includes("Confidence invalid"))).toBe(true);
+  });
+
+  it("requires Source plus evidence, verifier, and time for a verified atomic claim", () => {
+    const errors: string[] = [];
+    validatePlanNarrativesProvenance(
+      { Confidence: "high", Evidence: "task check" },
+      "n",
+      errors,
+    );
+    expect(errors.some((e) => e.includes("Source is required"))).toBe(true);
+
+    const verifiedMissing: string[] = [];
+    validatePlanNarrativesProvenance(
+      {
+        Source: "verified:task-check",
+        Confidence: "high",
+        Evidence: "",
+        Verifier: "",
+        VerifiedAt: "",
+      },
+      "n",
+      verifiedMissing,
+    );
+    expect(verifiedMissing.some((e) => e.includes("Confidence does not substitute"))).toBe(
+      true,
+    );
+    expect(verifiedMissing.some((e) => e.includes("Verifier is required"))).toBe(true);
+    expect(verifiedMissing.some((e) => e.includes("VerifiedAt is required"))).toBe(true);
+
+    const ok: string[] = [];
+    validatePlanNarrativesProvenance(
+      {
+        Source: "verified:task-check",
+        Confidence: "high",
+        Evidence: "task check exit 0 at HEAD",
+        Verifier: "task check",
+        VerifiedAt: "2026-10-02T18:00:00Z",
+      },
+      "n",
+      ok,
+    );
+    expect(ok).toEqual([]);
+  });
+
+  it("rejects a bad VerifiedAt on a verified atomic claim", () => {
+    const errors: string[] = [];
+    validatePlanNarrativesProvenance(
+      {
+        Source: "verified:user",
+        Evidence: "operator confirmed",
+        Verifier: "operator",
+        VerifiedAt: "yesterday",
+      },
+      "n",
+      errors,
+    );
+    expect(errors.some((e) => e.includes("VerifiedAt invalid"))).toBe(true);
+
+    const offset: string[] = [];
+    validatePlanNarrativesProvenance(
+      {
+        Source: "verified:user",
+        Evidence: "operator confirmed",
+        Verifier: "operator",
+        VerifiedAt: "2026-10-02T18:00:00+00:00",
+      },
+      "n",
+      offset,
+    );
+    expect(offset).toEqual([]);
+  });
+
+  it("does not require evidence for inferred atomic claims", () => {
+    const errors: string[] = [];
+    validatePlanNarrativesProvenance(
+      {
+        Source: "inferred:code-inspection",
+        Confidence: "low",
+        Verifier: "agent",
+        VerifiedAt: "2026-10-02T18:00:00Z",
+      },
+      "n",
+      errors,
+    );
+    expect(errors).toEqual([]);
+  });
+
+  it("rejects unnamed Source tokens once the atomic claim unit is present", () => {
+    const errors: string[] = [];
+    validatePlanNarrativesProvenance(
+      { Source: "scoping-comment:#2197", Evidence: "pointer" },
+      "n",
+      errors,
+    );
+    expect(errors.some((e) => e.includes("not a named class"))).toBe(true);
+
+    const blank: string[] = [];
+    validatePlanNarrativesProvenance({ Source: "   ;  ", Evidence: "pointer" }, "n", blank);
+    expect(blank.some((e) => e.includes("at least one source-class token"))).toBe(true);
+
+    const skipped: string[] = [];
+    validatePlanNarrativesProvenance(null, "n", skipped);
+    expect(skipped).toEqual([]);
+    expect(sourceTokenClass("not-a-class:x")).toBeNull();
+  });
+});
+
+describe("validateVbriefSchema provenance placement (#479)", () => {
+  it("validates named vocabulary on Plan.narratives and leaves PlanItem.narrative free", () => {
+    const planLevel = {
+      ...MINIMAL_V08,
+      plan: {
+        ...MINIMAL_V08.plan,
+        narratives: {
+          Source: "verified:review",
+          Confidence: "high",
+          Evidence: "review comment 5779996092",
+          Verifier: "pain-audit",
+          VerifiedAt: "2026-10-02T17:00:00Z",
+        },
+        items: [
+          {
+            id: "t1",
+            title: "Task",
+            status: "pending",
+            narrative: { Source: "freeform item note", Confidence: "not-an-enum" },
+          },
+        ],
+      },
+    };
+    expect(validateVbriefSchema(planLevel, "plan-ok.json")).toEqual([]);
+
+    const badConfidence = {
+      ...MINIMAL_V08,
+      plan: {
+        ...MINIMAL_V08.plan,
+        narratives: { Confidence: "unknown" },
+      },
+    };
+    expect(
+      validateVbriefSchema(badConfidence, "conf-bad.json").some((e) =>
+        e.includes("plan.narratives.Confidence invalid"),
+      ),
+    ).toBe(true);
+  });
+
+  it("accepts TrustLevel verified and rejects unknown TrustLevel", () => {
+    const ok = {
+      ...MINIMAL_V08,
+      plan: {
+        ...MINIMAL_V08.plan,
+        references: [
+          {
+            uri: "https://github.com/deftai/directive/issues/479",
+            type: "x-xbrief/github-issue",
+            TrustLevel: "verified",
+          },
+          {
+            uri: "xbrief/completed/example.xbrief.json",
+            type: "x-xbrief/plan",
+            TrustLevel: "internal",
+          },
+        ],
+      },
+    };
+    expect(validateVbriefSchema(ok, "trust-ok.json")).toEqual([]);
+
+    const bad = {
+      ...MINIMAL_V08,
+      plan: {
+        ...MINIMAL_V08.plan,
+        references: [
+          {
+            uri: "https://example.invalid/x",
+            type: "x-xbrief/external",
+            TrustLevel: "trusted",
+          },
+        ],
+      },
+    };
+    expect(
+      validateVbriefSchema(bad, "trust-bad.json").some((e) =>
+        e.includes("TrustLevel invalid"),
+      ),
+    ).toBe(true);
+  });
+
+  it("refuses a failed plan item that has no invalidates edge", () => {
+    const missing = {
+      ...MINIMAL_V08,
+      plan: {
+        ...MINIMAL_V08.plan,
+        items: [{ id: "clause.3", title: "Ruled out", status: "failed" }],
+      },
+    };
+    expect(
+      validateVbriefSchema(missing, "fail-no-edge.json").some((e) =>
+        e.includes("invalidates"),
+      ),
+    ).toBe(true);
+
+    const edged = {
+      ...MINIMAL_V08,
+      plan: {
+        ...MINIMAL_V08.plan,
+        items: [
+          { id: "clause.3", title: "Ruled out", status: "failed" },
+          { id: "clause.4", title: "Survivor", status: "completed" },
+        ],
+        edges: [{ from: "clause.4", to: "clause.3", type: "invalidates" }],
+      },
+    };
+    expect(validateVbriefSchema(edged, "fail-edged.json")).toEqual([]);
+
+    const nested = {
+      ...MINIMAL_V08,
+      plan: {
+        ...MINIMAL_V08.plan,
+        items: [
+          {
+            id: "parent",
+            title: "Parent",
+            status: "pending",
+            subItems: [{ title: "no-id-fail", status: "failed" }],
+          },
+        ],
+      },
+    };
+    expect(
+      validateVbriefSchema(nested, "fail-sub.json").some((e) => e.includes("<no-id>")),
+    ).toBe(true);
+  });
+});
+
+describe("validateReferenceTrustLevels", () => {
+  it("skips missing TrustLevel and non-object entries", () => {
+    const errors: string[] = [];
+    validateReferenceTrustLevels(
+      [null, "x", { uri: "u", type: "x-xbrief/plan" }, { TrustLevel: 1 }],
+      "f.json",
+      errors,
+    );
+    expect(errors.some((e) => e.includes("TrustLevel invalid"))).toBe(true);
+    expect(errors).toHaveLength(1);
+
+    const skipped: string[] = [];
+    validateReferenceTrustLevels("nope", "f.json", skipped);
+    expect(skipped).toEqual([]);
+  });
+});

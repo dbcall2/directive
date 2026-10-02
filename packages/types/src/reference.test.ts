@@ -5,7 +5,17 @@ import {
   isVBriefReferenceType,
   RESERVED_REFERENCE_TYPE_ALIASES,
   referenceTypeMatches,
+  TRUST_LEVELS,
+  type TrustLevel,
 } from "./reference.js";
+
+describe("TrustLevel (#479 / #480)", () => {
+  it("includes verified alongside internal and external", () => {
+    const verified: TrustLevel = "verified";
+    expect(TRUST_LEVELS).toEqual(["verified", "internal", "external"]);
+    expect(TRUST_LEVELS).toContain(verified);
+  });
+});
 
 describe("referenceTypeMatches", () => {
   it("matches the legacy x-vbrief/ prefix", () => {
