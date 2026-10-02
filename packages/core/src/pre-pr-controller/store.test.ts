@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -96,6 +96,116 @@ describe("pre-pr private store", () => {
       if (process.platform !== "win32") {
         expect(statSync(secretPath).mode & 0o777).toBe(PRE_PR_STORE_SECRET_MODE);
       }
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("lets a second FileBackedPrePrStore put after the first created the HMAC secret", () => {
+    const root = mkdtempSync(join(tmpdir(), "pre-pr-hmac-race-"));
+    try {
+      const first = new FileBackedPrePrStore(root);
+      const second = new FileBackedPrePrStore(root);
+      const criteria = digestApprovedCriteria({
+        sourceRevisionSha: "a",
+        scopePaths: ["x.ts"],
+        acceptanceText: "ac",
+        generation: 1,
+      });
+      const start = (store: FileBackedPrePrStore, runId: string) =>
+        startControllerRun(store, {
+          repo: "deftai/directive",
+          baseSha: "a",
+          headSha: "b",
+          treeHash: "c",
+          prBodyHash: "d",
+          prNodeId: "PR_race",
+          criteria,
+          skillVersion: "0.1",
+          policyVersion: "1",
+          approvedRevisionSha: "a",
+          runId,
+        });
+      expect(start(first, "ppr_race_a").ok).toBe(true);
+      expect(first.getById("ppr_race_a")?.id).toBe("ppr_race_a");
+      let secondStart: ReturnType<typeof startControllerRun> | undefined;
+      expect(() => {
+        secondStart = start(second, "ppr_race_b");
+      }).not.toThrow();
+      expect(secondStart?.ok).toBe(true);
+      expect(second.getById("ppr_race_b")?.id).toBe("ppr_race_b");
+      expect(second.getById("ppr_race_a")?.id).toBe("ppr_race_a");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("loads the winner secret when HMAC secret create races with EXISTS", () => {
+    const root = mkdtempSync(join(tmpdir(), "pre-pr-hmac-exists-"));
+    try {
+      const first = new FileBackedPrePrStore(root);
+      const criteria = digestApprovedCriteria({
+        sourceRevisionSha: "a",
+        scopePaths: ["x.ts"],
+        acceptanceText: "ac",
+        generation: 1,
+      });
+      startControllerRun(first, {
+        repo: "deftai/directive",
+        baseSha: "a",
+        headSha: "b",
+        treeHash: "c",
+        prBodyHash: "d",
+        prNodeId: "PR_exists",
+        criteria,
+        skillVersion: "0.1",
+        policyVersion: "1",
+        approvedRevisionSha: "a",
+        runId: "ppr_win",
+      });
+      const winner = first.getById("ppr_win") as PrePrExecutionRecord;
+      const second = new FileBackedPrePrStore(root);
+      type SecretLoader = { loadSecret(): Buffer | null };
+      const proto = FileBackedPrePrStore.prototype as unknown as SecretLoader;
+      const original = proto.loadSecret;
+      let missOnce = true;
+      proto.loadSecret = function loadSecretMissOnce(this: FileBackedPrePrStore): Buffer | null {
+        if (missOnce) {
+          missOnce = false;
+          return null;
+        }
+        return original.call(this);
+      };
+      try {
+        let put: ReturnType<FileBackedPrePrStore["put"]> | undefined;
+        expect(() => {
+          put = second.put({
+            ...winner,
+            id: "ppr_loser",
+          });
+        }).not.toThrow();
+        expect(put?.ok).toBe(true);
+        expect(second.getById("ppr_loser")?.id).toBe("ppr_loser");
+      } finally {
+        proto.loadSecret = original;
+      }
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("denies put when HMAC secret create races but the winner cannot be loaded", () => {
+    const root = mkdtempSync(join(tmpdir(), "pre-pr-hmac-empty-"));
+    try {
+      mkdirSync(privatePrePrStoreDir(root), { recursive: true });
+      writeFileSync(join(privatePrePrStoreDir(root), PRE_PR_STORE_MAC_SECRET_NAME), "\n");
+      const store = new FileBackedPrePrStore(root);
+      const decision = store.put({
+        id: "ppr_empty_secret",
+        prNodeId: "PR_empty",
+      } as PrePrExecutionRecord);
+      expect(decision.ok).toBe(false);
+      expect(decision.code).toBe("deny-missing-record");
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

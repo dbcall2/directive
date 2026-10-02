@@ -44,7 +44,7 @@ import {
 /**
  * Independently hash reviewed-file contents. Callers cannot mint
  * `controllerObservedHash`; the CLI compares any supplied value to this.
- * Missing files fail closed (null).
+ * Missing, unreadable, or directory paths fail closed (null).
  */
 export function computeControllerObservedHash(input: {
   readonly reviewedFiles: readonly string[];
@@ -56,9 +56,13 @@ export function computeControllerObservedHash(input: {
   const rows: string[] = [];
   for (const rel of [...files].sort()) {
     const abs = isAbsolute(rel) ? rel : join(cwd, rel);
-    if (!existsSync(abs)) return null;
-    const digest = createHash("sha256").update(readFileSync(abs)).digest("hex");
-    rows.push(`${rel.replaceAll("\\", "/")}:${digest}`);
+    try {
+      if (!existsSync(abs)) return null;
+      const digest = createHash("sha256").update(readFileSync(abs)).digest("hex");
+      rows.push(`${rel.replaceAll("\\", "/")}:${digest}`);
+    } catch {
+      return null;
+    }
   }
   return sha256Hex(JSON.stringify(rows));
 }

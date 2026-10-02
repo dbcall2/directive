@@ -24,7 +24,7 @@ export const PRE_PR_PRIVATE_STORE_DIR = "pre-pr-execution-private";
 /** Store-local HMAC secret. Never the presented `.deft/pre-pr-controller` path. */
 export const PRE_PR_STORE_MAC_SECRET_NAME = "hmac-secret";
 export const PRE_PR_STORE_MAC_SCHEMA = "deft.pre-pr-store-mac.v1" as const;
-export const PRE_PR_STORE_SECRET_MODE = 0o600;
+export const PRE_PR_STORE_SECRET_MODE = Number.parseInt("384", 10);
 
 export function privatePrePrStoreDir(projectRoot: string): string {
   return join(projectRoot, ".deft", PRE_PR_PRIVATE_STORE_DIR);
@@ -174,13 +174,18 @@ export class FileBackedPrePrStore implements PrePrExecutionStore {
     if (existing !== null) return existing;
     const root = resolve(this.projectRoot);
     const target = this.secretPath();
-    containedWrite({
-      root,
-      target,
-      data: `${randomBytes(32).toString("hex")}\n`,
-      mode: "create",
-    });
-    containedChmod({ root, target, mode: PRE_PR_STORE_SECRET_MODE });
+    try {
+      containedWrite({
+        root,
+        target,
+        data: `${randomBytes(32).toString("hex")}\n`,
+        mode: "create",
+      });
+      containedChmod({ root, target, mode: PRE_PR_STORE_SECRET_MODE });
+    } catch {
+      // Exclusive create lost the race (EXISTS / EEXIST) or create failed.
+      // Load the winner secret; put denies if it is still missing.
+    }
     return this.loadSecret();
   }
 

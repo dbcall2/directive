@@ -1,6 +1,10 @@
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   completeRun,
+  computeControllerObservedHash,
   failRun,
   observeCommandPhase,
   runObservablesComplete,
@@ -36,6 +40,36 @@ function start(store: InProcessPrePrStore, runId: string): PrePrExecutionRecord 
   });
   return store.getById(runId) as PrePrExecutionRecord;
 }
+
+describe("computeControllerObservedHash", () => {
+  it("returns null for a directory reviewed path without throwing", () => {
+    const dir = mkdtempSync(join(tmpdir(), "pre-pr-hash-dir-"));
+    try {
+      mkdirSync(join(dir, "nested"), { recursive: true });
+      expect(() => computeControllerObservedHash({ reviewedFiles: [dir] })).not.toThrow();
+      expect(computeControllerObservedHash({ reviewedFiles: [dir] })).toBeNull();
+      expect(computeControllerObservedHash({ reviewedFiles: [join(dir, "nested")] })).toBeNull();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("hashes a readable file and returns null for a missing path", () => {
+    const dir = mkdtempSync(join(tmpdir(), "pre-pr-hash-file-"));
+    try {
+      const file = join(dir, "reviewed.ts");
+      writeFileSync(file, "contents\n");
+      const hash = computeControllerObservedHash({ reviewedFiles: [file] });
+      expect(typeof hash).toBe("string");
+      expect(hash?.length).toBeGreaterThan(0);
+      expect(
+        computeControllerObservedHash({ reviewedFiles: [join(dir, "missing.ts")] }),
+      ).toBeNull();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
 
 describe("controller observations", () => {
   it("accepts the closed plan_sequence skip and rejects a mismatched input hash", () => {
