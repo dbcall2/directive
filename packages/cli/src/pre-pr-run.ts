@@ -12,7 +12,13 @@ import {
   getDefaultPrePrStore,
   markComplete,
   noteSkillFileOpen,
+  observeCommandPhase,
+  PRE_PR_PHASE_IDS,
+  type PrePrPhaseId,
+  phaseSpec,
+  resolveRecordFromStore,
   startControllerRun,
+  submitReviewerReport,
 } from "@deftai/directive-core/pre-pr-controller";
 import { isDirectEntrypoint } from "./entrypoint.js";
 
@@ -36,6 +42,18 @@ Options:
   --policy-version <ver>
   --run-id <id>           lookup hint only
   --complete              publisher-backed complete (fails without observables)
+  --observe-command       record a command-observable phase before --complete
+  --observe-semantic      record semantic / final-no-change evidence
+  --phase <id>
+  --command <text>
+  --exit-code <n>
+  --input-hash <hex>
+  --skip-reason <text>
+  --supplied-contents-hash <hex>
+  --controller-observed-hash <hex>
+  --criteria-digest <hex>
+  --reviewed-file <path>  (repeatable)
+  --reviewer-report-ref <ref>
   --mark-complete         always refuses; cannot mint a pass
   --skill-open            always refuses; opening the skill is not completion
   --evaluate              evaluate live binding against the private store
@@ -58,6 +76,18 @@ interface ParsedArgs {
   policyVersion: string;
   runId: string | null;
   complete: boolean;
+  observeCommand: boolean;
+  observeSemantic: boolean;
+  phase: string | null;
+  command: string;
+  exitCode: number | null;
+  inputHash: string | null;
+  skipReason: string | null;
+  suppliedContentsHash: string;
+  controllerObservedHash: string;
+  criteriaDigest: string | null;
+  reviewedFiles: string[];
+  reviewerReportRef: string | null;
   markComplete: boolean;
   skillOpen: boolean;
   evaluate: boolean;
@@ -82,6 +112,18 @@ export function parseArgs(argv: string[]): ParsedArgs {
     policyVersion: "1",
     runId: null,
     complete: false,
+    observeCommand: false,
+    observeSemantic: false,
+    phase: null,
+    command: "",
+    exitCode: null,
+    inputHash: null,
+    skipReason: null,
+    suppliedContentsHash: "",
+    controllerObservedHash: "",
+    criteriaDigest: null,
+    reviewedFiles: [],
+    reviewerReportRef: null,
     markComplete: false,
     skillOpen: false,
     evaluate: false,
@@ -96,6 +138,96 @@ export function parseArgs(argv: string[]): ParsedArgs {
       parsed.json = true;
     } else if (arg === "--complete") {
       parsed.complete = true;
+    } else if (arg === "--observe-command") {
+      parsed.observeCommand = true;
+    } else if (arg === "--observe-semantic") {
+      parsed.observeSemantic = true;
+    } else if (arg === "--phase" || arg?.startsWith("--phase=")) {
+      const value = arg === "--phase" ? argv[i + 1] : arg.slice("--phase=".length);
+      if (value === undefined)
+        return { ...parsed, error: "argument --phase: expected one argument" };
+      parsed.phase = value;
+      if (arg === "--phase") i += 1;
+    } else if (arg === "--command" || arg?.startsWith("--command=")) {
+      const value = arg === "--command" ? argv[i + 1] : arg.slice("--command=".length);
+      if (value === undefined)
+        return { ...parsed, error: "argument --command: expected one argument" };
+      parsed.command = value;
+      if (arg === "--command") i += 1;
+    } else if (arg === "--exit-code" || arg?.startsWith("--exit-code=")) {
+      const value = arg === "--exit-code" ? argv[i + 1] : arg.slice("--exit-code=".length);
+      if (value === undefined) {
+        return { ...parsed, error: "argument --exit-code: expected one argument" };
+      }
+      const n = Number.parseInt(value, 10);
+      if (!Number.isFinite(n)) {
+        return { ...parsed, error: "argument --exit-code: expected an integer" };
+      }
+      parsed.exitCode = n;
+      if (arg === "--exit-code") i += 1;
+    } else if (arg === "--input-hash" || arg?.startsWith("--input-hash=")) {
+      const value = arg === "--input-hash" ? argv[i + 1] : arg.slice("--input-hash=".length);
+      if (value === undefined) {
+        return { ...parsed, error: "argument --input-hash: expected one argument" };
+      }
+      parsed.inputHash = value;
+      if (arg === "--input-hash") i += 1;
+    } else if (arg === "--skip-reason" || arg?.startsWith("--skip-reason=")) {
+      const value = arg === "--skip-reason" ? argv[i + 1] : arg.slice("--skip-reason=".length);
+      if (value === undefined) {
+        return { ...parsed, error: "argument --skip-reason: expected one argument" };
+      }
+      parsed.skipReason = value;
+      if (arg === "--skip-reason") i += 1;
+    } else if (arg === "--supplied-contents-hash" || arg?.startsWith("--supplied-contents-hash=")) {
+      const value =
+        arg === "--supplied-contents-hash"
+          ? argv[i + 1]
+          : arg.slice("--supplied-contents-hash=".length);
+      if (value === undefined) {
+        return { ...parsed, error: "argument --supplied-contents-hash: expected one argument" };
+      }
+      parsed.suppliedContentsHash = value;
+      if (arg === "--supplied-contents-hash") i += 1;
+    } else if (
+      arg === "--controller-observed-hash" ||
+      arg?.startsWith("--controller-observed-hash=")
+    ) {
+      const value =
+        arg === "--controller-observed-hash"
+          ? argv[i + 1]
+          : arg.slice("--controller-observed-hash=".length);
+      if (value === undefined) {
+        return {
+          ...parsed,
+          error: "argument --controller-observed-hash: expected one argument",
+        };
+      }
+      parsed.controllerObservedHash = value;
+      if (arg === "--controller-observed-hash") i += 1;
+    } else if (arg === "--criteria-digest" || arg?.startsWith("--criteria-digest=")) {
+      const value =
+        arg === "--criteria-digest" ? argv[i + 1] : arg.slice("--criteria-digest=".length);
+      if (value === undefined) {
+        return { ...parsed, error: "argument --criteria-digest: expected one argument" };
+      }
+      parsed.criteriaDigest = value;
+      if (arg === "--criteria-digest") i += 1;
+    } else if (arg === "--reviewed-file" || arg?.startsWith("--reviewed-file=")) {
+      const value = arg === "--reviewed-file" ? argv[i + 1] : arg.slice("--reviewed-file=".length);
+      if (value === undefined) {
+        return { ...parsed, error: "argument --reviewed-file: expected one argument" };
+      }
+      parsed.reviewedFiles.push(value);
+      if (arg === "--reviewed-file") i += 1;
+    } else if (arg === "--reviewer-report-ref" || arg?.startsWith("--reviewer-report-ref=")) {
+      const value =
+        arg === "--reviewer-report-ref" ? argv[i + 1] : arg.slice("--reviewer-report-ref=".length);
+      if (value === undefined) {
+        return { ...parsed, error: "argument --reviewer-report-ref: expected one argument" };
+      }
+      parsed.reviewerReportRef = value;
+      if (arg === "--reviewer-report-ref") i += 1;
     } else if (arg === "--mark-complete") {
       parsed.markComplete = true;
     } else if (arg === "--skill-open") {
@@ -206,6 +338,10 @@ function emit(json: boolean, payload: unknown, text: string, err: boolean): void
   else process.stdout.write(line);
 }
 
+function asPhaseId(value: string): PrePrPhaseId | null {
+  return (PRE_PR_PHASE_IDS as readonly string[]).includes(value) ? (value as PrePrPhaseId) : null;
+}
+
 export function run(argv: string[]): number {
   const args = parseArgs(argv);
   if (args.help) {
@@ -227,13 +363,69 @@ export function run(argv: string[]): number {
     emit(args.json, d, d.message, true);
     return 1;
   }
+  if (args.observeCommand || args.observeSemantic) {
+    if (args.runId === null || args.runId.length === 0) {
+      process.stderr.write("pre_pr_run: observe requires --run-id\n");
+      return 2;
+    }
+    if (args.phase === null || args.phase.length === 0) {
+      process.stderr.write("pre_pr_run: observe requires --phase\n");
+      return 2;
+    }
+    const phase = asPhaseId(args.phase);
+    if (phase === null) {
+      process.stderr.write(`pre_pr_run: unknown phase ${args.phase}\n`);
+      return 2;
+    }
+    const rec = store.getById(args.runId);
+    if (args.observeCommand) {
+      const spec = phaseSpec(phase);
+      const d = observeCommandPhase(store, args.runId, {
+        phaseId: phase,
+        command: args.command.length > 0 ? args.command : (spec.command ?? ""),
+        exitCode: args.exitCode ?? 0,
+        inputHash: args.inputHash ?? rec?.inputHash ?? "",
+        skipReason: args.skipReason,
+      });
+      emit(args.json, d, d.message, !d.ok);
+      return d.ok ? 0 : 1;
+    }
+    if (args.suppliedContentsHash.length === 0 || args.controllerObservedHash.length === 0) {
+      process.stderr.write(
+        "pre_pr_run: --observe-semantic requires --supplied-contents-hash --controller-observed-hash\n",
+      );
+      return 2;
+    }
+    const d = submitReviewerReport(store, args.runId, {
+      phaseId: phase,
+      reviewedFileManifest: args.reviewedFiles,
+      suppliedContentsHash: args.suppliedContentsHash,
+      criteriaDigest: args.criteriaDigest ?? rec?.criteria.digest ?? "",
+      reviewerReportRef: args.reviewerReportRef,
+      controllerObservedHash: args.controllerObservedHash,
+    });
+    emit(args.json, d, d.message, !d.ok);
+    return d.ok ? 0 : 1;
+  }
   if (args.evaluate) {
     if (args.repo.length === 0 || args.baseSha.length === 0 || args.headSha.length === 0) {
       process.stderr.write("pre_pr_run: --evaluate requires --repo --base-sha --head-sha\n");
       return 2;
     }
-    const criteria = digestApprovedCriteria({
-      sourceRevisionSha: args.approvedRevision || args.baseSha,
+    if (args.prBodyHash.length === 0) {
+      process.stderr.write("pre_pr_run: --evaluate requires --pr-body-hash\n");
+      return 2;
+    }
+    const record = resolveRecordFromStore(store, {
+      id: args.runId,
+      prNodeId: args.prNodeId,
+    });
+    const headSource =
+      args.approvedRevision.length > 0
+        ? args.approvedRevision
+        : (record?.criteria.sourceRevisionSha ?? args.headSha);
+    const headCriteria = digestApprovedCriteria({
+      sourceRevisionSha: headSource,
       scopePaths: args.scope,
       acceptanceText: args.acceptance,
       generation: args.generation,
@@ -245,10 +437,12 @@ export function run(argv: string[]): number {
         baseSha: args.baseSha,
         headSha: args.headSha,
         prNodeId: args.prNodeId,
+        prBodyHash: args.prBodyHash,
       },
       presentedRunId: args.runId,
-      approvedCriteria: criteria,
+      approvedCriteria: record?.criteria ?? headCriteria,
       currentGeneration: args.generation,
+      headCriteria,
     });
     emit(args.json, d, d.message, !d.ok);
     return d.ok ? 0 : 1;

@@ -11,6 +11,7 @@ import {
   PRE_PR_PHASES,
   PRE_PR_WORKFLOW_VERSION,
   type PrePrPhaseId,
+  type PrePrPhaseSpec,
   phaseSpec,
 } from "./phases.js";
 import {
@@ -280,6 +281,13 @@ function semanticSatisfied(record: PrePrExecutionRecord, phaseId: PrePrPhaseId):
   return row.suppliedContentsHash.length > 0 && row.controllerObservedHash.length > 0;
 }
 
+function phaseObservedAt(record: PrePrExecutionRecord, spec: PrePrPhaseSpec): string | null {
+  if (spec.kind === "command-observable") {
+    return record.phaseEvidence.commands.find((c) => c.phaseId === spec.id)?.completedAt ?? null;
+  }
+  return record.phaseEvidence.semantic.find((s) => s.phaseId === spec.id)?.recordedAt ?? null;
+}
+
 export function runObservablesComplete(record: PrePrExecutionRecord): PrePrDecision {
   if (record.state === "failed" || record.failedAt !== null) {
     return deny("deny-failed", "failed pre-PR run mints no pass");
@@ -287,6 +295,8 @@ export function runObservablesComplete(record: PrePrExecutionRecord): PrePrDecis
   if (record.state === "interrupted" || record.interruptedAt !== null) {
     return deny("deny-interrupted", "interrupted pre-PR run mints no pass");
   }
+  let previousAt: string | null = null;
+  let previousId: string | null = null;
   for (const spec of PRE_PR_PHASES) {
     if (!spec.required) continue;
     const ok =
@@ -299,6 +309,21 @@ export function runObservablesComplete(record: PrePrExecutionRecord): PrePrDecis
         `required phase ${spec.id} has no controller-observed pass`,
       );
     }
+    const at = phaseObservedAt(record, spec);
+    if (at === null || at.length === 0) {
+      return deny(
+        "deny-omitted-phase",
+        `required phase ${spec.id} has no controller-observed pass`,
+      );
+    }
+    if (previousAt !== null && at < previousAt) {
+      return deny(
+        "deny-out-of-order",
+        `required phase ${spec.id} is timestamped before ${previousId}`,
+      );
+    }
+    previousAt = at;
+    previousId = spec.id;
   }
   if (!record.finalNoChange) {
     return deny("deny-incomplete", "completion requires the skill final no-change pass");

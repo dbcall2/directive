@@ -27,6 +27,7 @@ describe("pre-pr-controller public surface", () => {
         baseSha: "a",
         headSha: "b",
         prNodeId: null,
+        prBodyHash: "d",
       },
       approvedCriteria: approved,
       currentGeneration: 1,

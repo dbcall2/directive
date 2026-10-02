@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Pre-PR controller residual (#4912).** CLI default store survives process exit; observe flags record phase evidence before complete; evaluate uses stored approved criteria plus live headCriteria; PR node id and body hash bind the live check; required phases must complete in PRE_PR_PHASES order. Tracking #4912.
 - **Incomplete failed x-claims still need `invalidates`; empty Verifier/VerifiedAt keys require Source (#479).** Skip the invalidates edge only when both `ruledOutReason` and `evidenceRefs` are non-empty. Evidence-only narratives stay a mission-style exception. Tracking #479.
 - **`verify:changelog-unreleased` fails when the Unreleased `- ` set is unchanged versus merge-base (#633).** Shares `changelog-check --against-merge-base` (default off for `task change:changelog:check`). Restores N/A-with-reason on detector-named PR checklist items. Tracking #633.
 - **Release Step 5 coverage-final diagnostic + skip-ci unpaid ledger (#5239).** Step 5 coverage decline messaging no longer depends on parent `DEFT_RELEASE_PREFLIGHT`. Production `--allow-skip-ci=#N` refuses unpaid citations (open/unknown issue or prior CHANGELOG spend) unless `--allow-unpaid-skip-ci=#N` matches. Hang named-cause treats last-file as cursor only. Spend record for the v0.119.13 cut: `--allow-skip-ci=5239`. Tracking #5239.

@@ -35,6 +35,7 @@ export interface PrePrLiveBinding {
   readonly baseSha: string;
   readonly headSha: string;
   readonly prNodeId: string | null;
+  readonly prBodyHash: string;
 }
 
 export interface PrePrInputBinding {

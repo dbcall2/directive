@@ -74,8 +74,15 @@ function evaluateStoredRecord(
   if (record.baseSha !== live.baseSha || record.headSha !== live.headSha) {
     return deny("deny-binding", `pre-PR record ${record.id} does not match live base/head SHAs`);
   }
-  if (record.prNodeId !== null && live.prNodeId !== null && record.prNodeId !== live.prNodeId) {
-    return deny("deny-binding", `pre-PR record ${record.id} is bound to a different PR node id`);
+  const recNode = record.prNodeId?.trim() ?? "";
+  const liveNode = live.prNodeId?.trim() ?? "";
+  if (recNode.length > 0 || liveNode.length > 0) {
+    if (recNode.length === 0 || liveNode.length === 0 || recNode !== liveNode) {
+      return deny("deny-binding", `pre-PR record ${record.id} is bound to a different PR node id`);
+    }
+  }
+  if (live.prBodyHash !== record.prBodyHash) {
+    return deny("deny-binding", `pre-PR record ${record.id} does not match live PR body hash`);
   }
   if (record.outcome !== "pass" || record.state !== "complete" || record.publishedAt === null) {
     if (record.state === "failed") return deny("deny-failed", "failed pre-PR run mints no pass");
@@ -114,7 +121,7 @@ export function evaluateLivePrePrCheck(input: {
     liveBinding: input.liveBinding,
     presentedRunId: presented.length > 0 ? presented : null,
     presentedIdWithoutStore: presented.length > 0 && record === null,
-    approvedCriteria: input.approvedCriteria,
+    approvedCriteria: record !== null ? record.criteria : input.approvedCriteria,
     currentGeneration: input.currentGeneration,
     headCriteria: input.headCriteria,
     lastInvalidationAt: input.lastInvalidationAt,

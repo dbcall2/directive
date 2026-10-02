@@ -40,14 +40,18 @@ const approved = digestApprovedCriteria({
   generation: 1,
 });
 
-function startPassingRun(store: InProcessPrePrStore, runId = "ppr_same"): string {
+function startPassingRun(
+  store: InProcessPrePrStore,
+  runId = "ppr_same",
+  prNodeId: string | null = PR_NODE,
+): string {
   const started = startControllerRun(store, {
     repo: REPO,
     baseSha: BASE,
     headSha: HEAD,
     treeHash: TREE,
     prBodyHash: BODY,
-    prNodeId: PR_NODE,
+    prNodeId,
     criteria: approved,
     skillVersion: "0.1",
     policyVersion: "1",
@@ -85,7 +89,13 @@ describe("Limb 6 pre-PR evidence (identical code/body, different trusted evidenc
     const runId = startPassingRun(store);
     const publisher = mintPublisher();
     expect(completeRun(store, publisher, runId).ok).toBe(true);
-    const live = { repo: REPO, baseSha: BASE, headSha: HEAD, prNodeId: PR_NODE };
+    const live = {
+      repo: REPO,
+      baseSha: BASE,
+      headSha: HEAD,
+      prNodeId: PR_NODE,
+      prBodyHash: BODY,
+    };
     const pass = evaluatePrePrEvidence({
       record: store.getById(runId),
       liveBinding: live,
@@ -110,7 +120,13 @@ describe("Limb 6 pre-PR evidence (identical code/body, different trusted evidenc
   });
 
   it("does not treat checkbox, author token, disk JSON, or one-PR-unit as pass", () => {
-    const live = { repo: REPO, baseSha: BASE, headSha: HEAD, prNodeId: PR_NODE };
+    const live = {
+      repo: REPO,
+      baseSha: BASE,
+      headSha: HEAD,
+      prNodeId: PR_NODE,
+      prBodyHash: BODY,
+    };
     const base = {
       record: null as PrePrExecutionRecord | null,
       liveBinding: live,
@@ -144,7 +160,13 @@ describe("Limb 6 pre-PR evidence (identical code/body, different trusted evidenc
     const record = store.getById(runId);
     const crossRepo = evaluatePrePrEvidence({
       record,
-      liveBinding: { repo: "other/repo", baseSha: BASE, headSha: HEAD, prNodeId: PR_NODE },
+      liveBinding: {
+        repo: "other/repo",
+        baseSha: BASE,
+        headSha: HEAD,
+        prNodeId: PR_NODE,
+        prBodyHash: BODY,
+      },
       approvedCriteria: approved,
       currentGeneration: 1,
     });
@@ -157,6 +179,7 @@ describe("Limb 6 pre-PR evidence (identical code/body, different trusted evidenc
         baseSha: BASE,
         headSha: "cccccccccccccccccccccccccccccccccccccccc",
         prNodeId: PR_NODE,
+        prBodyHash: BODY,
       },
       approvedCriteria: approved,
       currentGeneration: 1,
@@ -164,7 +187,13 @@ describe("Limb 6 pre-PR evidence (identical code/body, different trusted evidenc
     expect(shaDrift.code).toBe("deny-binding");
     const otherPr = evaluatePrePrEvidence({
       record,
-      liveBinding: { repo: REPO, baseSha: BASE, headSha: HEAD, prNodeId: "PR_other" },
+      liveBinding: {
+        repo: REPO,
+        baseSha: BASE,
+        headSha: HEAD,
+        prNodeId: "PR_other",
+        prBodyHash: BODY,
+      },
       approvedCriteria: approved,
       currentGeneration: 1,
     });
@@ -234,7 +263,13 @@ describe("Limb 4 criteria authority", () => {
     const id = startPassingRun(store, "ppr_crit");
     completeRun(store, mintPublisher(), id);
     const record = store.getById(id);
-    const live = { repo: REPO, baseSha: BASE, headSha: HEAD, prNodeId: PR_NODE };
+    const live = {
+      repo: REPO,
+      baseSha: BASE,
+      headSha: HEAD,
+      prNodeId: PR_NODE,
+      prBodyHash: BODY,
+    };
     const weakened = digestApprovedCriteria({
       sourceRevisionSha: HEAD,
       scopePaths: [],
@@ -283,7 +318,13 @@ describe("live evaluate and interrupted records", () => {
     const store = new InProcessPrePrStore();
     const runId = startPassingRun(store, "ppr_live");
     interruptRun(store, runId);
-    const live = { repo: REPO, baseSha: BASE, headSha: HEAD, prNodeId: PR_NODE };
+    const live = {
+      repo: REPO,
+      baseSha: BASE,
+      headSha: HEAD,
+      prNodeId: PR_NODE,
+      prBodyHash: BODY,
+    };
     expect(
       evaluatePrePrEvidence({
         record: store.getById(runId),
@@ -351,5 +392,98 @@ describe("command reuse", () => {
         previousExitCode: 0,
       }).code,
     ).toBe("deny-reuse-mismatch");
+  });
+});
+
+describe("PR node identity and body hash", () => {
+  it("denies when either side is missing a PR node id or the live body hash drifts", () => {
+    const store = new InProcessPrePrStore();
+    const nullId = startPassingRun(store, "ppr_null_node", null);
+    completeRun(store, mintPublisher(), nullId);
+    const liveWithId = {
+      repo: REPO,
+      baseSha: BASE,
+      headSha: HEAD,
+      prNodeId: PR_NODE,
+      prBodyHash: BODY,
+    };
+    expect(
+      evaluatePrePrEvidence({
+        record: store.getById(nullId),
+        liveBinding: liveWithId,
+        approvedCriteria: approved,
+        currentGeneration: 1,
+      }).code,
+    ).toBe("deny-binding");
+
+    const withId = startPassingRun(store, "ppr_has_node", PR_NODE);
+    completeRun(store, mintPublisher(), withId);
+    expect(
+      evaluatePrePrEvidence({
+        record: store.getById(withId),
+        liveBinding: {
+          repo: REPO,
+          baseSha: BASE,
+          headSha: HEAD,
+          prNodeId: null,
+          prBodyHash: BODY,
+        },
+        approvedCriteria: approved,
+        currentGeneration: 1,
+      }).code,
+    ).toBe("deny-binding");
+    expect(
+      evaluatePrePrEvidence({
+        record: store.getById(withId),
+        liveBinding: {
+          repo: REPO,
+          baseSha: BASE,
+          headSha: HEAD,
+          prNodeId: PR_NODE,
+          prBodyHash: "drifted-body",
+        },
+        approvedCriteria: approved,
+        currentGeneration: 1,
+      }).code,
+    ).toBe("deny-binding");
+  });
+
+  it("uses stored approved criteria and live headCriteria on evaluateLivePrePrCheck", () => {
+    const store = new InProcessPrePrStore();
+    const runId = startPassingRun(store, "ppr_headcrit");
+    completeRun(store, mintPublisher(), runId);
+    const live = {
+      repo: REPO,
+      baseSha: BASE,
+      headSha: HEAD,
+      prNodeId: PR_NODE,
+      prBodyHash: BODY,
+    };
+    const weakened = digestApprovedCriteria({
+      sourceRevisionSha: HEAD,
+      scopePaths: [],
+      acceptanceText: "weakened by head-side xbrief/active",
+      generation: 1,
+    });
+    expect(
+      evaluateLivePrePrCheck({
+        store,
+        liveBinding: live,
+        presentedRunId: runId,
+        approvedCriteria: weakened,
+        currentGeneration: 1,
+        headCriteria: weakened,
+      }).code,
+    ).toBe("deny-head-weakening");
+    expect(
+      evaluateLivePrePrCheck({
+        store,
+        liveBinding: live,
+        presentedRunId: runId,
+        approvedCriteria: weakened,
+        currentGeneration: 1,
+        headCriteria: approved,
+      }).ok,
+    ).toBe(true);
   });
 });

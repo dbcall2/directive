@@ -3,12 +3,13 @@ import {
   completeRun,
   failRun,
   observeCommandPhase,
+  runObservablesComplete,
   startControllerRun,
   submitReviewerReport,
 } from "./controller.js";
 import { digestApprovedCriteria } from "./criteria.js";
 import { evaluatePrePrEvidence } from "./evaluate.js";
-import { ALLOWED_SKIP_REASONS } from "./phases.js";
+import { ALLOWED_SKIP_REASONS, PRE_PR_PHASES } from "./phases.js";
 import { InProcessPrePrStore, mintPublisher } from "./store.js";
 import type { PrePrExecutionRecord } from "./types.js";
 
@@ -184,6 +185,38 @@ describe("controller observations", () => {
     ).toBe("deny-criteria-invalidated");
   });
 
+  it("denies required phases recorded out of PRE_PR_PHASES order", () => {
+    const store = new InProcessPrePrStore();
+    const rec = start(store, "ppr_order");
+    const at = (sec: number) => new Date(`2026-01-01T00:00:${String(sec).padStart(2, "0")}Z`);
+    for (const [i, spec] of PRE_PR_PHASES.entries()) {
+      const now = spec.id === "merge_chokepoint" ? at(1) : at(10 + i);
+      if (spec.kind === "command-observable") {
+        observeCommandPhase(store, rec.id, {
+          phaseId: spec.id,
+          command: spec.command ?? "cmd",
+          exitCode: 0,
+          inputHash: rec.inputHash,
+          skipReason: null,
+          now,
+        });
+      } else {
+        submitReviewerReport(store, rec.id, {
+          phaseId: spec.id,
+          reviewedFileManifest: ["a.ts"],
+          suppliedContentsHash: "h",
+          criteriaDigest: approved.digest,
+          reviewerReportRef: "r",
+          controllerObservedHash: "h",
+          now,
+        });
+      }
+    }
+    const decided = runObservablesComplete(store.getById(rec.id) as PrePrExecutionRecord);
+    expect(decided.code).toBe("deny-out-of-order");
+    expect(completeRun(store, mintPublisher(), rec.id).code).toBe("deny-out-of-order");
+  });
+
   it("failRun blocks evaluate even with a presented id", () => {
     const store = new InProcessPrePrStore();
     const rec = start(store, "ppr_failrun");
@@ -195,6 +228,7 @@ describe("controller observations", () => {
         baseSha: "base",
         headSha: "head",
         prNodeId: null,
+        prBodyHash: "body",
       },
       approvedCriteria: approved,
       currentGeneration: 1,

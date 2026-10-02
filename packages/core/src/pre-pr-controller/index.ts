@@ -43,15 +43,18 @@ export {
   requiredPhases,
 } from "./phases.js";
 export {
+  FileBackedPrePrStore,
   getDefaultPrePrStore,
   InProcessPrePrStore,
   isPublisher as isStorePublisher,
   loadPrePrRecord,
   mintPublisher,
   opaqueRunId,
+  PRE_PR_PRIVATE_STORE_DIR,
   type PrePrExecutionStore,
   type PrePrPublisher,
   prePrDir,
+  privatePrePrStoreDir,
   requirePublisher,
   resetDefaultPrePrStore,
   resolveRecordFromStore,
