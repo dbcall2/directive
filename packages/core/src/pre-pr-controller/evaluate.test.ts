@@ -448,7 +448,7 @@ describe("PR node identity and body hash", () => {
     ).toBe("deny-binding");
   });
 
-  it("uses stored approved criteria and live headCriteria on evaluateLivePrePrCheck", () => {
+  it("uses live approved criteria so a same-generation digest update denies the old pass", () => {
     const store = new InProcessPrePrStore();
     const runId = startPassingRun(store, "ppr_headcrit");
     completeRun(store, mintPublisher(), runId);
@@ -470,20 +470,26 @@ describe("PR node identity and body hash", () => {
         store,
         liveBinding: live,
         presentedRunId: runId,
-        approvedCriteria: weakened,
+        approvedCriteria: approved,
         currentGeneration: 1,
         headCriteria: weakened,
       }).code,
     ).toBe("deny-head-weakening");
+    const liveApproved = digestApprovedCriteria({
+      sourceRevisionSha: BASE,
+      scopePaths: ["packages/core/src/pre-pr-controller/fixture-scope.ts"],
+      acceptanceText: "updated live approved same generation",
+      generation: 1,
+    });
     expect(
       evaluateLivePrePrCheck({
         store,
         liveBinding: live,
         presentedRunId: runId,
-        approvedCriteria: weakened,
+        approvedCriteria: liveApproved,
         currentGeneration: 1,
-        headCriteria: approved,
-      }).ok,
-    ).toBe(true);
+        headCriteria: liveApproved,
+      }).code,
+    ).toBe("deny-criteria-invalidated");
   });
 });

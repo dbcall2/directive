@@ -1,7 +1,8 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
+  computeControllerObservedHash,
   FileBackedPrePrStore,
   MARK_COMPLETE_NOT_AUTHORITY,
   PRE_PR_PHASES,
@@ -33,10 +34,21 @@ const START = [
   "PR_1",
 ] as const;
 
-function observeAll(runId: string): void {
+function observeAll(runId: string, fixturePath: string, contentsHash: string): void {
   for (const spec of PRE_PR_PHASES) {
     if (spec.kind === "command-observable") {
-      expect(run(["--observe-command", "--run-id", runId, "--phase", spec.id, "--json"])).toBe(0);
+      expect(
+        run([
+          "--observe-command",
+          "--run-id",
+          runId,
+          "--phase",
+          spec.id,
+          "--exit-code",
+          "0",
+          "--json",
+        ]),
+      ).toBe(0);
     } else {
       expect(
         run([
@@ -46,11 +58,9 @@ function observeAll(runId: string): void {
           "--phase",
           spec.id,
           "--supplied-contents-hash",
-          "tree-final",
-          "--controller-observed-hash",
-          "tree-final",
+          contentsHash,
           "--reviewed-file",
-          "a.ts",
+          fixturePath,
           "--json",
         ]),
       ).toBe(0);
@@ -60,10 +70,15 @@ function observeAll(runId: string): void {
 
 describe("deft pre-pr:run", () => {
   let tmpRoot: string;
+  let fixturePath: string;
+  let contentsHash: string;
 
   beforeEach(() => {
     tmpRoot = mkdtempSync(join(tmpdir(), "pre-pr-cli-"));
     setDefaultPrePrStore(new FileBackedPrePrStore(tmpRoot));
+    fixturePath = join(tmpRoot, "reviewed.ts");
+    writeFileSync(fixturePath, "reviewed-contents\n");
+    contentsHash = computeControllerObservedHash({ reviewedFiles: [fixturePath] }) ?? "";
   });
 
   afterEach(() => {
@@ -103,7 +118,7 @@ describe("deft pre-pr:run", () => {
 
   it("observes required phases then completes, including across a new store instance", () => {
     expect(run([...START, "--run-id", "ppr_happy", "--json"])).toBe(0);
-    observeAll("ppr_happy");
+    observeAll("ppr_happy", fixturePath, contentsHash);
     expect(run(["--complete", "--run-id", "ppr_happy", "--json"])).toBe(0);
     setDefaultPrePrStore(new FileBackedPrePrStore(tmpRoot));
     const out: string[] = [];
@@ -138,9 +153,9 @@ describe("deft pre-pr:run", () => {
     expect(out.join("")).toMatch(/allow-pass/);
   });
 
-  it("evaluate uses stored approved criteria so weakened head flags fail", () => {
+  it("evaluate uses live approved criteria so a different digest denies the old pass", () => {
     expect(run([...START, "--run-id", "ppr_weak", "--json"])).toBe(0);
-    observeAll("ppr_weak");
+    observeAll("ppr_weak", fixturePath, contentsHash);
     expect(run(["--complete", "--run-id", "ppr_weak"])).toBe(0);
     const err: string[] = [];
     vi.spyOn(process.stderr, "write").mockImplementation((chunk) => {
@@ -169,7 +184,64 @@ describe("deft pre-pr:run", () => {
         "--json",
       ]),
     ).toBe(1);
-    expect(err.join("")).toMatch(/head-side|weakening/i);
+    expect(err.join("")).toMatch(/criteria digest|invalidat/i);
+  });
+
+  it("omitting --exit-code on --observe-command fails closed", () => {
+    const err: string[] = [];
+    vi.spyOn(process.stderr, "write").mockImplementation((chunk) => {
+      err.push(String(chunk));
+      return true;
+    });
+    expect(
+      run(["--observe-command", "--run-id", "ppr_x", "--phase", "branch_policy", "--json"]),
+    ).toBe(2);
+    expect(err.join("")).toMatch(/requires --exit-code/);
+  });
+
+  it("mismatched semantic hashes deny for write, diff, and loop", () => {
+    expect(run([...START, "--run-id", "ppr_hash", "--json"])).toBe(0);
+    const err: string[] = [];
+    vi.spyOn(process.stderr, "write").mockImplementation((chunk) => {
+      err.push(String(chunk));
+      return true;
+    });
+    for (const phase of ["write", "diff", "loop"] as const) {
+      err.length = 0;
+      expect(
+        run([
+          "--observe-semantic",
+          "--run-id",
+          "ppr_hash",
+          "--phase",
+          phase,
+          "--supplied-contents-hash",
+          "forged-supplied",
+          "--reviewed-file",
+          fixturePath,
+          "--json",
+        ]),
+      ).toBe(1);
+      expect(err.join("")).toMatch(/does not match independently hashed/);
+      err.length = 0;
+      expect(
+        run([
+          "--observe-semantic",
+          "--run-id",
+          "ppr_hash",
+          "--phase",
+          phase,
+          "--supplied-contents-hash",
+          contentsHash,
+          "--controller-observed-hash",
+          "forged-observed",
+          "--reviewed-file",
+          fixturePath,
+          "--json",
+        ]),
+      ).toBe(1);
+      expect(err.join("")).toMatch(/does not match independently hashed/);
+    }
   });
 
   it("parseArgs rejects unknown flags", () => {

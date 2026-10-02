@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -13,7 +13,11 @@ import {
   mintPublisher,
   opaqueRunId,
   PRE_PR_PRIVATE_STORE_DIR,
+  PRE_PR_STORE_MAC_SECRET_NAME,
+  PRE_PR_STORE_SECRET_MODE,
+  parseStoredRecord,
   prePrDir,
+  prePrStoreRecordFileName,
   privatePrePrStoreDir,
   requirePublisher,
   resetDefaultPrePrStore,
@@ -87,6 +91,118 @@ describe("pre-pr private store", () => {
       expect(second.list()).toHaveLength(1);
       expect(privatePrePrStoreDir(root)).toContain(PRE_PR_PRIVATE_STORE_DIR);
       expect(privatePrePrStoreDir(root).includes("pre-pr-controller")).toBe(false);
+      const secretPath = join(privatePrePrStoreDir(root), PRE_PR_STORE_MAC_SECRET_NAME);
+      expect(statSync(secretPath).isFile()).toBe(true);
+      if (process.platform !== "win32") {
+        expect(statSync(secretPath).mode & 0o777).toBe(PRE_PR_STORE_SECRET_MODE);
+      }
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects unsigned JSON and loads only MAC-wrapped records", () => {
+    const root = mkdtempSync(join(tmpdir(), "pre-pr-mac-"));
+    try {
+      const store = new FileBackedPrePrStore(root);
+      const criteria = digestApprovedCriteria({
+        sourceRevisionSha: "a",
+        scopePaths: ["x.ts"],
+        acceptanceText: "ac",
+        generation: 1,
+      });
+      startControllerRun(store, {
+        repo: "deftai/directive",
+        baseSha: "a",
+        headSha: "b",
+        treeHash: "c",
+        prBodyHash: "d",
+        prNodeId: "PR_mac",
+        criteria,
+        skillVersion: "0.1",
+        policyVersion: "1",
+        approvedRevisionSha: "a",
+        runId: "ppr_signed",
+      });
+      expect(store.getById("ppr_signed")?.id).toBe("ppr_signed");
+      const forgedId = "ppr_unsigned";
+      const unsigned: PrePrExecutionRecord = {
+        ...(store.getById("ppr_signed") as PrePrExecutionRecord),
+        id: forgedId,
+        outcome: "pass",
+        state: "complete",
+      };
+      const dir = privatePrePrStoreDir(root);
+      writeFileSync(join(dir, prePrStoreRecordFileName(forgedId)), `${JSON.stringify(unsigned)}\n`);
+      expect(store.getById(forgedId)).toBeNull();
+      const secret = Buffer.from(
+        readFileSync(join(dir, PRE_PR_STORE_MAC_SECRET_NAME), "utf8").trim(),
+        "hex",
+      );
+      expect(parseStoredRecord(JSON.stringify(unsigned), secret)).toBeNull();
+      const envelopeRaw = readFileSync(join(dir, prePrStoreRecordFileName("ppr_signed")), "utf8");
+      expect(parseStoredRecord(envelopeRaw, secret)?.id).toBe("ppr_signed");
+      expect(parseStoredRecord(envelopeRaw, Buffer.from("00".repeat(32), "hex"))).toBeNull();
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("returns the newest PR-node record and lets a presented run id win", () => {
+    const store = new InProcessPrePrStore();
+    const criteria = digestApprovedCriteria({
+      sourceRevisionSha: "a",
+      scopePaths: ["x.ts"],
+      acceptanceText: "ac",
+      generation: 1,
+    });
+    const start = (runId: string, now: Date) =>
+      startControllerRun(store, {
+        repo: "deftai/directive",
+        baseSha: "a",
+        headSha: "b",
+        treeHash: "c",
+        prBodyHash: "d",
+        prNodeId: "PR_dup",
+        criteria,
+        skillVersion: "0.1",
+        policyVersion: "1",
+        approvedRevisionSha: "a",
+        runId,
+        now,
+      });
+    start("ppr_newer", new Date("2026-10-02T12:00:00Z"));
+    start("ppr_older", new Date("2026-10-02T11:00:00Z"));
+    expect(store.getByPrNodeId("PR_dup")?.id).toBe("ppr_newer");
+    expect(resolveRecordFromStore(store, { id: "ppr_older", prNodeId: "PR_dup" })?.id).toBe(
+      "ppr_older",
+    );
+    expect(resolveRecordFromStore(store, { prNodeId: "PR_dup" })?.id).toBe("ppr_newer");
+
+    const root = mkdtempSync(join(tmpdir(), "pre-pr-newest-"));
+    try {
+      const disk = new FileBackedPrePrStore(root);
+      const startDisk = (runId: string, now: Date) =>
+        startControllerRun(disk, {
+          repo: "deftai/directive",
+          baseSha: "a",
+          headSha: "b",
+          treeHash: "c",
+          prBodyHash: "d",
+          prNodeId: "PR_dup",
+          criteria,
+          skillVersion: "0.1",
+          policyVersion: "1",
+          approvedRevisionSha: "a",
+          runId,
+          now,
+        });
+      startDisk("ppr_newer", new Date("2026-10-02T12:00:00Z"));
+      startDisk("ppr_older", new Date("2026-10-02T11:00:00Z"));
+      expect(disk.getByPrNodeId("PR_dup")?.id).toBe("ppr_newer");
+      expect(resolveRecordFromStore(disk, { id: "ppr_older", prNodeId: "PR_dup" })?.id).toBe(
+        "ppr_older",
+      );
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

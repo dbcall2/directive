@@ -6,10 +6,10 @@
  * leave this module's factory.
  */
 
-import { randomBytes } from "node:crypto";
+import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { containedWrite } from "../fs/contained-write.js";
+import { containedChmod, containedWrite } from "../fs/contained-write.js";
 import {
   DISK_STORE_NOT_SOT,
   deny,
@@ -21,6 +21,10 @@ import {
 
 /** Controller-owned private store. Distinct from presented `.deft/pre-pr-controller`. */
 export const PRE_PR_PRIVATE_STORE_DIR = "pre-pr-execution-private";
+/** Store-local HMAC secret. Never the presented `.deft/pre-pr-controller` path. */
+export const PRE_PR_STORE_MAC_SECRET_NAME = "hmac-secret";
+export const PRE_PR_STORE_MAC_SCHEMA = "deft.pre-pr-store-mac.v1" as const;
+export const PRE_PR_STORE_SECRET_MODE = 0o600;
 
 export function privatePrePrStoreDir(projectRoot: string): string {
   return join(projectRoot, ".deft", PRE_PR_PRIVATE_STORE_DIR);
@@ -41,13 +45,9 @@ export interface PrePrExecutionStore {
 
 export class InProcessPrePrStore implements PrePrExecutionStore {
   private readonly records = new Map<string, PrePrExecutionRecord>();
-  private readonly byPrNode = new Map<string, string>();
 
   put(record: PrePrExecutionRecord): PrePrDecision {
     this.records.set(record.id, record);
-    if (record.prNodeId !== null && record.prNodeId.length > 0) {
-      this.byPrNode.set(record.prNodeId, record.id);
-    }
     return { ok: true, code: "allow-pass", message: `stored ${record.id}` };
   }
 
@@ -56,9 +56,7 @@ export class InProcessPrePrStore implements PrePrExecutionStore {
   }
 
   getByPrNodeId(prNodeId: string): PrePrExecutionRecord | null {
-    const id = this.byPrNode.get(prNodeId.trim());
-    if (id === undefined) return null;
-    return this.getById(id);
+    return newestMatchingPrNode(this.list(), prNodeId);
   }
 
   list(): readonly PrePrExecutionRecord[] {
@@ -66,18 +64,77 @@ export class InProcessPrePrStore implements PrePrExecutionStore {
   }
 }
 
-function recordFileName(id: string): string {
+export function prePrStoreRecordFileName(id: string): string {
   return `${Buffer.from(id, "utf8").toString("hex")}.json`;
 }
 
-function parseStoredRecord(raw: string): PrePrExecutionRecord | null {
+/** Newest matching record by startedAt, then completedAt. */
+export function prePrRecordIsNewer(a: PrePrExecutionRecord, b: PrePrExecutionRecord): boolean {
+  const aStart = a.startedAt ?? "";
+  const bStart = b.startedAt ?? "";
+  if (aStart !== bStart) return aStart > bStart;
+  const aDone = a.completedAt ?? "";
+  const bDone = b.completedAt ?? "";
+  return aDone > bDone;
+}
+
+function newestMatchingPrNode(
+  records: readonly PrePrExecutionRecord[],
+  prNodeId: string,
+): PrePrExecutionRecord | null {
+  const want = prNodeId.trim();
+  if (want.length === 0) return null;
+  let best: PrePrExecutionRecord | null = null;
+  for (const rec of records) {
+    if (rec.prNodeId !== want) continue;
+    if (best === null || prePrRecordIsNewer(rec, best)) best = rec;
+  }
+  return best;
+}
+
+function hmacHex(secret: Buffer, payload: string): string {
+  return createHmac("sha256", secret).update(payload, "utf8").digest("hex");
+}
+
+function macMatches(secret: Buffer, payload: string, macHex: string): boolean {
+  if (typeof macHex !== "string" || macHex.length === 0) return false;
+  const expected = Buffer.from(hmacHex(secret, payload), "hex");
+  let given: Buffer;
+  try {
+    given = Buffer.from(macHex, "hex");
+  } catch {
+    return false;
+  }
+  if (given.length !== expected.length || given.length === 0) return false;
+  return timingSafeEqual(given, expected);
+}
+
+function asExecutionRecord(value: unknown): PrePrExecutionRecord | null {
+  if (value === null || typeof value !== "object") return null;
+  const rec = value as PrePrExecutionRecord;
+  if (rec.schema !== PRE_PR_EXECUTION_SCHEMA) return null;
+  if (typeof rec.id !== "string" || rec.id.length === 0) return null;
+  return rec;
+}
+
+/**
+ * Unsigned JSON is not a pass record. Envelope MAC must match the store secret.
+ */
+export function parseStoredRecord(raw: string, secret: Buffer): PrePrExecutionRecord | null {
   try {
     const parsed: unknown = JSON.parse(raw);
     if (parsed === null || typeof parsed !== "object") return null;
-    const rec = parsed as PrePrExecutionRecord;
-    if (rec.schema !== PRE_PR_EXECUTION_SCHEMA) return null;
-    if (typeof rec.id !== "string" || rec.id.length === 0) return null;
-    return rec;
+    const envelope = parsed as {
+      schema?: unknown;
+      payload?: unknown;
+      mac?: unknown;
+    };
+    if (envelope.schema === PRE_PR_EXECUTION_SCHEMA) return null;
+    if (envelope.schema !== PRE_PR_STORE_MAC_SCHEMA) return null;
+    if (typeof envelope.payload !== "string" || envelope.payload.length === 0) return null;
+    if (typeof envelope.mac !== "string") return null;
+    if (!macMatches(secret, envelope.payload, envelope.mac)) return null;
+    return asExecutionRecord(JSON.parse(envelope.payload));
   } catch {
     return null;
   }
@@ -95,15 +152,54 @@ export class FileBackedPrePrStore implements PrePrExecutionStore {
   }
 
   private recordPath(id: string): string {
-    return join(this.dir(), recordFileName(id));
+    return join(this.dir(), prePrStoreRecordFileName(id));
+  }
+
+  private secretPath(): string {
+    return join(this.dir(), PRE_PR_STORE_MAC_SECRET_NAME);
+  }
+
+  private loadSecret(): Buffer | null {
+    const path = this.secretPath();
+    if (!existsSync(path)) return null;
+    const hex = readFileSync(path, "utf8").trim();
+    if (hex.length === 0) return null;
+    const buf = Buffer.from(hex, "hex");
+    if (buf.length === 0) return null;
+    return buf;
+  }
+
+  private loadOrCreateSecret(): Buffer | null {
+    const existing = this.loadSecret();
+    if (existing !== null) return existing;
+    const root = resolve(this.projectRoot);
+    const target = this.secretPath();
+    containedWrite({
+      root,
+      target,
+      data: `${randomBytes(32).toString("hex")}\n`,
+      mode: "create",
+    });
+    containedChmod({ root, target, mode: PRE_PR_STORE_SECRET_MODE });
+    return this.loadSecret();
   }
 
   put(record: PrePrExecutionRecord): PrePrDecision {
     const root = resolve(this.projectRoot);
+    const secret = this.loadOrCreateSecret();
+    if (secret === null) {
+      return deny("deny-missing-record", "pre-PR private store HMAC secret could not be created");
+    }
+    const payload = JSON.stringify(record);
+    const envelope = JSON.stringify({
+      schema: PRE_PR_STORE_MAC_SCHEMA,
+      payload,
+      mac: hmacHex(secret, payload),
+    });
     containedWrite({
       root,
       target: this.recordPath(record.id),
-      data: `${JSON.stringify(record)}\n`,
+      data: `${envelope}\n`,
       mode: "replace",
     });
     return { ok: true, code: "allow-pass", message: `stored ${record.id}` };
@@ -112,25 +208,24 @@ export class FileBackedPrePrStore implements PrePrExecutionStore {
   getById(id: string): PrePrExecutionRecord | null {
     const path = this.recordPath(id);
     if (!existsSync(path)) return null;
-    return parseStoredRecord(readFileSync(path, "utf8"));
+    const secret = this.loadSecret();
+    if (secret === null) return null;
+    return parseStoredRecord(readFileSync(path, "utf8"), secret);
   }
 
   getByPrNodeId(prNodeId: string): PrePrExecutionRecord | null {
-    const want = prNodeId.trim();
-    if (want.length === 0) return null;
-    for (const rec of this.list()) {
-      if (rec.prNodeId === want) return rec;
-    }
-    return null;
+    return newestMatchingPrNode(this.list(), prNodeId);
   }
 
   list(): readonly PrePrExecutionRecord[] {
     const dir = this.dir();
     if (!existsSync(dir)) return [];
+    const secret = this.loadSecret();
+    if (secret === null) return [];
     const out: PrePrExecutionRecord[] = [];
     for (const name of readdirSync(dir)) {
       if (!name.endsWith(".json")) continue;
-      const rec = parseStoredRecord(readFileSync(join(dir, name), "utf8"));
+      const rec = parseStoredRecord(readFileSync(join(dir, name), "utf8"), secret);
       if (rec !== null) out.push(rec);
     }
     return out;
@@ -192,13 +287,13 @@ export function resolveRecordFromStore(
   store: PrePrExecutionStore,
   input: { readonly id?: string | null; readonly prNodeId?: string | null },
 ): PrePrExecutionRecord | null {
-  const node = input.prNodeId?.trim() ?? "";
-  if (node.length > 0) {
-    const byNode = store.getByPrNodeId(node);
-    if (byNode !== null) return byNode;
-  }
   const id = input.id?.trim() ?? "";
-  if (id.length > 0) return store.getById(id);
+  if (id.length > 0) {
+    const byId = store.getById(id);
+    if (byId !== null) return byId;
+  }
+  const node = input.prNodeId?.trim() ?? "";
+  if (node.length > 0) return store.getByPrNodeId(node);
   return null;
 }
 

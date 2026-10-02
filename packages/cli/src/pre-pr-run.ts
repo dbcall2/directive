@@ -6,6 +6,7 @@
  */
 import {
   completeRun,
+  computeControllerObservedHash,
   controllerPublisher,
   digestApprovedCriteria,
   evaluateLivePrePrCheck,
@@ -46,11 +47,12 @@ Options:
   --observe-semantic      record semantic / final-no-change evidence
   --phase <id>
   --command <text>
-  --exit-code <n>
+  --exit-code <n>         required with --observe-command; omit is a parse error
   --input-hash <hex>
-  --skip-reason <text>
+  --skip-reason <text>    skip also requires a non-zero --exit-code
   --supplied-contents-hash <hex>
   --controller-observed-hash <hex>
+                          optional; must match independently hashed reviewed files
   --criteria-digest <hex>
   --reviewed-file <path>  (repeatable)
   --reviewer-report-ref <ref>
@@ -379,22 +381,53 @@ export function run(argv: string[]): number {
     }
     const rec = store.getById(args.runId);
     if (args.observeCommand) {
+      if (args.exitCode === null) {
+        process.stderr.write("pre_pr_run: --observe-command requires --exit-code\n");
+        return 2;
+      }
+      if (args.skipReason !== null && args.skipReason.length > 0 && args.exitCode === 0) {
+        process.stderr.write(
+          "pre_pr_run: skip requires a non-zero --exit-code plus --skip-reason\n",
+        );
+        return 2;
+      }
       const spec = phaseSpec(phase);
       const d = observeCommandPhase(store, args.runId, {
         phaseId: phase,
         command: args.command.length > 0 ? args.command : (spec.command ?? ""),
-        exitCode: args.exitCode ?? 0,
+        exitCode: args.exitCode,
         inputHash: args.inputHash ?? rec?.inputHash ?? "",
         skipReason: args.skipReason,
       });
       emit(args.json, d, d.message, !d.ok);
       return d.ok ? 0 : 1;
     }
-    if (args.suppliedContentsHash.length === 0 || args.controllerObservedHash.length === 0) {
+    if (args.suppliedContentsHash.length === 0) {
+      process.stderr.write("pre_pr_run: --observe-semantic requires --supplied-contents-hash\n");
+      return 2;
+    }
+    if (args.reviewedFiles.length === 0) {
+      process.stderr.write("pre_pr_run: --observe-semantic requires --reviewed-file\n");
+      return 2;
+    }
+    const observed = computeControllerObservedHash({ reviewedFiles: args.reviewedFiles });
+    if (observed === null) {
       process.stderr.write(
-        "pre_pr_run: --observe-semantic requires --supplied-contents-hash --controller-observed-hash\n",
+        "pre_pr_run: --observe-semantic could not hash reviewed-file contents\n",
       );
       return 2;
+    }
+    if (args.controllerObservedHash.length > 0 && args.controllerObservedHash !== observed) {
+      process.stderr.write(
+        "pre_pr_run: --controller-observed-hash does not match independently hashed reviewed-file contents\n",
+      );
+      return 1;
+    }
+    if (args.suppliedContentsHash !== observed) {
+      process.stderr.write(
+        "pre_pr_run: --supplied-contents-hash does not match independently hashed reviewed-file contents\n",
+      );
+      return 1;
     }
     const d = submitReviewerReport(store, args.runId, {
       phaseId: phase,
@@ -402,7 +435,7 @@ export function run(argv: string[]): number {
       suppliedContentsHash: args.suppliedContentsHash,
       criteriaDigest: args.criteriaDigest ?? rec?.criteria.digest ?? "",
       reviewerReportRef: args.reviewerReportRef,
-      controllerObservedHash: args.controllerObservedHash,
+      controllerObservedHash: observed,
     });
     emit(args.json, d, d.message, !d.ok);
     return d.ok ? 0 : 1;
@@ -424,7 +457,7 @@ export function run(argv: string[]): number {
       args.approvedRevision.length > 0
         ? args.approvedRevision
         : (record?.criteria.sourceRevisionSha ?? args.headSha);
-    const headCriteria = digestApprovedCriteria({
+    const liveApproved = digestApprovedCriteria({
       sourceRevisionSha: headSource,
       scopePaths: args.scope,
       acceptanceText: args.acceptance,
@@ -440,9 +473,9 @@ export function run(argv: string[]): number {
         prBodyHash: args.prBodyHash,
       },
       presentedRunId: args.runId,
-      approvedCriteria: record?.criteria ?? headCriteria,
+      approvedCriteria: liveApproved,
       currentGeneration: args.generation,
-      headCriteria,
+      headCriteria: liveApproved,
     });
     emit(args.json, d, d.message, !d.ok);
     return d.ok ? 0 : 1;

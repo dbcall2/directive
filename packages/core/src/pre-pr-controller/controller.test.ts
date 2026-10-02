@@ -217,6 +217,37 @@ describe("controller observations", () => {
     expect(completeRun(store, mintPublisher(), rec.id).code).toBe("deny-out-of-order");
   });
 
+  it("denies write, diff, and loop when supplied and observed hashes differ", () => {
+    for (const mismatch of ["write", "diff", "loop"] as const) {
+      const store = new InProcessPrePrStore();
+      const rec = start(store, `ppr_hash_${mismatch}`);
+      for (const spec of PRE_PR_PHASES) {
+        if (spec.kind === "command-observable") {
+          observeCommandPhase(store, rec.id, {
+            phaseId: spec.id,
+            command: spec.command ?? "cmd",
+            exitCode: 0,
+            inputHash: rec.inputHash,
+            skipReason: null,
+          });
+        } else {
+          const match = spec.id !== mismatch;
+          submitReviewerReport(store, rec.id, {
+            phaseId: spec.id,
+            reviewedFileManifest: ["a.ts"],
+            suppliedContentsHash: match ? "h" : "supplied",
+            criteriaDigest: approved.digest,
+            reviewerReportRef: "r",
+            controllerObservedHash: match ? "h" : "observed",
+          });
+        }
+      }
+      const decided = runObservablesComplete(store.getById(rec.id) as PrePrExecutionRecord);
+      expect(decided.ok).toBe(false);
+      expect(["deny-omitted-phase", "deny-incomplete"]).toContain(decided.code);
+    }
+  });
+
   it("failRun blocks evaluate even with a presented id", () => {
     const store = new InProcessPrePrStore();
     const rec = start(store, "ppr_failrun");

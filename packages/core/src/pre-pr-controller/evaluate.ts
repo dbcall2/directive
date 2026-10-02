@@ -121,7 +121,7 @@ export function evaluateLivePrePrCheck(input: {
     liveBinding: input.liveBinding,
     presentedRunId: presented.length > 0 ? presented : null,
     presentedIdWithoutStore: presented.length > 0 && record === null,
-    approvedCriteria: record !== null ? record.criteria : input.approvedCriteria,
+    approvedCriteria: input.approvedCriteria,
     currentGeneration: input.currentGeneration,
     headCriteria: input.headCriteria,
     lastInvalidationAt: input.lastInvalidationAt,

@@ -5,6 +5,9 @@
  * Opening the skill file and generic mark-complete cannot mint a pass.
  */
 
+import { createHash } from "node:crypto";
+import { existsSync, readFileSync } from "node:fs";
+import { isAbsolute, join } from "node:path";
 import {
   isAllowedSkip,
   PRE_PR_CONTROLLER_VERSION,
@@ -34,8 +37,31 @@ import {
   PUBLISHER_REQUIRED,
   type SemanticEvidence,
   SKILL_FILE_OPEN_NOT_COMPLETION,
+  sha256Hex,
   utcIso,
 } from "./types.js";
+
+/**
+ * Independently hash reviewed-file contents. Callers cannot mint
+ * `controllerObservedHash`; the CLI compares any supplied value to this.
+ * Missing files fail closed (null).
+ */
+export function computeControllerObservedHash(input: {
+  readonly reviewedFiles: readonly string[];
+  readonly cwd?: string;
+}): string | null {
+  const files = [...input.reviewedFiles];
+  if (files.length === 0) return null;
+  const cwd = input.cwd ?? process.cwd();
+  const rows: string[] = [];
+  for (const rel of [...files].sort()) {
+    const abs = isAbsolute(rel) ? rel : join(cwd, rel);
+    if (!existsSync(abs)) return null;
+    const digest = createHash("sha256").update(readFileSync(abs)).digest("hex");
+    rows.push(`${rel.replaceAll("\\", "/")}:${digest}`);
+  }
+  return sha256Hex(JSON.stringify(rows));
+}
 
 export interface StartControllerRunInput {
   readonly repo: string;
@@ -275,10 +301,12 @@ function semanticSatisfied(record: PrePrExecutionRecord, phaseId: PrePrPhaseId):
   const row = record.phaseEvidence.semantic.find((s) => s.phaseId === phaseId);
   if (row === undefined) return false;
   if (row.criteriaDigest !== record.criteria.digest) return false;
-  if (phaseId === "loop") {
-    return record.finalNoChange && row.suppliedContentsHash === row.controllerObservedHash;
+  if (row.suppliedContentsHash.length === 0 || row.controllerObservedHash.length === 0) {
+    return false;
   }
-  return row.suppliedContentsHash.length > 0 && row.controllerObservedHash.length > 0;
+  if (row.suppliedContentsHash !== row.controllerObservedHash) return false;
+  if (phaseId === "loop") return record.finalNoChange;
+  return true;
 }
 
 function phaseObservedAt(record: PrePrExecutionRecord, spec: PrePrPhaseSpec): string | null {
