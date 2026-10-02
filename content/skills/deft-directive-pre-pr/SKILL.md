@@ -78,6 +78,17 @@ task verify:plan-sequence -- --target-kind <entry-kind> --target <entry-id>
 - ~ After addressing bot reviewer findings (run one pre-PR pass before pushing the fix batch)
 - ? During mid-implementation checkpoints on large changes
 
+## Controller invocation (#4912)
+
+! Start the prescribed pre-PR workflow through `deft pre-pr:run`. Opening this skill file is not completion. A generic mark-complete cannot mint a pass.
+
+- ! `deft pre-pr:run` starts a controller run. The run id is a lookup hint; the private store is authoritative.
+- ⊗ Treat reading this SKILL.md as pre-PR completion.
+- ⊗ Mint a passing record from an author-supplied run id, checkbox, gitignored marker, or generic mark-complete.
+- ⊗ Reuse a one-PR-unit verdict as pre-PR success.
+
+Live skip detection on deftai/directive additionally requires Limb 5 enrollment (#4976).
+
 ## Loop Phases
 
 Each iteration proceeds through all phases in order. Do NOT skip phases or reorder them.

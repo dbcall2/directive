@@ -111,6 +111,7 @@ export const CLI_MODULE_VERBS = [
   "pr-watch",
   "pr-finish-loop",
   "directive-finish-loop",
+  "pre-pr-run",
   "preflight-cache",
   "preflight-gh",
   "probe-session",
@@ -387,6 +388,7 @@ const FRESHNESS_COLON_ALIASES = Object.fromEntries(
 
 /** Task-style aliases (framework_commands / Taskfile names). */
 export const VERB_ALIASES: Readonly<Record<string, string>> = {
+  "pre-pr:run": "pre-pr-run",
   "hook:dispatch": "hook-dispatch",
   "verify:encoding": "verify-encoding",
   "verify:forward-coverage": "verify-forward-coverage",

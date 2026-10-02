@@ -131,6 +131,10 @@
       "types": "./dist/one-pr-unit/index.d.ts",
       "default": "./dist/one-pr-unit/index.js"
     },
+    "./pre-pr-controller": {
+      "types": "./dist/pre-pr-controller/index.d.ts",
+      "default": "./dist/pre-pr-controller/index.js"
+    },
     "./escalation": {
       "types": "./dist/escalation/index.d.ts",
       "default": "./dist/escalation/index.js"

@@ -69,6 +69,7 @@ export * as literalAcceptance from "./literal-acceptance/index.js";
 export * as metrics from "./metrics/index.js";
 export * as observableScope from "./observable-scope/index.js";
 export * as onePrUnit from "./one-pr-unit/index.js";
+export * as prePrController from "./pre-pr-controller/index.js";
 export * as orchestration from "./orchestration/index.js";
 export * as packs from "./packs/index.js";
 export * as parentTurnShape from "./parent-turn-shape/index.js";
