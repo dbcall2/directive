@@ -1,14 +1,10 @@
 {
   "schema": "deft.evaluator-surface-disposition.v1",
   "kind": "disclosure",
-  "issue": 633,
+  "issue": 4912,
   "surfaces": [
-    "Taskfile.yml",
-    "tasks/verify.yml",
-    "packages/core/src/check/gate-lists.ts",
-    "packages/core/src/task-surface/index.ts",
-    "packages/cli/src/changelog-check.ts",
+    "vitest.config.ts",
     "xbrief/evaluator-surface-disposition.json"
   ],
-  "note": "Renewed disclosure for #633: wire verify:changelog-unreleased into check:framework-source via changelog-check --against-merge-base. Disclosure only; not #3164 authorization."
+  "note": "Renewed disclosure for #4912: vitest subpath alias @deftai/directive-core/pre-pr-controller. Disclosure only; not #3164 authorization."
 }
