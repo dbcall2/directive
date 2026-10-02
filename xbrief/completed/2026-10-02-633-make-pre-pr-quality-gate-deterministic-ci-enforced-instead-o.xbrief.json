@@ -1,0 +1,767 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #633",
+    "updated": "2026-10-02T22:18:48Z"
+  },
+  "plan": {
+    "title": "Make pre-PR quality gate deterministic (CI-enforced) instead of advisory",
+    "status": "completed",
+    "narratives": {
+      "Description": "Make pre-PR quality gate deterministic (CI-enforced) instead of advisory",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/633",
+      "Overview": "\n\n- `verify:changelog-unreleased` on `check:framework-source`.\n- Named operator-owned repo-scoped ruleset step: required context for the `Merge gate (task check)` aggregator, with admin-enforcement policy stated. Validate the artifact-only skip path before flipping.\n- Shrink the template checklist to items that have detectors. Move `## Post-Merge` out of `- [ ]` syntax.\n\n",
+      "Labels": "determinism, urgent, design-critique:ingest-ready, core-capabilities, promise:gates",
+      "Constraint": "Next-build contract is leftover-deliver remainder successor lean 5784448698 (Target-digest sha256:423e93e27278705f5d26a51e5300cf1fd2c3599aea43c32413a6d3414b433e89). Synthesis 5784591647. Unmet Stop 1 P1 is parked on leftover #4912. Tiers 1-3 (pr:ready / marker / checklist CI) are withdrawn from this number. Issue body still describes withdrawn Tiers 1-3; ingest binds the remainder lean, not that body. This remainder does not claim to close P1.",
+      "Action": "Implement remainder harvest at dest origin/master 9dc0c3f6cc8108e5caf09b231694bf1af755ec0b: verify:changelog-unreleased on check:framework-source; operator-owned repo ruleset required context for Merge gate (task check) with admin-enforcement policy stated and artifact-only skip path validated before flipping; shrink PR template so ## Post-Merge is not a - [ ] item. Do not implement Tiers 1-3. Do not merge. stop-at: pr-open."
+    },
+    "items": [
+      {
+        "title": "`verify:changelog-unreleased` on `check:framework-source`.",
+        "status": "completed",
+        "id": "clause.1",
+        "x-directive/disposition": {
+          "disposition": "not_applicable",
+          "reason": "Bound remainder shipped in PR #5275 (merge d052a4cfa1cd47b714bd77dc6fe539167aaef222). Pathless leftover-complete after maintainer squash-merge.",
+          "provenance": {
+            "kind": "operator-session",
+            "actor": "david.call2@accesscfa.com",
+            "eventRef": "leftover-complete-after-5275",
+            "mintedAt": "2026-10-02T22:12:54.804Z",
+            "mintedVia": "leftover-complete-after-5275"
+          },
+          "recorded_at": "2026-10-02T22:12:54.804Z"
+        }
+      },
+      {
+        "title": "Named operator-owned repo-scoped ruleset step: required context for the `Merge gate (task check)` aggregator, with admin-enforcement policy stated.",
+        "status": "completed",
+        "id": "clause.2",
+        "x-directive/disposition": {
+          "disposition": "not_applicable",
+          "reason": "Bound remainder shipped in PR #5275 (merge d052a4cfa1cd47b714bd77dc6fe539167aaef222). Pathless leftover-complete after maintainer squash-merge.",
+          "provenance": {
+            "kind": "operator-session",
+            "actor": "david.call2@accesscfa.com",
+            "eventRef": "leftover-complete-after-5275",
+            "mintedAt": "2026-10-02T22:12:54.804Z",
+            "mintedVia": "leftover-complete-after-5275"
+          },
+          "recorded_at": "2026-10-02T22:12:54.804Z"
+        }
+      },
+      {
+        "title": "Validate the artifact-only skip path before flipping.",
+        "status": "completed",
+        "id": "clause.3",
+        "x-directive/disposition": {
+          "disposition": "not_applicable",
+          "reason": "Bound remainder shipped in PR #5275 (merge d052a4cfa1cd47b714bd77dc6fe539167aaef222). Pathless leftover-complete after maintainer squash-merge.",
+          "provenance": {
+            "kind": "operator-session",
+            "actor": "david.call2@accesscfa.com",
+            "eventRef": "leftover-complete-after-5275",
+            "mintedAt": "2026-10-02T22:12:54.804Z",
+            "mintedVia": "leftover-complete-after-5275"
+          },
+          "recorded_at": "2026-10-02T22:12:54.804Z"
+        }
+      },
+      {
+        "title": "Shrink the template checklist to items that have detectors.",
+        "status": "completed",
+        "id": "clause.4",
+        "x-directive/disposition": {
+          "disposition": "not_applicable",
+          "reason": "Bound remainder shipped in PR #5275 (merge d052a4cfa1cd47b714bd77dc6fe539167aaef222). Pathless leftover-complete after maintainer squash-merge.",
+          "provenance": {
+            "kind": "operator-session",
+            "actor": "david.call2@accesscfa.com",
+            "eventRef": "leftover-complete-after-5275",
+            "mintedAt": "2026-10-02T22:12:54.804Z",
+            "mintedVia": "leftover-complete-after-5275"
+          },
+          "recorded_at": "2026-10-02T22:12:54.804Z"
+        }
+      },
+      {
+        "title": "Move `## Post-Merge` out of `- [ ]` syntax.",
+        "status": "completed",
+        "id": "clause.5",
+        "x-directive/disposition": {
+          "disposition": "not_applicable",
+          "reason": "Bound remainder shipped in PR #5275 (merge d052a4cfa1cd47b714bd77dc6fe539167aaef222). Pathless leftover-complete after maintainer squash-merge.",
+          "provenance": {
+            "kind": "operator-session",
+            "actor": "david.call2@accesscfa.com",
+            "eventRef": "leftover-complete-after-5275",
+            "mintedAt": "2026-10-02T22:12:54.804Z",
+            "mintedVia": "leftover-complete-after-5275"
+          },
+          "recorded_at": "2026-10-02T22:12:54.804Z"
+        }
+      }
+    ],
+    "tags": [
+      "determinism",
+      "urgent",
+      "design-critique:ingest-ready",
+      "core-capabilities",
+      "promise:gates"
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/633",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #633: Make pre-PR quality gate deterministic (CI-enforced) instead of advisory"
+      }
+    ],
+    "acceptance": {
+      "commands": [
+        {
+          "command": "pnpm exec vitest run packages/core/src/content-contracts/standards/pre_pr_remainder_633.test.ts packages/core/src/check/gate-lists.test.ts packages/core/src/task-surface/index.test.ts"
+        }
+      ],
+      "none_stated": false,
+      "source_rung": "derived",
+      "derived_reason": "derived 3 independently testable clauses from the task statement before product edit (#3323)",
+      "sentences": [
+        "`verify:changelog-unreleased` on `check:framework-source`.",
+        "Named operator-owned repo-scoped ruleset step: required context for the `Merge gate (task check)` aggregator, with admin-enforcement policy stated.",
+        "Validate the artifact-only skip path before flipping.",
+        "Shrink the template checklist to items that have detectors.",
+        "Move `## Post-Merge` out of `- [ ]` syntax."
+      ],
+      "admitted_source_sentences": [
+        "`verify:changelog-unreleased` on `check:framework-source`.",
+        "Named operator-owned repo-scoped ruleset step: required context for the `Merge gate (task check)` aggregator, with admin-enforcement policy stated.",
+        "Validate the artifact-only skip path before flipping.",
+        "Shrink the template checklist to items that have detectors.",
+        "Move `## Post-Merge` out of `- [ ]` syntax."
+      ],
+      "admitted_source_digest": "64815176c778f8b55181f747ecb3d9b1ffc6029586208806f2bbeb6545f5090b",
+      "clauses": [
+        {
+          "id": 1,
+          "text": "`verify:changelog-unreleased` on `check:framework-source`.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "bound-remedy"
+        },
+        {
+          "id": 2,
+          "text": "Named operator-owned repo-scoped ruleset step: required context for the `Merge gate (task check)` aggregator, with admin-enforcement policy stated.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "bound-remedy"
+        },
+        {
+          "id": 3,
+          "text": "Validate the artifact-only skip path before flipping.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "bound-remedy"
+        },
+        {
+          "id": 4,
+          "text": "Shrink the template checklist to items that have detectors.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "bound-remedy"
+        },
+        {
+          "id": 5,
+          "text": "Move `## Post-Merge` out of `- [ ]` syntax.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "bound-remedy"
+        }
+      ],
+      "ambiguity_attestation": "none_found"
+    },
+    "metadata": {
+      "intended_placement": {
+        "schema": "deft.scope.intended_placement.v1",
+        "files": [
+          "Taskfile.yml",
+          "tasks/verify.yml",
+          "packages/core/src/check/gate-lists.ts",
+          "packages/core/src/check/gate-lists.test.ts",
+          ".github/PULL_REQUEST_TEMPLATE.md",
+          "content/scm/github.md",
+          "xbrief/evaluator-surface-disposition.json",
+          "packages/core/src/content-contracts/standards/taskfile_check_lane.test.ts",
+          "packages/core/src/content-contracts/standards/ci_lifecycle_lane.test.ts",
+          "packages/cli/src/task-surface.test.ts",
+          "packages/core/src/content-contracts/standards/pre_pr_remainder_633.test.ts",
+          "CHANGELOG.md",
+          "docs/RULE-MAP.md",
+          "packages/core/src/check/named-cause.ts"
+        ],
+        "module_boundary": "task-runner + framework-content + typescript-engine",
+        "cohesion_exemption": [
+          "Taskfile.yml",
+          "CHANGELOG.md"
+        ],
+        "split_plan": "Existing files already over review-trigger stay in place this slice. CHANGELOG is append-only cohesion. Do not split those files."
+      },
+      "issueCommentThread": [
+        {
+          "body": "Follow-up governance issue filed: #634 -- generalises this issue's T4-style fix pattern into a proposed determinism-tier ladder + floor rule for all framework-level root-cause fixes. Parked in `needs-discussion` state; not blocking delivery of this issue.\r\n\n",
+          "id": 4307232478,
+          "html_url": "https://github.com/deftai/directive/issues/633#issuecomment-4307232478",
+          "user": {
+            "login": "MScottAdams",
+            "id": 59447805,
+            "node_id": "MDQ6VXNlcjU5NDQ3ODA1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/59447805?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/MScottAdams",
+            "html_url": "https://github.com/MScottAdams",
+            "followers_url": "https://api.github.com/users/MScottAdams/followers",
+            "following_url": "https://api.github.com/users/MScottAdams/following{/other_user}",
+            "gists_url": "https://api.github.com/users/MScottAdams/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/MScottAdams/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/MScottAdams/subscriptions",
+            "organizations_url": "https://api.github.com/users/MScottAdams/orgs",
+            "repos_url": "https://api.github.com/users/MScottAdams/repos",
+            "events_url": "https://api.github.com/users/MScottAdams/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/MScottAdams/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-04-23T19:26:02Z",
+          "updated_at": "2026-04-23T19:26:02Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: triage\n```\n\ndesign-critique: warranted, because the pre-PR quality gate is still process: `skills/deft-directive-pre-pr/SKILL.md` is an agent loop, `.github/PULL_REQUEST_TEMPLATE.md` checklist is prose, and origin/master has zero hits for `task pr:ready`, `pre-pr-complete`, and `pre-pr-gate`. CI runs the merge chokepoint and does not parse the checklist or prove the skill ran.\n\nmechanism-shaped: true\n\narc-mode: no-ingest\nyolo-standing: yes\ndest: /Users/davidcall/.grok/worktrees/deft-directive/issue-633-dc\norigin-ref: origin/HEAD\ndispatch-sha: 7712f482781c4885fd9d395756e2c316785730dd\n\ncharter: refutation\nspend: N≥3\nspend-ask: asked\nspend-why: operator utterance appropriate n; Stop 2 used N≥3 panel permission. Drafted three-tier MUSTs plus CI merge-blocking blast radius; N=1 would bind one enforcement shape against three-family priors.\nDual-stop cap: 3 posts\n\npain: P1\n\ntarget: #633\ntarget-shape: single-issue (default)\naudit-targets: none\nrefutation-target: Tiers 1-3 in one PR (CI PR-body checklist Action emitting required check `pre-pr-gate / checklist`, `task pr:ready` writing `.deft/pre-pr-complete.<head-sha>.json`, and CI marker cross-check on that SHA) are the correct and sufficient replacement for advisory pre-PR.\n\n## Gate stamp\n\nThe triage author stamps the semantic call. This write-back is not the round-1 ceiling; spend N≥3 takes the panel-deposit snapshot.\n\nP1 is that an agent can skip deft-directive-pre-pr and open a PR with a custom body that omits or leaves unchecked the template checklist; CI `check` does not detect that skip.\n\nRe-measured at dispatch SHA `7712f482781c4885fd9d395756e2c316785730dd`:\n\n- `git grep` of `pr:ready`, `pre-pr-complete`, `pre-pr-gate` = 0 hits.\n- `.github/workflows/` contains branch-gate, ci, ci-lane, docs-site, greenfield-python-free-smoke, npm-publish, one-pr-unit-merge-group, release — no checklist parser Action.\n- `.github/PULL_REQUEST_TEMPLATE.md` still has a Checklist with unchecked `- [ ]` boxes (change proposal, CHANGELOG, tests pass locally) and a Post-Merge section.\n- `content/skills/deft-directive-pre-pr/SKILL.md` still names the iterative Read-Write-Lint-Diff loop and merge-chokepoint `deft check`; it does not name `task pr:ready`.\n- Parent epic #635 and follow-up #634 are still GitHub-open. Thread comment 4307232478 files #634 and says it does not block this issue.\n\nWhat this P1 is not:\n\n- Not claiming CI check is missing (the local-check-skip slice of PR #632 is now covered by CI).\n- Not Tier 4 structural template recut (out of scope on the body).\n- Not consumer-side rollout of the same Action (body follow-up).\n\nOpen forks the critic may take: land Tiers 1-3 as filed; retarget enforcement to existing required checks plus docs-impact; or drop checklist CI and keep only a pr:ready marker.\n\n",
+          "id": 5779631645,
+          "html_url": "https://github.com/deftai/directive/issues/633#issuecomment-5779631645",
+          "user": {
+            "login": "dbcall2",
+            "id": 15332465,
+            "node_id": "MDQ6VXNlcjE1MzMyNDY1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/15332465?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/dbcall2",
+            "html_url": "https://github.com/dbcall2",
+            "followers_url": "https://api.github.com/users/dbcall2/followers",
+            "following_url": "https://api.github.com/users/dbcall2/following{/other_user}",
+            "gists_url": "https://api.github.com/users/dbcall2/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/dbcall2/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/dbcall2/subscriptions",
+            "organizations_url": "https://api.github.com/users/dbcall2/orgs",
+            "repos_url": "https://api.github.com/users/dbcall2/repos",
+            "events_url": "https://api.github.com/users/dbcall2/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/dbcall2/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-22T15:54:16Z",
+          "updated_at": "2026-09-22T15:54:16Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: parent\n```\n\npanel-deposit\nround: 1\nsiblings: 3\ninput-ceiling: 5779663967\nfamilies: grok, claude, codex\n\nseat: grok launcher: grok\nseat: claude launcher: claude\nseat: codex launcher: codex\n\nclaimed-families before first sibling spawn. Launch probes (critic argv class, dest cwd, stdin closed) replied pong at rc 0: claude, codex, grok. Native spawn_subagent dest-cwd unmarked general-purpose is implement-class on this host (process_only not on advertised spawn_subagent schema); Grok seat recovers to dest-rooted grok --cwd --prompt-file after that recorded omit.\n\n",
+          "id": 5779663967,
+          "html_url": "https://github.com/deftai/directive/issues/633#issuecomment-5779663967",
+          "user": {
+            "login": "dbcall2",
+            "id": 15332465,
+            "node_id": "MDQ6VXNlcjE1MzMyNDY1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/15332465?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/dbcall2",
+            "html_url": "https://github.com/dbcall2",
+            "followers_url": "https://api.github.com/users/dbcall2/followers",
+            "following_url": "https://api.github.com/users/dbcall2/following{/other_user}",
+            "gists_url": "https://api.github.com/users/dbcall2/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/dbcall2/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/dbcall2/subscriptions",
+            "organizations_url": "https://api.github.com/users/dbcall2/orgs",
+            "repos_url": "https://api.github.com/users/dbcall2/repos",
+            "events_url": "https://api.github.com/users/dbcall2/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/dbcall2/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-22T15:56:25Z",
+          "updated_at": "2026-09-22T15:56:26Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: critic\n```\n\naudit-targets: none\n\nsha: 7712f482781c4885fd9d395756e2c316785730dd\nid-ceiling: 5779663967\ncharter: refutation\n\n## Verdict\n\nThe recorded refutation-target fails. Bind the successor lean on the open fork that retargets enforcement to existing merge-gate / branch-gate checks plus `verify:docs-impact`. Tiers 1-3 as filed cannot bind as merge authority or as a sufficient replacement for advisory pre-PR.\n\nRe-measured at dispatch SHA `7712f482781c4885fd9d395756e2c316785730dd`: `git grep` of `pr:ready` / `pre-pr-complete` / `pre-pr-gate` is empty; `.github/workflows/` is branch-gate, ci, ci-lane, docs-site, greenfield-python-free-smoke, npm-publish, one-pr-unit-merge-group, release; `content/skills/deft-directive-pre-pr/SKILL.md` still names the RWLDL loop and the merge-chokepoint `deft check`, including \"Do not add a fourth probe (#2893 / #4379)\".\n\n## F1 — Gitignored marker cannot prove the skill ran\n\n`blocks-the-design`\n\n**Evidence:** AC3 requires CI to fail when `.deft/pre-pr-complete.<head-sha>.json` is absent for the PR head. AC7 gitignores those files and then has the Action read a workflow-scoped artifact or a git-tracked hash-only manifest. At this SHA `.gitignore` already ignores `.deft/*` except `approved-scope/` and `intent-constraint/`. A `pull_request` checkout does not contain the author's gitignored working tree. GitHub Actions artifacts come from workflow runs, not from a local `task pr:ready`. A committed hash-only JSON is an agent-authored attestation of `git rev-parse HEAD`.\n\n**Failure mode:** Implementers commit a forgeable SHA JSON, or CI re-runs `task check` / `git diff`, which `check:merge` already runs inside Merge gate. Swarm worktrees keep `.deft/` as local scratch, so the marker never reaches CI.\n\n**Disposition:** Drop Tiers 2-3 as merge-gate proof. A local convenience alias, if any, must not mint a required artifact.\n\n## F2 — Whole-body `- [ ]` fail-closed hits Post-Merge\n\n`blocks-the-design`\n\n**Evidence:** `.github/PULL_REQUEST_TEMPLATE.md` at this SHA has `## Checklist` (three `- [ ]` boxes) and `## Post-Merge` (two more: verify issue auto-close after squash merge; enable branch protection on `master`). Tier 1 fails if any `- [ ]` lacks an `N/A -- <reason>` suffix. AC1 treats an empty or unchecked template checklist as merge-blocking.\n\n**Failure mode:** A template-compliant PR is red at open until agents tick post-merge boxes early or stamp `N/A --` on work defined to happen after merge. Leftover-complete PRs that compose only the Documentation impact block (#4293) omit those boxes and fail the same parser.\n\n**Disposition:** Tier 1 as specified cannot bind. Checkbox CI is the wrong instrument.\n\n## F3 — `pre-pr-gate / checklist` is the wrong authority name\n\n`blocks-the-design`\n\n**Evidence:** `.github/workflows/ci.yml` job/check map (#3168) makes aggregators the branch-protection SoT; the only YES row is `TypeScript (build + lint + test)`; `Merge gate (task check)` is `no` and skips when `artifact_only`. `verify:docs-impact` is already a Merge-gate step (`task verify:docs-impact -- --pr`, primary and failover). `branch-gate.yml` is the existing `opened/synchronize/reopened/edited` PR-body job (`pr:check-closing-keywords`). Live `GET repos/deftai/directive/rules/branches/master` returns one required status check: `Greptile Review`. Emitting a job name does not enroll it as merge-blocking.\n\n**Failure mode:** AC1 stays false until a ruleset recut adds the new context. Adding a non-aggregator required check recuts #3168. A standalone `pull_request` workflow also runs on leftover-complete diffs that skip merge-gate.\n\n**Disposition:** Put any remaining body or gate work on the existing merge-gate step and/or branch-gate job. Do not add `pre-pr-gate / checklist` as a required context.\n\n## F4 — Checklist skip token makes untrusted PR body merge authority\n\n`blocks-the-design`\n\n**Evidence:** Injection/swarm lens fires (merge authority + untrusted PR body). Landed docs-impact (`packages/core/src/docs/docs-impact.ts`) parses closed `change_class` / `surfaces`; rationale is quoted, length-bounded, and \"never a gate input\" (template comment, module header, parse error). Closing-keywords is the second constrained PR-body parser. Tier 1 adds a third parser whose skip rule is an unconstrained `N/A -- <reason>` suffix. The first checklist item already embeds English \"or N/A for <3 file changes\" that is not that suffix.\n\n**Failure mode:** An agent ticks every box, appends `N/A -- skipped`, or pastes `- [x]` lines into a custom body; merge is green with no RWLDL Read/Diff. Alternate checkbox spellings (`- [X]`, `* [x]`, Unicode) desynchronize GitHub's rendered boxes from the parser. Prompt-adjacent systems that echo PR bodies inherit skip prose as instruction-shaped text.\n\n**Disposition:** Do not add a checkbox parser as merge authority. If a new body field is required, extend the docs-impact closed grammar as data, never as a skip predicate.\n\n## F5 — Tiers 1-3 do not replace advisory RWLDL\n\n`blocks-the-design`\n\n**Evidence:** At this SHA the skill's automatable slices are iteration-lane lint plus one merge-chokepoint `deft check` / `task check`. Phase 1 Read (full-file review vs xBRIEF AC) and Phase 4 Diff (scope creep, gate-integrity) stay human-judgement; the issue keeps those phases. CI already runs `task check:merge` on non-artifact-only PRs. Stop 1 already carves the local-check-skip slice of PR #632 as covered by that job.\n\n**Failure mode:** Binding Tiers 1-3 records a green checklist plus a SHA JSON as \"pre-PR ran.\" Agents skip Read/Diff under the same speed pressure as PR #632. The slices that needed the skill stay advisory while the lean claims replacement.\n\n**Disposition:** Leave human RWLDL phases advisory. Close the automatable slice by pointing at existing merge-gate plus docs-impact. Strike the target's \"sufficient replacement\" conjunct from the lean.\n\n## F6 — T4 required-check language waits on #634\n\n`sharpens-framing`\n\n**Evidence:** Umbrella #635 current-shape comment 5221143936 (pass-1): \"Tier commitments for **#604** / **#633** still wait on ladder discussion.\" #634 remains GitHub-open and \"needs discussion before scoping.\" Thread comment 4307232478 parks #634 as non-blocking for #633 delivery; the umbrella shape still holds the tier-commitment wait.\n\n**Failure mode:** A child that mints a new required-check T4 example writes the ladder before #634 exists.\n\n**Disposition:** Keep #633 bindable as retarget-to-existing-gates. Leave new required-check / T4 floor language on #634.\n\n## F7 — Filed implementation shape fights current `pr:*` rails\n\n`sharpens-framing`\n\n**Evidence:** `tasks/pr.yml` already dispatches TS `engine:invoke` verbs (`check-closing-keywords`, `watch`, `merge-ready`, …). `check:framework-source` is \"TS-only after #1860\". `tests/content` at this SHA contains `snapshots` only; pre-PR content locks live in `packages/core/src/content-contracts/skills/`. The skill forbids a fourth probe of the merge chokepoint. AC5 asks a `tests/content/` existence test of a new Action file.\n\n**Failure mode:** `scripts/pre_pr_check.py` plus a Python content test reopens the python-free / #1860 port path and adds a second name for `task check`.\n\n**Disposition:** If a `pr:ready` verb is wanted later, make it a TS engine alias of the existing chokepoint, with no marker file and no extra CI context.\n\n## Footnotes\n\n- `footnote` Stop 1 grep / workflow / template / skill anchors re-verified at the dispatch SHA; they hold.\n- `footnote` Parent epic #635 and #634 remain GitHub-open (REST `issues/635`, `issues/634`).\n- `footnote` RC3 lesson 5 in `meta/lessons.md` is writer/detector banner symmetry (#572). AC5 \"Action file exists\" does not instantiate that contract. A marker JSON would, and F1 shows AC7 left that contract unset.\n- `footnote` Consumer-side Action rollout is already out of scope on the body.\n\n## Injection / swarm lens\n\nThe target changes merge authority and consumes untrusted PR-body input, so the lens applies. F1 and F4 are the hits: gitignored `.deft/` is occupancy/scratch in swarm worktrees; promoting a file there to merge proof shares state workers already write. Checkbox / `N/A` prose in the PR body is agent-controlled. Existing controls are the docs-impact closed grammar (rationale never a gate input) and closing-keywords.\n\n## Road not taken\n\nFork 1 (land Tiers 1-3 as filed) is the recorded target; it fails F1-F5. Fork 3 (drop checklist CI, keep only a `pr:ready` marker) still fails F1. Flip condition for reviving Tiers 2-3: a canonical marker spec whose writer CI itself runs, bit-identical detector, no gitignore hole, and no extra required-check name — which collapses to `task check:merge` plus `verify:docs-impact`.\n\n",
+          "id": 5779789053,
+          "html_url": "https://github.com/deftai/directive/issues/633#issuecomment-5779789053",
+          "user": {
+            "login": "dbcall2",
+            "id": 15332465,
+            "node_id": "MDQ6VXNlcjE1MzMyNDY1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/15332465?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/dbcall2",
+            "html_url": "https://github.com/dbcall2",
+            "followers_url": "https://api.github.com/users/dbcall2/followers",
+            "following_url": "https://api.github.com/users/dbcall2/following{/other_user}",
+            "gists_url": "https://api.github.com/users/dbcall2/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/dbcall2/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/dbcall2/subscriptions",
+            "organizations_url": "https://api.github.com/users/dbcall2/orgs",
+            "repos_url": "https://api.github.com/users/dbcall2/repos",
+            "events_url": "https://api.github.com/users/dbcall2/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/dbcall2/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-22T16:05:11Z",
+          "updated_at": "2026-09-22T16:05:11Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: codex\n```quarantined\nrole: critic\n```\n\naudit-targets: none\n\n## Verdict\n\nThe refutation succeeds. P1 is real, but Tiers 1–3 are neither executable nor sufficient as filed. The checklist rule conflicts with the current template, the local marker has no trust-preserving route into CI, and a workflow check does not become merge-required merely by existing. The authority boundary for untrusted PR-body input is also unspecified.\n\n## Re-verified inventory\n\n- At dispatch SHA `7712f482781c4885fd9d395756e2c316785730dd`, `git grep` returns zero hits for `pr:ready`, `pre-pr-complete`, or `pre-pr-gate`; `.github/workflows/` has no pre-PR gate.\n- CI already runs `task check:merge` and `task verify:docs-impact` in both primary and failover merge-gate lanes. The latter is existing prior art for fetching a PR body through REST, parsing closed fields as data, and comparing them with the diff ([CI lines 181–197](https://github.com/deftai/directive/blob/7712f482781c4885fd9d395756e2c316785730dd/.github/workflows/ci.yml#L181-L197), [REST/parser transport](https://github.com/deftai/directive/blob/7712f482781c4885fd9d395756e2c316785730dd/packages/core/src/docs/docs-impact.ts#L518-L535)).\n- The pre-PR skill separates the semantic Read/Write/Diff loop from the one full merge chokepoint and explicitly says not to add another full-gate probe ([lines 63–72](https://github.com/deftai/directive/blob/7712f482781c4885fd9d395756e2c316785730dd/content/skills/deft-directive-pre-pr/SKILL.md#L63-L72)).\n- Live REST measurement during this review found no classic branch-protection object and one effective `master` required status check: `Greptile Review`. No Actions check from this repository is currently required.\n\n## F1 — blocks-the-design — The literal checklist rule rejects an honest pre-merge PR\n\n**Evidence.** The pinned template has three unchecked boxes under `## Checklist` and two more under `## Post-Merge` ([lines 24–32](https://github.com/deftai/directive/blob/7712f482781c4885fd9d395756e2c316785730dd/.github/PULL_REQUEST_TEMPLATE.md#L24-L32)). A section-aware count reproduced `pre_merge_unchecked=3` and `post_merge_unchecked=2`. The proposed rule says any unchecked box without an `N/A -- reason` suffix fails, while the structural template recut is explicitly deferred. The current pre-merge checklist also contains no RWLDL item.\n\n**Concrete failure mode.** Applied literally, every honest PR is red because issue auto-close verification and the one-time branch-protection action cannot occur before merge. Authors must falsely check future work, mark it N/A, delete the section, or exploit whatever undocumented section heuristic the parser happens to use. Even a parser scoped to the current `## Checklist` can be satisfied without running RWLDL because none of its three items attest that loop.\n\n**Disposition consequence.** Tier 1 cannot bind as written. The same change must define a closed, pre-merge-only schema, explicitly exclude post-merge tasks, and decide whether it verifies declarations or outcomes. Deferring the needed template shape while shipping its parser reverses writer/detector symmetry.\n\n## F2 — blocks-the-design — The head-SHA marker has no satisfiable provenance path\n\n**Evidence.** The proposal makes `.deft/pre-pr-complete.<head-sha>.json` local and ignored, then asks CI to verify it through either a workflow artifact or a tracked hash manifest. At the pinned SHA, `.gitignore` already ignores `.deft/*`, so a PR checkout cannot contain that local file. GitHub's artifact API supports listing, downloading, and deleting workflow artifacts—not creating an artifact from an arbitrary local process; artifacts are produced in workflow runs and shared between their jobs ([GitHub artifact API](https://docs.github.com/en/rest/actions/artifacts)).\n\n**Concrete failure mode.** The alternatives form a trilemma:\n\n1. An ignored local marker is invisible to the GitHub runner.\n2. A CI-produced artifact proves only that CI ran; it does not prove the author or agent completed semantic Read/Write/Diff, and CI already runs the mechanical merge chokepoint.\n3. A tracked manifest containing its own commit's head SHA is self-invalidating: committing the manifest changes that SHA. If it instead records an earlier SHA or a freely authored digest, it is stale or forgeable.\n\nThe JSON fields (`timestamp`, `iteration count`, AC summary) remain author assertions unless a trusted principal signs or independently measures them.\n\n**Disposition consequence.** Tier 3 must be dropped or replaced with a trusted attestation outside the commit graph, such as a dedicated GitHub App check-run bound to the exact head SHA and expected source. If the actual goal is deterministic product quality rather than proof that a human/agent followed prose, run the automatable outcomes directly in CI and stop claiming the marker proves the semantic loop.\n\n## F3 — blocks-the-design — The PR cannot make its new check merge-required\n\n**Evidence.** `gh api repos/deftai/directive/rules/branches/master` returned only `required_status_checks=[Greptile Review]`; `branches/master/protection` returned 404 because enforcement is via an organization ruleset. The pinned CI map's own historical claim says only its TypeScript aggregator was required and the merge-gate was not ([lines 43–65](https://github.com/deftai/directive/blob/7712f482781c4885fd9d395756e2c316785730dd/.github/workflows/ci.yml#L43-L65)), so tree prose is already stale relative to live authority. GitHub requires branch protection or a ruleset to name required checks; producing a check run does not make it required ([protected-branch semantics](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches)).\n\n**Concrete failure mode.** The new job can fail while merge remains allowed. Conversely, if a check is later required but the workflow does not report on every relevant path, it can strand PRs in pending. The filed trigger omits `reopened` and, if the documented merge-queue rollout occurs, `merge_group`; GitHub explicitly requires the latter for required Actions checks used by a merge queue ([required-check troubleshooting](https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/troubleshooting-required-status-checks)). The requested context spelling `pre-pr-gate / checklist` is also not established by merely naming a workflow and a job; rulesets match the exact reported check name.\n\n**Disposition consequence.** “Required” needs an explicit deployment surface outside this repository PR: exact check name/source, organization-ruleset change, bypass policy, always-reporting triggers, and a post-change REST assertion. Without that, AC1 and the T4 claim are false. This can be recut as a repository change plus a named operator-owned ruleset step, or as an organization-required workflow/App whose policy is independently managed.\n\n## F4 — blocks-the-design — The merge gate is controlled by the input it is meant to judge\n\n**Evidence.** GitHub documents `github.event.pull_request.body` as attacker-controlled input and warns against allowing it to flow into executable contexts ([script-injection guidance](https://docs.github.com/en/actions/concepts/security/script-injections)). It also documents that `pull_request` runs the workflow from the PR merge commit, while `pull_request_target` uses the trusted base context and therefore requires strict hardening ([event trust boundary](https://docs.github.com/en/actions/reference/security/securely-using-pull_request_target)). The filed design specifies a new `pull_request` Action but no trusted-code source, permissions, input transport, or same-PR gate-change policy.\n\n**Concrete failure mode.** A PR can alter the workflow/parser that emits the supposedly authoritative context, or a naïve implementation can interpolate crafted body text into `run:` and execute it. Switching casually to `pull_request_target` makes this worse if head code is checked out or secrets/write permissions remain available. The marker is a second untrusted shared-state input with no identity or signature.\n\n**Disposition consequence.** The design needs a base-controlled checker before it can carry merge authority: for example, a hardened `pull_request_target` metadata-only workflow with read-only permissions and no head checkout, an organization-required workflow, or an external App. Read the body from the event file or REST and parse it as bounded data; never interpolate it into shell. Bind the required context to the expected App/source where available.\n\n## F5 — sharpens-framing — The implementation sketch is stale and duplicates the current chokepoint\n\n**Evidence.** The dispatch tree contains zero `.py` files. Current architecture says the Python runtime and `scripts/*.py` were removed and explicitly says not to add work there ([architecture line 27](https://github.com/deftai/directive/blob/7712f482781c4885fd9d395756e2c316785730dd/docs/ARCHITECTURE.md#L27)); the issue still proposes `scripts/pre_pr_check.py`. The pre-PR skill already defines one full `deft check` merge chokepoint, and CI already invokes `task check:merge`. Separately, the parent epic's [current-shape record](https://github.com/deftai/directive/issues/635#issuecomment-5221143936) says #634 still blocks tier commitments for #633, while #634 uses `T0`–`T6`; this issue independently calls its three components “Tiers 1–3.”\n\n**Concrete failure mode.** Implementing the sketch reintroduces a retired runtime, creates a second orchestration path that can drift from `check:merge`, and overloads “tier” with two incompatible meanings.\n\n**Disposition consequence.** Keep any local convenience command as a thin TypeScript/Taskfile route to existing checks, not a new Python checker or second full gate. Call the three components layers/stages, and reserve determinism-tier claims for the #634 decision.\n\n## F6 — footnote — The incident proves the pain, not this remedy\n\nREST re-check of [PR #632](https://github.com/deftai/directive/pull/632) confirms that its custom body had no template checkboxes and its recorded check-runs were green. That strongly supports P1. It does not supply provenance for a local marker or make an unconfigured status check required, so it adds no disposition weight for the filed mechanism.\n\n## Road not taken and flip condition\n\nThe strongest case for the proposal is the composition: a visible declaration catches omitted template content, a head-bound result invalidates on later commits, and CI turns omission into a red signal. I would accept that shape if it had (1) a pre-merge-only closed declaration, (2) a non-self-referential trusted attestation channel, (3) base-controlled parsing of untrusted text, and (4) a measured ruleset rollout that makes the exact check required.\n\nThe smaller and stronger recut is to enforce objectively reproducible outcomes at the existing CI boundary: reuse the closed-field/REST pattern from `verify:docs-impact`, run the mechanical checks against the tested SHA through the existing merge chokepoint, and treat semantic Read/Write/Diff as review practice rather than pretending a user-authored marker proves it. If proof of local execution is truly the product requirement, that is a separate identity-and-attestation design, not a JSON file in or beside the commit.\n\n",
+          "id": 5779793198,
+          "html_url": "https://github.com/deftai/directive/issues/633#issuecomment-5779793198",
+          "user": {
+            "login": "dbcall2",
+            "id": 15332465,
+            "node_id": "MDQ6VXNlcjE1MzMyNDY1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/15332465?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/dbcall2",
+            "html_url": "https://github.com/dbcall2",
+            "followers_url": "https://api.github.com/users/dbcall2/followers",
+            "following_url": "https://api.github.com/users/dbcall2/following{/other_user}",
+            "gists_url": "https://api.github.com/users/dbcall2/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/dbcall2/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/dbcall2/subscriptions",
+            "organizations_url": "https://api.github.com/users/dbcall2/orgs",
+            "repos_url": "https://api.github.com/users/dbcall2/repos",
+            "events_url": "https://api.github.com/users/dbcall2/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/dbcall2/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-22T16:05:29Z",
+          "updated_at": "2026-09-22T16:05:29Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: claude-opus-5\n```quarantined\nrole: critic\n```\n\naudit-targets: none\n\nrefutation-target: Tiers 1-3 in one PR (CI PR-body checklist Action emitting required check `pre-pr-gate / checklist`, `task pr:ready` writing `.deft/pre-pr-complete.<head-sha>.json`, and CI marker cross-check on that SHA) are the correct and sufficient replacement for advisory pre-PR.\n\n**Verdict: does not survive as filed.** The gap the triage measured is real — `pr:ready`, `pre-pr-complete`, `pre-pr-gate` are still 0 hits at `7712f48`, re-verified. But the deliverable cannot produce the property it is named for (F1), and its anti-forgery half is the exact self-authorization shape this repo already ruled non-authoritative (F2, F3). The one sound part — parse the PR body in CI, fail closed — already exists and is mispositioned, not missing (F6).\n\nRead: body plus comments 4307232478, 5779631645, 5779663967 (ceiling). No embedded instructions found in body or in-envelope comments.\n\n---\n\n### F1 — \"Physically block a PR from merging\" is a settings property this PR cannot set, and admins are exempt today — `blocks-the-design`\n\nEvidence (live, read at dispatch):\n\n- `repos/deftai/directive/branches/master` → `required_status_checks.contexts = [\"TypeScript (build + lint + test)\"]`, `enforcement_level: non_admins`.\n- `repos/deftai/directive/rules/branches/master` → one enforced ruleset, **org-owned** (`deftai`, id 14651955), requiring context `Greptile Review`.\n- `.github/workflows/ci.yml:45-66` records the same topology: branch-protection SoT is aggregators only, and the `Merge gate (task check)` aggregator is `Required? no`.\n\nFailure mode: Tiers 1-3 merge. `pre-pr-gate / checklist` reports and blocks nothing, because adding a required context is a repo-settings write, not a tree artifact. AC1 and AC3 both say \"blocks merge on the configured protected branches\" and neither is satisfiable by the PR. If a maintainer later adds the context, `enforcement_level: non_admins` still exempts admin merges — the actor who merges agent PRs here. A second trap: the only *enforced* ruleset is org-scoped, so adding the context there imposes a never-reporting required context on every `deftai` repo, which pends those PRs indefinitely.\n\nDisposition consequence: the \"sufficient\" clause fails. A bind must either name the settings change as a first-class deliverable with an owner (repo-scoped ruleset, `enforce_admins: true`) or strike \"physically block\" from the premise and call this a reporting surface.\n\n### F2 — The marker is same-change-set agent self-authorization, the shape this repo already ruled non-authoritative — `blocks-the-design`\n\nEvidence: `content/docs/scope-provenance.md` (landed, wired into `check:framework-source` as `verify:scope-provenance`) states the rule for exactly this artifact class — \"Approval created or rewritten in the same change set as the active xBRIEF → **Fail** — same-PR self-auth\"; \"Agent-shaped stamps (`kind: agent`, `actor: agent:…`) never count as renewal or first-adoption authority\"; authority comes from the record on the **merge base**. `.deft/pre-pr-complete.<head-sha>.json` is agent-minted by construction (`task pr:ready` is run by the agent) and, being keyed to the head SHA, can never predate it. Prior art on the same defect class: `xbrief/completed/2026-09-15-4563-…` — \"evidence kind is self-attested\".\n\nFailure mode: `printf '{...}' > .deft/pre-pr-complete.$(git rev-parse HEAD).json` satisfies Tier 3 with RWLDL never run. Tier 3's stated purpose — \"closes the loophole where an agent checks the boxes without actually running the loop\" — is false on the repo's own precedent. Worse than advisory: it launders a skip under a green check.\n\nDisposition consequence: Tier 3 cannot bind as written. Either drop it, or replace attestation with detection (F7).\n\n### F3 — AC3 / AC7 are unsatisfiable: both named transports are impossible — `blocks-the-design`\n\nEvidence: AC7 leaves the transport open between \"a workflow-scoped artifact upload\" and \"a git-tracked hash-only manifest\"; `.gitignore:59` is `.deft/*` with allowlist exceptions only for `approved-scope/` and `intent-constraint/`.\n\nFailure mode, both branches:\n\n- Artifact upload — Actions artifacts are scoped to a workflow **run**. A developer machine has no run to upload into, and a fork PR's token is read-only, so no marker is producible at all.\n- Git-tracked manifest keyed to `<head-sha>` — unconstructible. Committing the manifest changes the head SHA, so it can never name the SHA it lands on.\n\nDisposition consequence: AC3 cannot be accepted as worded. A buildable near-neighbour exists — key the marker to a content digest over non-marker paths, the `fileScopeDigest` pattern already in `.deft/approved-scope/` — but that is a different acceptance criterion and has to be written, not inferred. Note that the analogous first-mint binding problem is still open as #4383.\n\n### F4 — Tier 2 is the fourth probe #1704 / #2893 / #4379 forbid, in a script class this repo removed — `blocks-the-design`\n\nEvidence:\n\n- `content/skills/deft-directive-pre-pr/SKILL.md` § Gate throughput: \"prefer `deft check` once before push/PR … These are one gate, not two sequential runs. **Do not add a fourth probe (#2893 / #4379)**.\"\n- `Taskfile.yml:411` `check:merge` desc: \"CI and PR gates SHOULD invoke this (or `task check`) as the single SoT so discrete workflow steps cannot drift.\"\n- `scripts/` at `7712f48` contains exactly one file: `verify-license-sync.mjs`. `content/UPGRADING.md:656` records the Python-script hook layer being removed (#2049, \"expected deft CLI only\"); `greenfield-python-free-smoke.yml` exists to keep it out.\n\nFailure mode: `task pr:ready` wrapping `scripts/pre_pr_check.py` which itself runs `task check` is a second sequential run of the chokepoint plus a new discrete step that can drift from `check:framework-source` — the drift #1704 names. The Python file re-adds the dispatch layer `verify:hooks-installed` refuses.\n\nDisposition consequence: if any of Tier 2 binds, it binds as a TS verb inside the existing engine (a `verify:*` on `check:framework-source`), not as a new script and not as a second chokepoint run.\n\n### F5 — Tier 1's parse rule reds every compliant PR against the current template — `blocks-the-design`\n\nEvidence: `.github/PULL_REQUEST_TEMPLATE.md` at `7712f48` has five `- [ ]` boxes — three under `## Checklist`, two under `## Post-Merge`. The Post-Merge boxes are \"Verify issue auto-close: **After squash merge** …\" and \"Enable branch protection on `master` … (one-time setup, see #57)\". Tier 1 as filed fails \"any `- [ ]` box unchecked\".\n\nFailure mode: neither Post-Merge box is checkable at PR-open, so the gate is red on every compliant PR from day one. The predictable response is an immediate carve-out or template surgery under time pressure — the same degradation path the issue documents. Second, the template's own text carries \"N/A\" inline on two of the three Checklist lines (\"or N/A for test-only / CI-only changes\"), so any substring-tolerant N/A matcher passes the **unedited** template, i.e. reproduces the PR #632 outcome with a green check.\n\nDisposition consequence: section scoping and the exact N/A grammar are load-bearing and unspecified. A bind must name the parsed section, the literal suffix grammar, and a fixture asserting the verbatim current template's verdict.\n\n### F6 — The PR-body gate mechanism already exists; what is missing is wiring, and a fourth gate does not fix wiring — `sharpens-framing`\n\nEvidence:\n\n- `verify:docs-impact` (`packages/core/src/docs/docs-impact.ts`, wired at `ci.yml:191` and `:487` on `pull_request`) already parses the PR body in CI and fails closed. It lives in the `merge-gate` job, which `ci.yml:45-66` records as not required. #4293 already closed the \"custom body-file PR skips the template declaration\" hole for that block — the same failure class as PR #632.\n- `verify:pr-closeout-attestable` (#3781) is fail-closed and PR-keyed, and is referenced by **no** workflow at this SHA. It enforces only inside `pr:wait-mergeable-and-merge` (`packages/core/src/pr-wait-mergeable/wrappers.ts:147`) — that is, only when the agent chooses that merge verb. A landed fail-closed gate that an agent can bypass with `gh pr merge` is the issue's own complaint, present today.\n\nFailure mode: the repo's demonstrated failure is not \"no parser exists,\" it is \"gates land outside the required-context set.\" A fourth gate in the same position inherits the same nullity.\n\nDisposition consequence: reorder. Required-context topology first (F1), placement of existing gates second, new parsing last.\n\n### F7 — Declaration without detection is the wrong half of the pattern this repo proved — `sharpens-framing`\n\nEvidence: `evaluateDocsImpact` does not trust the declaration — it cross-checks it against `detectClosedSurfaceChanges` and emits `declared-versus-touched`. The template records the doctrine explicitly: \"Rationale is quoted data and is never a gate input.\" Tier 1 has no detector; `N/A -- <reason>` makes author free prose the pass condition.\n\nFailure mode: `N/A -- n/a` passes. The gate measures typing, not work. This is the same class as F2, one layer up.\n\nDisposition consequence: each checklist item should map to a detector or leave the checklist. Of the three Checklist items — \"Tests pass locally\" is already the single enforced context (the TS aggregator), so it is redundant; \"`/deft:change` proposed and confirmed\" has detectors today (`verify:scope-provenance` over `.deft/approved-scope/`, `verify:intent-constraint`); \"`CHANGELOG.md` entry under `[Unreleased]`\" has **no** verifier at this SHA (`tasks/verify.yml` has zero CHANGELOG hits) and is trivially diff-detectable. That last one is the only genuinely uncovered item, and it is one small verifier on `check:framework-source` — not a three-tier stack.\n\n### F8 — AC4 directs an edit to a generated file — `footnote`\n\n`content/skills/deft-directive-pre-pr/SKILL.md` (AC4 cites it as `skills/…`) carries \"AUTO-GENERATED by `task packs:render` — DO NOT EDIT MANUALLY\", source `packs/skills/skills-pack-0.1.json`. An implementer following AC4 literally edits the rendered file and reds `verify:pack-drift`, which is on `check:framework-source`. Reword AC4 to name the pack source plus render.\n\n---\n\n### Injection / swarm lens\n\nFires: this target moves merge authority onto untrusted, author-controlled PR-body text.\n\n1. **Script-injection sink.** The safe in-tree pattern is `ci.yml`'s: pass `GITHUB_PR_NUMBER` via `env` and fetch the body over REST inside a TS program. A composite or `run:` Action that interpolates `${{ github.event.pull_request.body }}` into a shell step executes attacker-authored text on the runner. Tier 1 must state the non-interpolating shape as an acceptance criterion, not leave it to implementation.\n2. **Free text as authority.** `N/A -- <reason>` inverts the recorded docs-impact rule that body rationale is data and never a gate input. The deterministic control is a closed enum cross-checked against a diff detector (F7) — not prose presence, and not reviewer attention.\n3. **Forks.** A fork cannot produce a workflow-scoped artifact, and a committed manifest is forgeable by the contributor. Tier 3 therefore either blocks all external PRs or is worthless on them. Name which.\n4. **Trigger.** Keep `pull_request`. `pull_request_target` plus body parsing plus a write token would hand a fork author a privileged surface.\n\n### Road not taken\n\nI considered accepting Tier 1 alone as a cheap ratchet and deferring Tiers 2-3. Rejected: with F1 unfixed the check is advisory by a different mechanism, and with F7 unfixed it stays advisory even after it is made required. A ratchet that ratchets nothing costs a required-check slot and a maintenance surface.\n\n### Steelman, and what would flip me\n\nStrongest case for landing as filed: the gap is real and re-verified; attestation surfaces do change behaviour even when forgeable; and the topology argument (F1) has been open since #57, so \"fix topology first\" risks shipping nothing. Two facts would flip my verdict: (a) a live `required_status_checks` entry naming the new context with `enforce_admins: true`, and (b) a marker whose validity CI computes from the diff alone, with no self-written token. With both, the tier stack is sufficient. With neither, it is a badge.\n\n### Recommended fork\n\nFork 2 (retarget to existing surfaces), sequenced:\n\n1. Settings: repo-scoped ruleset adding the `Merge gate (task check)` aggregator as required, with admin enforcement. Validate the #3678 artifact-only skip path against required-check semantics before flipping.\n2. One `verify:changelog-unreleased` on `check:framework-source` — the only checklist item with no detector.\n3. Shrink the template checklist to items that have detectors; move `## Post-Merge` out of `- [ ]` syntax so no parser can be pointed at it.\n4. Drop Tier 2 and Tier 3, or refile the marker separately as a diff-digest artifact with the #4383 first-mint binding problem named up front.\n\n",
+          "id": 5779797104,
+          "html_url": "https://github.com/deftai/directive/issues/633#issuecomment-5779797104",
+          "user": {
+            "login": "dbcall2",
+            "id": 15332465,
+            "node_id": "MDQ6VXNlcjE1MzMyNDY1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/15332465?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/dbcall2",
+            "html_url": "https://github.com/dbcall2",
+            "followers_url": "https://api.github.com/users/dbcall2/followers",
+            "following_url": "https://api.github.com/users/dbcall2/following{/other_user}",
+            "gists_url": "https://api.github.com/users/dbcall2/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/dbcall2/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/dbcall2/subscriptions",
+            "organizations_url": "https://api.github.com/users/dbcall2/orgs",
+            "repos_url": "https://api.github.com/users/dbcall2/repos",
+            "events_url": "https://api.github.com/users/dbcall2/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/dbcall2/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-22T16:05:46Z",
+          "updated_at": "2026-09-22T16:05:46Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: parent\n```\n\n## In plain English\n\nThe gap is real: `pr:ready`, `pre-pr-complete`, and `pre-pr-gate` still do not exist, and an agent can skip RWLDL. Tiers 1-3 as filed cannot bind as merge authority. A gitignored head-SHA marker cannot prove the skill ran; whole-body `- [ ]` fail-closed reds Post-Merge boxes; emitting `pre-pr-gate / checklist` does not enroll a required context; `N/A -- <reason>` makes untrusted PR-body prose the pass condition; and the automatable slice of pre-PR is already `task check:merge` plus `verify:docs-impact`. Confirming this map recuts first-ship to existing merge-gate / branch-gate / docs-impact wiring, one CHANGELOG unreleased verifier, and a named operator-owned ruleset step for the Merge-gate aggregator. It does not land a checklist Action, a `pr:ready` marker file, or a fourth probe.\n\nThis is not an instruction to a later builder.\n\nNon-self-arbitration: same grok-4.6 parent authored Stop 1 and these takes. Takes accept critic headings.\n\nForward verdict: recut. Disposition: classified headings accept-into-contract. Residual: none on classified headings.\nSpec-path: next-build contract is not this body.\n\n**Lean:** round-1 successor after three isolated critics. Cites critic 5779789053, 5779793198, 5779797104. Supersedes Stop 1 write-back 5779631645. Round 1 sibling count 3.\n\nTarget-digest: sha256:423e93e27278705f5d26a51e5300cf1fd2c3599aea43c32413a6d3414b433e89\n\narc-mode: no-ingest\nyolo-standing: yes\ndest: /Users/davidcall/.grok/worktrees/deft-directive/issue-633-dc\norigin-ref: origin/HEAD\ndispatch-sha: 7712f482781c4885fd9d395756e2c316785730dd\ntarget shape: single-issue\nround: 1\nsiblings: 3\nDual-stop cap: 3 posts (spent; pain-audit uses reserved slot)\n\nTakes:\n\n- 5779789053 F1 — Gitignored marker cannot prove the skill ran — accept-into-contract\n- 5779789053 F2 — Whole-body `- [ ]` fail-closed hits Post-Merge — accept-into-contract\n- 5779789053 F3 — `pre-pr-gate / checklist` is the wrong authority name — accept-into-contract\n- 5779789053 F4 — Checklist skip token makes untrusted PR body merge authority — accept-into-contract\n- 5779789053 F5 — Tiers 1-3 do not replace advisory RWLDL — accept-into-contract\n- 5779789053 F6 — T4 required-check language waits on #634 — accept-into-contract\n- 5779789053 F7 — Filed implementation shape fights current `pr:*` rails — accept-into-contract\n- 5779793198 F1 — The literal checklist rule rejects an honest pre-merge PR — accept-into-contract\n- 5779793198 F2 — The head-SHA marker has no satisfiable provenance path — accept-into-contract\n- 5779793198 F3 — The PR cannot make its new check merge-required — accept-into-contract\n- 5779793198 F4 — The merge gate is controlled by the input it is meant to judge — accept-into-contract\n- 5779793198 F5 — The implementation sketch is stale and duplicates the current chokepoint — accept-into-contract\n- 5779797104 F1 — \"Physically block a PR from merging\" is a settings property this PR cannot set — accept-into-contract\n- 5779797104 F2 — The marker is same-change-set agent self-authorization — accept-into-contract\n- 5779797104 F3 — AC3 / AC7 are unsatisfiable: both named transports are impossible — accept-into-contract\n- 5779797104 F4 — Tier 2 is the fourth probe #1704 / #2893 / #4379 forbid — accept-into-contract\n- 5779797104 F5 — Tier 1's parse rule reds every compliant PR against the current template — accept-into-contract\n- 5779797104 F6 — The PR-body gate mechanism already exists; what is missing is wiring — accept-into-contract\n- 5779797104 F7 — Declaration without detection is the wrong half of the pattern this repo proved — accept-into-contract\n\nrelieves: P1\n\n## Bound remedy\n\n- Do not bind Tiers 1-3 as filed. Strike the \"sufficient replacement for advisory pre-PR\" conjunct.\n- Leave human RWLDL Read/Diff advisory. Close the automatable slice on existing merge-gate `task check:merge` plus `verify:docs-impact` (REST body as closed data, rationale never a gate input).\n- Do not add `pre-pr-gate / checklist` as a required context. Do not add a checkbox parser whose skip token is unconstrained `N/A -- <reason>`.\n- Drop Tiers 2-3 as merge-gate proof. No gitignored `.deft/pre-pr-complete.<head-sha>.json`, no workflow-artifact transport from a developer machine, no self-keyed SHA manifest. If a later `pr:ready` verb is wanted, it is a TS engine alias of the existing chokepoint with no marker file and no extra CI context.\n- Do not add `scripts/pre_pr_check.py`. Do not add a fourth probe of the merge chokepoint.\n- First-ship wiring:\n  1. Named operator-owned ruleset step: repo-scoped required context for the `Merge gate (task check)` aggregator, with admin-enforcement policy stated. Validate the artifact-only skip path before flipping. Live REST at this arc measured required contexts as `Greptile Review` (org ruleset) plus historical TypeScript aggregator on classic protection; emitting a job name does not enroll it.\n  2. One `verify:changelog-unreleased` on `check:framework-source` — the only current checklist item with no detector.\n  3. Shrink the template checklist to items that have detectors. Move `## Post-Merge` out of `- [ ]` syntax.\n- Keep `pull_request`. Parse bodies via REST inside TS, never interpolate `${{ github.event.pull_request.body }}` into `run:`.\n- Leave new required-check / T4 floor language on #634. Do not overload \"tier\" with two meanings.\n- AC4, if restated, names pack source plus `task packs:render`, not a hand-edit of generated SKILL.md.\n\nFootnotes stay footnotes: Stop 1 greps hold; #635/#634 still open; PR #632 proves pain not this remedy; AC4 generated-file edit; consumer Action rollout already out of scope.\n\n",
+          "id": 5779840251,
+          "html_url": "https://github.com/deftai/directive/issues/633#issuecomment-5779840251",
+          "user": {
+            "login": "dbcall2",
+            "id": 15332465,
+            "node_id": "MDQ6VXNlcjE1MzMyNDY1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/15332465?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/dbcall2",
+            "html_url": "https://github.com/dbcall2",
+            "followers_url": "https://api.github.com/users/dbcall2/followers",
+            "following_url": "https://api.github.com/users/dbcall2/following{/other_user}",
+            "gists_url": "https://api.github.com/users/dbcall2/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/dbcall2/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/dbcall2/subscriptions",
+            "organizations_url": "https://api.github.com/users/dbcall2/orgs",
+            "repos_url": "https://api.github.com/users/dbcall2/repos",
+            "events_url": "https://api.github.com/users/dbcall2/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/dbcall2/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-22T16:08:30Z",
+          "updated_at": "2026-09-22T16:08:30Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: critic\n```\n\naudit-targets: pain-P1\n\nsha: 7712f482781c4885fd9d395756e2c316785730dd\nid-ceiling: 5779840251\ncharter: refutation\n\n## Verdict\n\nThe Bound remedy on successor lean 5779840251 does not relieve P1 named on Stop 1 write-back 5779631645. `relieves: P1` is an overclaim. The lean cannot bind as written.\n\nP1: an agent can skip `deft-directive-pre-pr` and open a PR with a custom body that omits or leaves unchecked the template checklist; CI `check` does not detect that skip.\n\nThe harvest leaves both halves of that skip undetectable. Human RWLDL Read/Diff stays advisory. First-ship refuses a checklist parser. Closing the automatable slice on existing `task check:merge` plus `verify:docs-impact` is the local-check slice Stop 1 already carved out of P1.\n\n## F1 — Bound remedy leaves P1's skip undetectable\n\n`blocks-the-design`\n\n**Evidence:** Re-measured at `7712f482781c4885fd9d395756e2c316785730dd`.\n\n- `git grep` of `pr:ready`, `pre-pr-complete`, `pre-pr-gate` is empty.\n- `.github/workflows/` is branch-gate, ci, ci-lane, docs-site, greenfield-python-free-smoke, npm-publish, one-pr-unit-merge-group, release. No checklist parser.\n- `.github/PULL_REQUEST_TEMPLATE.md` still has three `## Checklist` boxes and two `## Post-Merge` boxes.\n- `content/skills/deft-directive-pre-pr/SKILL.md` still names the RWLDL loop and one merge-chokepoint `deft check`. It names no `pr:ready`.\n- `Taskfile.yml` `check:framework-source` deps include `verify:scope-provenance` and `verify:intent-constraint`. They do not include a changelog verifier. `tasks/verify.yml` has zero CHANGELOG hits.\n- `task change:changelog:check` (`packages/core/src/task-surface/index.ts` `runChangelogCheck`) is a whole-file `[Unreleased]` non-empty check, off the chokepoint.\n- `.github/workflows/ci.yml` job/check map: aggregator `Merge gate (task check)` Required? `no`. The job `if:` skips when `artifact_only`. `verify:docs-impact -- --pr` is a merge-gate step that parses closed `change_class` / `surfaces` / quoted rationale.\n- Live REST: `GET repos/deftai/directive/rules/branches/master` required context is `Greptile Review` (org ruleset 14651955). Classic `branches/master/protection` returns 404.\n- `parseDocsImpactDeclaration` on a custom body with no declaration reports missing change_class, surfaces, and quoted rationale. The same parser on a custom body that includes the docs-impact seed and omits every checklist box reports zero errors.\n\nBound-remedy harvest (5779840251): leave human RWLDL Read/Diff advisory; close the automatable slice on `task check:merge` plus `verify:docs-impact`; refuse a checkbox parser; first-ship is an operator-owned ruleset for the merge-gate aggregator, one `verify:changelog-unreleased` on `check:framework-source`, and shrinking the template to items that have detectors.\n\nStop 1 (5779631645) records that P1 is the skill-plus-checklist skip. It already records that the local-check-skip slice of PR #632 is covered by CI.\n\n**Failure mode:** An agent skips the pre-pr skill, opens a PR with a custom body that includes the docs-impact seed and omits every `- [ ]` line, and lands. After first-ship as written, Read/Diff still has no detector; omitting the checklist still has no detector; `verify:docs-impact` stays green; `verify:scope-provenance` stays green when no active xBRIEF is modified (default path, no `--enforce`); `verify:intent-constraint` stays skip/pass when no new throw/numeric fact appears; tests still ride the TypeScript aggregator. Completing the operator ruleset makes merge-gate required and still leaves that skip green. An `artifact_only` leftover-complete PR skips merge-gate, so the remainder's detectors never run there.\n\n**Disposition:** Recut the cite to `does-not-relieve: P1`. A blocking pain-audit is not relief. Parent posts a retraction map, then Handoff. The changelog verifier, operator ruleset step, and template shrink are a deliverable remainder for leftover-split onto a different issue if the operator confirms that split.\n\n## F2 — Off-chokepoint changelog-check is a whole-file non-empty test\n\n`footnote`\n\n`task change:changelog:check` already exists and is not on `check:framework-source`. It counts `- ` lines under `[Unreleased]` in the working tree. A PR that adds no entry still passes while leftover Unreleased bullets remain. That is a remainder-design note. It does not make `relieves: P1` true.\n\n## Injection / swarm lens\n\nDoes not fire on this harvest. The Bound remedy refuses the checkbox parser and the unconstrained `N/A -- <reason>` skip token.\n\n## Road not taken\n\nI considered classifying F1 as `sharpens-framing` (keep the Bound-remedy bullets, reword only the cite on a still-bindable lean). Rejected: `relieves: P1` is the bind map's load-bearing coverage claim. A false relieves cite means the lean cannot bind as written.\n\n## Steelman\n\nStrongest case for `relieves: P1`: Stop 1 listed retargeting enforcement to existing required checks plus docs-impact as an open fork, and mapping checklist items onto detectors is the real quality signal.\n\nThat case fails on Stop 1's own P1 sentence. The skip is skill plus omitted/unchecked checklist, and CI `check` does not detect that skip. The harvest's merge-gate close is the slice Stop 1 already excluded. Detector substitution still leaves `/deft:change` skip and checklist omit green, as measured above.\n\nWhat would flip the verdict: a Bound remedy that fail-closes, in a required context, when the named skill skip or the omitted remaining template obligations occur; or an honest `does-not-relieve: P1` with leftover for the remainder.\n\n",
+          "id": 5779961732,
+          "html_url": "https://github.com/deftai/directive/issues/633#issuecomment-5779961732",
+          "user": {
+            "login": "dbcall2",
+            "id": 15332465,
+            "node_id": "MDQ6VXNlcjE1MzMyNDY1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/15332465?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/dbcall2",
+            "html_url": "https://github.com/dbcall2",
+            "followers_url": "https://api.github.com/users/dbcall2/followers",
+            "following_url": "https://api.github.com/users/dbcall2/following{/other_user}",
+            "gists_url": "https://api.github.com/users/dbcall2/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/dbcall2/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/dbcall2/subscriptions",
+            "organizations_url": "https://api.github.com/users/dbcall2/orgs",
+            "repos_url": "https://api.github.com/users/dbcall2/repos",
+            "events_url": "https://api.github.com/users/dbcall2/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/dbcall2/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-22T16:15:35Z",
+          "updated_at": "2026-09-22T16:15:35Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: parent\n```\n\n## In plain English\n\nPain-audit 5779961732 found that the Bound remedy on 5779840251 does not cover Stop 1 P1. Leaving RWLDL advisory and refusing a checklist parser leaves the skill-plus-checklist skip undetectable. Merge-gate plus docs-impact is the local-check slice Stop 1 already carved out. This map retracts `relieves: P1`. It does not bind as next-build.\n\nThis is not an instruction to a later builder.\n\nNon-self-arbitration: same grok-4.6 parent authored Stop 1 and these takes. Takes accept critic headings.\n\nForward verdict: retraction. Disposition: classified headings accept-into-contract. Residual: P1 unrelieved.\nSpec-path: leftover remainder.\n\n**Lean:** retraction after pain-audit 5779961732. Cites critic 5779961732. Recut: supersedes successor lean 5779840251.\n\nTarget-digest: sha256:423e93e27278705f5d26a51e5300cf1fd2c3599aea43c32413a6d3414b433e89\n\narc-mode: no-ingest\nyolo-standing: yes\ndest: /Users/davidcall/.grok/worktrees/deft-directive/issue-633-dc\norigin-ref: origin/HEAD\ndispatch-sha: 7712f482781c4885fd9d395756e2c316785730dd\ntarget shape: single-issue\nDual-stop cap: 3 posts (spent)\n\nTakes:\n\n- 5779961732 F1 — Bound remedy leaves P1's skip undetectable — accept-into-contract\n\ndoes-not-relieve: P1\n\n",
+          "id": 5779997836,
+          "html_url": "https://github.com/deftai/directive/issues/633#issuecomment-5779997836",
+          "user": {
+            "login": "dbcall2",
+            "id": 15332465,
+            "node_id": "MDQ6VXNlcjE1MzMyNDY1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/15332465?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/dbcall2",
+            "html_url": "https://github.com/dbcall2",
+            "followers_url": "https://api.github.com/users/dbcall2/followers",
+            "following_url": "https://api.github.com/users/dbcall2/following{/other_user}",
+            "gists_url": "https://api.github.com/users/dbcall2/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/dbcall2/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/dbcall2/subscriptions",
+            "organizations_url": "https://api.github.com/users/dbcall2/orgs",
+            "repos_url": "https://api.github.com/users/dbcall2/repos",
+            "events_url": "https://api.github.com/users/dbcall2/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/dbcall2/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-22T16:18:07Z",
+          "updated_at": "2026-09-22T16:18:07Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: parent\n```\n\nHandoff after retraction on #633. Pain-audit blocking: Bound remedy on 5779840251 does not relieve Stop 1 P1. Dual-stop numbered posts spent; yolo-standing does not confirm leftover-split.\n\nopen-question: Leftover-split the changelog verifier, operator-owned merge-gate ruleset, and template shrink onto a child, leftover-defer the skill-skip detector, or close #633 as dominated by existing merge-gate plus docs-impact?\n\nLeftover verbs: leftover-split / leftover-defer / leftover-deliver / leftover-close\n\n",
+          "id": 5779998051,
+          "html_url": "https://github.com/deftai/directive/issues/633#issuecomment-5779998051",
+          "user": {
+            "login": "dbcall2",
+            "id": 15332465,
+            "node_id": "MDQ6VXNlcjE1MzMyNDY1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/15332465?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/dbcall2",
+            "html_url": "https://github.com/dbcall2",
+            "followers_url": "https://api.github.com/users/dbcall2/followers",
+            "following_url": "https://api.github.com/users/dbcall2/following{/other_user}",
+            "gists_url": "https://api.github.com/users/dbcall2/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/dbcall2/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/dbcall2/subscriptions",
+            "organizations_url": "https://api.github.com/users/dbcall2/orgs",
+            "repos_url": "https://api.github.com/users/dbcall2/repos",
+            "events_url": "https://api.github.com/users/dbcall2/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/dbcall2/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-22T16:18:08Z",
+          "updated_at": "2026-09-22T16:18:08Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: parent\n```\n\n## In plain English\n\nOperator leftover-split is recorded. Unmet Stop 1 P1 (pre-PR skill skip and omitted checklist stay undetectable) moves to leftover #4912. The remainder on this number is `verify:changelog-unreleased` on `check:framework-source`, an operator-owned repo ruleset making `Merge gate (task check)` required, and shrinking the template so `## Post-Merge` is not `- [ ]`. Dual-stop numbered posts are spent, so this arc halts on that remainder. This map does not claim that remainder closes P1.\n\nThis is not an instruction to a later builder.\n\nNon-self-arbitration: same grok-4.6 parent authored Stop 1 and these takes.\n\nForward verdict: leftover-split remainder. Disposition: classified headings accept-into-contract. Residual: P1 operator-deferred to #4912.\nSpec-path: remainder on this number.\n\n**Lean:** leftover-split remainder after operator leftover-split. Recut: supersedes retraction 5779997836. Leftover filed from parent issue-create: #4912.\n\nTarget-digest: sha256:423e93e27278705f5d26a51e5300cf1fd2c3599aea43c32413a6d3414b433e89\n\narc-mode: no-ingest\nyolo-standing: yes\ndest: /Users/davidcall/.grok/worktrees/deft-directive/issue-633-dc\norigin-ref: origin/HEAD\ndispatch-sha: 7712f482781c4885fd9d395756e2c316785730dd\ntarget shape: single-issue\nDual-stop cap: 3 posts (spent)\n\nTakes:\n\n- 5779961732 F1 — Bound remedy leaves P1's skip undetectable — accept-into-contract\n\noperator-deferred: P1 #4912\n\n## Bound remedy\n\n- `verify:changelog-unreleased` on `check:framework-source`.\n- Named operator-owned repo-scoped ruleset step: required context for the `Merge gate (task check)` aggregator, with admin-enforcement policy stated. Validate the artifact-only skip path before flipping.\n- Shrink the template checklist to items that have detectors. Move `## Post-Merge` out of `- [ ]` syntax.\n- Pre-PR skill skip and omitted remaining template obligations stay on leftover #4912.\n\n",
+          "id": 5781383092,
+          "html_url": "https://github.com/deftai/directive/issues/633#issuecomment-5781383092",
+          "user": {
+            "login": "dbcall2",
+            "id": 15332465,
+            "node_id": "MDQ6VXNlcjE1MzMyNDY1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/15332465?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/dbcall2",
+            "html_url": "https://github.com/dbcall2",
+            "followers_url": "https://api.github.com/users/dbcall2/followers",
+            "following_url": "https://api.github.com/users/dbcall2/following{/other_user}",
+            "gists_url": "https://api.github.com/users/dbcall2/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/dbcall2/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/dbcall2/subscriptions",
+            "organizations_url": "https://api.github.com/users/dbcall2/orgs",
+            "repos_url": "https://api.github.com/users/dbcall2/repos",
+            "events_url": "https://api.github.com/users/dbcall2/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/dbcall2/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-22T17:57:50Z",
+          "updated_at": "2026-09-22T17:57:50Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: parent\n```\n\ndesign-critique: halted, because Dual-stop numbered posts are spent after leftover-split; remainder Bound remedy is on lean following this halt's predecessor recut; P1 is operator-deferred to #4912; reserved-slot pain-audit already used.\n\n",
+          "id": 5781383302,
+          "html_url": "https://github.com/deftai/directive/issues/633#issuecomment-5781383302",
+          "user": {
+            "login": "dbcall2",
+            "id": 15332465,
+            "node_id": "MDQ6VXNlcjE1MzMyNDY1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/15332465?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/dbcall2",
+            "html_url": "https://github.com/dbcall2",
+            "followers_url": "https://api.github.com/users/dbcall2/followers",
+            "following_url": "https://api.github.com/users/dbcall2/following{/other_user}",
+            "gists_url": "https://api.github.com/users/dbcall2/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/dbcall2/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/dbcall2/subscriptions",
+            "organizations_url": "https://api.github.com/users/dbcall2/orgs",
+            "repos_url": "https://api.github.com/users/dbcall2/repos",
+            "events_url": "https://api.github.com/users/dbcall2/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/dbcall2/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-22T17:57:51Z",
+          "updated_at": "2026-09-22T17:57:51Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: parent\n```\n\nOperator leftover-deliver remainder. Dual-stop raise recorded: Dual-stop cap: 4 posts (was 3 spent; reserved-slot pain-audit already used). One remainder pain-audit of `operator-deferred: P1 #4912` is in-cap under the raise.\n\n",
+          "id": 5784448530,
+          "html_url": "https://github.com/deftai/directive/issues/633#issuecomment-5784448530",
+          "user": {
+            "login": "dbcall2",
+            "id": 15332465,
+            "node_id": "MDQ6VXNlcjE1MzMyNDY1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/15332465?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/dbcall2",
+            "html_url": "https://github.com/dbcall2",
+            "followers_url": "https://api.github.com/users/dbcall2/followers",
+            "following_url": "https://api.github.com/users/dbcall2/following{/other_user}",
+            "gists_url": "https://api.github.com/users/dbcall2/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/dbcall2/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/dbcall2/subscriptions",
+            "organizations_url": "https://api.github.com/users/dbcall2/orgs",
+            "repos_url": "https://api.github.com/users/dbcall2/repos",
+            "events_url": "https://api.github.com/users/dbcall2/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/dbcall2/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-22T21:27:49Z",
+          "updated_at": "2026-09-22T21:27:49Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: parent\n```\n\n## In plain English\n\nOperator leftover-deliver remainder is recorded. Dual-stop is raised to 4 posts. Unmet Stop 1 P1 stays parked on leftover #4912. The remainder harvest on this number is `verify:changelog-unreleased` on `check:framework-source`, an operator-owned repo ruleset making `Merge gate (task check)` required, and shrinking the template so `## Post-Merge` is not `- [ ]`. This map does not claim that remainder closes P1.\n\nThis is not an instruction to a later builder.\n\nNon-self-arbitration: same grok-4.6 parent authored Stop 1 and these takes.\n\nForward verdict: leftover-deliver remainder. Disposition: classified headings accept-into-contract. Residual: P1 operator-deferred to #4912.\nSpec-path: remainder on this number.\n\n**Lean:** leftover-deliver remainder after Dual-stop raise. Leftover filed from parent issue-create: #4912. Supersedes remainder lean 5781383092.\n\nTarget-digest: sha256:423e93e27278705f5d26a51e5300cf1fd2c3599aea43c32413a6d3414b433e89\n\narc-mode: no-ingest\nyolo-standing: yes\ndest: /Users/davidcall/.grok/worktrees/deft-directive/issue-633-dc\norigin-ref: origin/HEAD\ndispatch-sha: 7712f482781c4885fd9d395756e2c316785730dd\ntarget shape: single-issue\nDual-stop cap: 4 posts\n\nTakes:\n\n- leftover-deliver remainder after Dual-stop raise — accept-into-contract\n\noperator-deferred: P1 #4912\n\n## Bound remedy\n\n- `verify:changelog-unreleased` on `check:framework-source`.\n- Named operator-owned repo-scoped ruleset step: required context for the `Merge gate (task check)` aggregator, with admin-enforcement policy stated. Validate the artifact-only skip path before flipping.\n- Shrink the template checklist to items that have detectors. Move `## Post-Merge` out of `- [ ]` syntax.\n\n",
+          "id": 5784448698,
+          "html_url": "https://github.com/deftai/directive/issues/633#issuecomment-5784448698",
+          "user": {
+            "login": "dbcall2",
+            "id": 15332465,
+            "node_id": "MDQ6VXNlcjE1MzMyNDY1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/15332465?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/dbcall2",
+            "html_url": "https://github.com/dbcall2",
+            "followers_url": "https://api.github.com/users/dbcall2/followers",
+            "following_url": "https://api.github.com/users/dbcall2/following{/other_user}",
+            "gists_url": "https://api.github.com/users/dbcall2/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/dbcall2/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/dbcall2/subscriptions",
+            "organizations_url": "https://api.github.com/users/dbcall2/orgs",
+            "repos_url": "https://api.github.com/users/dbcall2/repos",
+            "events_url": "https://api.github.com/users/dbcall2/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/dbcall2/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-22T21:27:50Z",
+          "updated_at": "2026-09-22T21:27:50Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: critic\n```\n\naudit-targets: pain-P1\n\nsha: 7712f482781c4885fd9d395756e2c316785730dd\nid-ceiling: 5784448698\ncharter: open critique\n\n## Verdict\n\n`operator-deferred: P1 #4912` on successor lean 5784448698 correctly parks Stop 1 P1. The Bound remedy harvest is the three leftover-deliver remainder items. It does not claim `relieves` of P1. The lean can bind as written.\n\nP1 on Stop 1 write-back 5779631645: an agent can skip `deft-directive-pre-pr` and open a PR with a custom body that omits or leaves unchecked the template checklist; CI `check` does not detect that skip.\n\nClosed-form scan of 5784448698: one operative cite `operator-deferred: P1 #4912`; no operative `relieves:` field. `parseListItems` on `## Bound remedy` yields three titles:\n\n1. `verify:changelog-unreleased` on `check:framework-source`.\n2. Named operator-owned repo-scoped ruleset step: required context for the `Merge gate (task check)` aggregator, with admin-enforcement policy stated. Validate the artifact-only skip path before flipping.\n3. Shrink the template checklist to items that have detectors. Move `## Post-Merge` out of `- [ ]` syntax.\n\n#4912 is a different issue, open, and holds that P1 as filed. Leftover-split recorded it from parent issue-create. `evaluateBoundRemedyCites` with unmet `P1`, covered none, cite `operator-deferred: P1 #4912`, issue 633 returns ok.\n\n## F1 — Leftover #4912 already leftover-deferred skip detection\n\n`footnote`\n\n#4912's latest map 5782815712 is `does-not-relieve: P1`. Skip detection waits until this remainder makes `Merge gate (task check)` required, then leftover-close as dominated. Bound remedy on that map is empty. That does not falsify this park. `operator-deferred` records unmet pain on a different issue. It does not promise #4912 will bind a skip detector. leftover-close as dominated is a later #4912 verb.\n\n## F2 — Remainder harvest still leaves the skill-plus-checklist skip green\n\n`footnote`\n\nRe-measured at `7712f482781c4885fd9d395756e2c316785730dd`:\n\n- `git grep` of `pr:ready`, `pre-pr-complete`, `pre-pr-gate`: 0 hits.\n- `.github/workflows/`: branch-gate, ci, ci-lane, docs-site, greenfield-python-free-smoke, npm-publish, one-pr-unit-merge-group, release. No checklist parser.\n- `content/skills/deft-directive-pre-pr/SKILL.md` names the RWLDL loop and merge-chokepoint `deft check`. It names no `pr:ready`.\n- `.github/PULL_REQUEST_TEMPLATE.md`: five `- [ ]` boxes (three under Checklist, two under Post-Merge).\n- `Taskfile.yml` `check:framework-source` deps include `verify:scope-provenance` and `verify:intent-constraint`. They do not include a changelog verifier. `verify:changelog-unreleased` is 0 hits.\n- `task change:changelog:check` (`tasks/change.yml` → `runChangelogCheck`) is a whole-file `[Unreleased]` non-empty check, off the chokepoint.\n- `.github/workflows/ci.yml` aggregator `Merge gate (task check)` Required? `no`. Job `if:` skips when `artifact_only`.\n- Live REST `GET repos/deftai/directive/rules/branches/master`: required context `Greptile Review` (org ruleset 14651955). Classic `branches/master/protection` returns 404.\n\nAfter first-ship of those three harvest items, Read/Diff still has no detector; omitting remaining `- [ ]` lines still has no detector; completing the operator ruleset makes merge-gate required and still leaves that skip green. `artifact_only` leftover-complete PRs skip merge-gate, which is why item 2 names validate-before-flip. Those are remainder notes. They are not `relieves: P1`.\n\n## Injection / swarm lens\n\nRemainder item 2 changes merge authority. Live enrollment is still Greptile-only. The harvest names an operator-owned ruleset step and `artifact_only` validate-before-flip. It does not add a checkbox parser, an unconstrained `N/A -- <reason>` skip token, or a gitignored marker. Lens does not add a blocking finding.\n\n## Road not taken\n\nI considered `blocks-the-design` because #4912 already recorded `does-not-relieve: P1`. Rejected: leftover #4912 is open and holds P1 as filed; the cite is different-issue `operator-deferred`; Bound remedy does not cover the skip.\n\nI considered `sharpens-framing` on Bound-remedy item 3's first sentence as harvest broader than Post-Merge. Rejected as harvest-changing: leftover-split / leftover-deliver remainder has carried that principle plus the Post-Merge move since 5779840251. `/deft:change` remaining as a checkbox stays an omitted obligation on leftover P1. Dropping that sentence would change harvest without changing P1 coverage.\n\n## Steelman\n\nStrongest case that the park is a silent P1 extinguisher: #4912 leftover-defer waits on this remainder's Merge-gate ruleset, then leftover-close as dominated, so P1 never gets a skip detector.\n\nThat case is #4912's later operator verb. This map cites `operator-deferred: P1 #4912` and states the remainder does not close P1. Re-measure shows the skip still has no detector after the three harvest items.\n\nWhat would flip: an operative `relieves: P1` on this lean; a Bound-remedy item that fail-closes in a required context on skill skip or omitted remaining template obligations; leftover #4912 not holding P1; or same-number `operator-deferred`.\n\n",
+          "id": 5784578119,
+          "html_url": "https://github.com/deftai/directive/issues/633#issuecomment-5784578119",
+          "user": {
+            "login": "dbcall2",
+            "id": 15332465,
+            "node_id": "MDQ6VXNlcjE1MzMyNDY1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/15332465?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/dbcall2",
+            "html_url": "https://github.com/dbcall2",
+            "followers_url": "https://api.github.com/users/dbcall2/followers",
+            "following_url": "https://api.github.com/users/dbcall2/following{/other_user}",
+            "gists_url": "https://api.github.com/users/dbcall2/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/dbcall2/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/dbcall2/subscriptions",
+            "organizations_url": "https://api.github.com/users/dbcall2/orgs",
+            "repos_url": "https://api.github.com/users/dbcall2/repos",
+            "events_url": "https://api.github.com/users/dbcall2/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/dbcall2/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-22T21:36:54Z",
+          "updated_at": "2026-09-22T21:36:54Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: parent\n```\n\n## Verified-claims table\n\nCites successor lean 5784448698.\n\n| Claim | Source | Method |\n|---|---|---|\n| Classified headings on lean 5784448698 are accept-into-contract | leftover-deliver remainder take; pain-audit 5784578119 footnote-only | posted take-map |\n| Empty disagreement set | this round | no disagree or defer |\n| operator-deferred P1 #4912 parks Stop 1 skip P1; remainder harvest is three items (changelog-unreleased, Merge-gate ruleset, Post-Merge template shrink) | pain-audit 5784578119 | leftover #4912 open; zero `relieves`; Bound-remedy three titles; blocking census empty |\n\n",
+          "id": 5784591416,
+          "html_url": "https://github.com/deftai/directive/issues/633#issuecomment-5784591416",
+          "user": {
+            "login": "dbcall2",
+            "id": 15332465,
+            "node_id": "MDQ6VXNlcjE1MzMyNDY1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/15332465?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/dbcall2",
+            "html_url": "https://github.com/dbcall2",
+            "followers_url": "https://api.github.com/users/dbcall2/followers",
+            "following_url": "https://api.github.com/users/dbcall2/following{/other_user}",
+            "gists_url": "https://api.github.com/users/dbcall2/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/dbcall2/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/dbcall2/subscriptions",
+            "organizations_url": "https://api.github.com/users/dbcall2/orgs",
+            "repos_url": "https://api.github.com/users/dbcall2/repos",
+            "events_url": "https://api.github.com/users/dbcall2/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/dbcall2/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-22T21:37:44Z",
+          "updated_at": "2026-09-22T21:37:44Z",
+          "author_association": "COLLABORATOR"
+        },
+        {
+          "body": "model: grok-4.6\n```quarantined\nrole: parent\n```\n\n## In plain English\n\nUnmet Stop 1 P1 (pre-PR skill skip and omitted checklist stay undetectable) is parked on leftover #4912. The remainder on #633 is `verify:changelog-unreleased` on `check:framework-source`, an operator-owned required Merge gate, and shrinking the template so `## Post-Merge` is not `- [ ]`. The accepted cite is successor lean 5784448698 with `operator-deferred: P1 #4912`.\n\ndesign-critique: synthesis accepted, because agents agreed (empty disagreement set)\n\nBound contract: successor lean 5784448698.\n\n",
+          "id": 5784591647,
+          "html_url": "https://github.com/deftai/directive/issues/633#issuecomment-5784591647",
+          "user": {
+            "login": "dbcall2",
+            "id": 15332465,
+            "node_id": "MDQ6VXNlcjE1MzMyNDY1",
+            "avatar_url": "https://avatars.githubusercontent.com/u/15332465?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/dbcall2",
+            "html_url": "https://github.com/dbcall2",
+            "followers_url": "https://api.github.com/users/dbcall2/followers",
+            "following_url": "https://api.github.com/users/dbcall2/following{/other_user}",
+            "gists_url": "https://api.github.com/users/dbcall2/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/dbcall2/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/dbcall2/subscriptions",
+            "organizations_url": "https://api.github.com/users/dbcall2/orgs",
+            "repos_url": "https://api.github.com/users/dbcall2/repos",
+            "events_url": "https://api.github.com/users/dbcall2/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/dbcall2/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "created_at": "2026-09-22T21:37:45Z",
+          "updated_at": "2026-09-22T21:37:45Z",
+          "author_association": "COLLABORATOR"
+        }
+      ],
+      "issueBody": "## Summary\r\n\r\nMake the `skills/deft-directive-pre-pr` (RWLDL) quality gate deterministic by moving enforcement from doc-only `!` rules in `AGENTS.md` to CI-level checks that physically block a PR from merging until the gate has run. `lessons.md` is not a reliable backstop: not indexed, not chained from any skill, and not consulted mandatorily.\r\n\r\n## Why now\r\n\r\nPR #632 (merged 2026-04-23) silently skipped three `AGENTS.md` `!` gates:\r\n\r\n- `skills/deft-directive-pre-pr/SKILL.md` (RWLDL loop) -- not run\r\n- Local `task check` pre-commit gate -- not run (only post-push CI green was confirmed)\r\n- `.github/PULL_REQUEST_TEMPLATE.md` checklist -- not filled (a custom PR body replaced it; zero `- [ ]` boxes appeared)\r\n\r\nRoot cause: the gates are advisory. None have a CI-side enforcement, so compliance relies entirely on agent discipline. Under speed pressure (post-release, mid-Blacksmith-incident), that discipline silently degraded. Post-merge audit caught it, but only by accident.\r\n\r\nThis is exactly the failure mode `meta/lessons.md` section `## RC3 Validation on Windows (2026-04)` lesson 5 warns about: rules with only docs-level enforcement must be paired with a regression test asserting writer/detector symmetry. The pre-PR gate is doc-only today.\r\n\r\n## Proposed deliverable (Tiers 1-3 in one PR)\r\n\r\n### Tier 1 -- CI PR-body checklist enforcement\r\n\r\nNew GitHub Action (on `pull_request` opened/edited/synchronize) that:\r\n\r\n- Parses the PR body for `.github/PULL_REQUEST_TEMPLATE.md` checklist markers\r\n- Fails the check if any `- [ ]` box is unchecked without an `N/A -- <reason>` suffix\r\n- Emits a required status check `pre-pr-gate / checklist`\r\n\r\nCatches the PR #632 failure mode (custom body + no checklist) at PR-open time, not post-merge audit.\r\n\r\n### Tier 2 -- `task pr:ready` + marker artifact\r\n\r\n- New `scripts/pre_pr_check.py` that runs the mechanically automatable slices of RWLDL: file-list-from-diff Read phase, `task check` Lint phase, `git diff master` Diff phase\r\n- On clean exit, writes `.deft/pre-pr-complete.<head-sha>.json` (diff hash, timestamp, iteration count, vBRIEF acceptance-criteria coverage summary)\r\n- New `task pr:ready` Taskfile entry wrapping the script\r\n- Documented in `skills/deft-directive-pre-pr/SKILL.md` as the canonical invocation; existing RWLDL phase content stays as the human-judgement slice\r\n\r\n### Tier 3 -- CI marker cross-check\r\n\r\nExtend the Tier 1 Action to also verify that a `.deft/pre-pr-complete.<head-sha>.json` marker is present for the PR head SHA. If absent, the CI check fails with an actionable message pointing at `task pr:ready`. Closes the loophole where an agent checks the boxes without actually running the loop.\r\n\r\n## Out of scope (follow-ups)\r\n\r\n- **Tier 4**: Structural PR-template change with machine-checkable items (`- [ ] RWLDL iterations: N`, `- [ ] task check exit 0 at <timestamp>`, etc.) -- file separately once Tiers 1-3 land.\r\n- Git pre-push hook -- portability issues (hooks do not clone); defer unless Tiers 1-3 prove insufficient.\r\n- Consumer-side rollout: deft ships the same template + Action to consumer projects via `deft-directive-setup`; track separately.\r\n\r\n## Acceptance criteria\r\n\r\n1. Opening a PR with an empty or unchecked `.github/PULL_REQUEST_TEMPLATE.md` checklist produces a failing CI status check that blocks merge on the configured protected branches.\r\n2. `task pr:ready` exits 0 on a clean branch and writes `.deft/pre-pr-complete.<head-sha>.json`; exits non-zero with an actionable message when `task check` fails, the diff is dirty against the base, or the loop did not converge.\r\n3. Opening a PR without a marker file matching the head SHA produces a failing CI status check.\r\n4. `skills/deft-directive-pre-pr/SKILL.md` names `task pr:ready` as the canonical RWLDL entrypoint without removing the human-judgement phases (Read semantic review, Diff scope-creep check).\r\n5. A regression test in `tests/content/` asserts the GH Action file exists and references both the checklist parser and the marker check (writer/detector symmetry rule from RC3 lesson 5).\r\n6. `meta/lessons.md` gains an entry documenting the PR #632 root cause and the deterministic replacement.\r\n7. `.gitignore` excludes `.deft/pre-pr-complete.*.json` so marker files never get committed; Action reads them from a workflow-scoped artifact upload instead, or from a git-tracked hash-only manifest -- decide in design.\r\n\r\n## References\r\n\r\n- Triggering session: PR #632 (merged 2026-04-23) -- post-merge audit exposed the skipped gates\r\n- Pattern prior art: `tests/content/test_taskfile_cli_args.py`, `test_taskfile_paths.py`, `test_machine_generated_banner.py`, `test_skill_frontmatter.py` -- all examples of turning doc-only deft conventions into CI-enforced content tests\r\n- Governing rule: `meta/lessons.md` section RC3 lesson 5 (writer/detector symmetry mandate)\r\n- Skill under enforcement: `skills/deft-directive-pre-pr/SKILL.md`\r\n- Template under enforcement: `.github/PULL_REQUEST_TEMPLATE.md`\n\n---\n\n## Linked issues\n\nPart of **#635** (umbrella: skill-system maturity + framework-rule determinism).\n\n- **#75** — skill auto-discovery (infrastructure: authoritative skill inventory)\n- **#604** — resolver eval + check-resolvable audit (routing quality gate)\n- **#607** — failure-to-skill protocol (policy: recurrable failures become skills, not prose lessons)\n- **#633** — pre-PR quality gate deterministic (concrete T4 worked example)\n- **#634** — determinism-tier ladder governance (meta-rule generalising the pattern)\n\n",
+      "x-directive/plan-id": {
+        "version": 1,
+        "source": "github-rest-id",
+        "github_issue_id": 4318268030,
+        "origin": "deftai/directive#633",
+        "id": "github.issue.4318268030"
+      },
+      "x-directive/admitted-target-digest": {
+        "schema": "deft.scope.admitted-target-digest.v1",
+        "algorithm": "sha256",
+        "sha256": "423e93e27278705f5d26a51e5300cf1fd2c3599aea43c32413a6d3414b433e89"
+      },
+      "kind": "story",
+      "swarm": {
+        "file_scope": [
+          "Taskfile.yml",
+          "tasks/verify.yml",
+          "packages/core/src/check/gate-lists.ts",
+          "packages/core/src/check/gate-lists.test.ts",
+          ".github/PULL_REQUEST_TEMPLATE.md",
+          "content/scm/github.md",
+          "xbrief/evaluator-surface-disposition.json",
+          "packages/core/src/content-contracts/standards/taskfile_check_lane.test.ts",
+          "packages/core/src/content-contracts/standards/ci_lifecycle_lane.test.ts",
+          "packages/cli/src/task-surface.test.ts",
+          "packages/core/src/content-contracts/standards/pre_pr_remainder_633.test.ts",
+          "CHANGELOG.md",
+          "docs/RULE-MAP.md",
+          "packages/core/src/check/named-cause.ts"
+        ],
+        "file_scope_confidence": "high",
+        "size": "S",
+        "conflict_group": "633-changelog-merge-gate-template"
+      },
+      "completionProvenance": {
+        "repository": null,
+        "implementationCommit": null,
+        "prNumber": 5275,
+        "prBase": null,
+        "mergeCommit": "d052a4cfa1cd47b714bd77dc6fe539167aaef222",
+        "deliveryBranch": "master",
+        "deliveryCommit": "d052a4cfa1cd47b714bd77dc6fe539167aaef222",
+        "verifiedAt": "2026-10-02T22:18:48Z",
+        "verifier": "scope:complete",
+        "disposition": "delivered",
+        "handoffState": "delivered",
+        "deployed": null,
+        "uatVerified": null,
+        "completedSessionId": "host:grok:v1:MDFhMGZlNWQtY2I0OC03NTAyLThiOGUtZjA3Yzk0YWRiNmU3"
+      },
+      "deliveryDisposition": "delivered",
+      "handoffState": "delivered",
+      "completedAt": "2026-10-02T22:18:48Z",
+      "completedSessionId": "host:grok:v1:MDFhMGZlNWQtY2I0OC03NTAyLThiOGUtZjA3Yzk0YWRiNmU3",
+      "capacityBucket": "agentic-debt",
+      "lifecycleWrite": {
+        "action": "complete",
+        "writtenAt": "2026-10-02T22:18:48Z"
+      }
+    },
+    "id": "github.issue.4318268030",
+    "updated": "2026-10-02T22:18:48Z"
+  }
+}
