@@ -7,13 +7,12 @@
  */
 
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, lstatSync, readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import {
   ContainedWriteError,
   ContainedWriteErrorCode,
   containedChmod,
-  containedRemove,
   containedWrite,
 } from "../fs/contained-write.js";
 import {
@@ -110,6 +109,12 @@ function isExclusiveCreateRace(err: unknown): boolean {
   );
 }
 
+/** Unix HMAC secrets load only at 0600. Windows does not preserve POSIX mode bits. */
+function hmacSecretModeIsPrivate(mode: number): boolean {
+  if (process.platform === "win32") return true;
+  return (mode & 0o777) === PRE_PR_STORE_SECRET_MODE;
+}
+
 function hmacHex(secret: Buffer, payload: string): string {
   return createHmac("sha256", secret).update(payload, "utf8").digest("hex");
 }
@@ -180,6 +185,12 @@ export class FileBackedPrePrStore implements PrePrExecutionStore {
   private loadSecret(): Buffer | null {
     const path = this.secretPath();
     if (!existsSync(path)) return null;
+    try {
+      const st = lstatSync(path);
+      if (!st.isFile() || !hmacSecretModeIsPrivate(st.mode)) return null;
+    } catch {
+      return null;
+    }
     const hex = readFileSync(path, "utf8").trim();
     if (hex.length === 0) return null;
     const buf = Buffer.from(hex, "hex");
@@ -203,17 +214,12 @@ export class FileBackedPrePrStore implements PrePrExecutionStore {
       if (isExclusiveCreateRace(err)) {
         return this.loadSecret();
       }
-      throw err;
+      return null;
     }
     try {
       containedChmod({ root, target, mode: PRE_PR_STORE_SECRET_MODE });
     } catch {
-      try {
-        containedRemove({ root, target });
-      } catch {
-        /* never load a world-readable key left behind after chmod failure */
-      }
-      return null;
+      /* chmod failure MUST NOT delete the secret; load only if mode is 0600 */
     }
     return this.loadSecret();
   }
