@@ -152,6 +152,7 @@ describe("pre-pr private store", () => {
 
   it("loads the winner secret when HMAC secret create races with EXISTS", () => {
     const root = mkdtempSync(join(tmpdir(), "pre-pr-hmac-exists-"));
+    const removeSpy = vi.spyOn(containedWriteMod, "containedRemove");
     try {
       const first = new FileBackedPrePrStore(root);
       const criteria = digestApprovedCriteria({
@@ -174,6 +175,10 @@ describe("pre-pr private store", () => {
         runId: "ppr_win",
       });
       const winner = first.getById("ppr_win") as PrePrExecutionRecord;
+      const secretPath = join(privatePrePrStoreDir(root), PRE_PR_STORE_MAC_SECRET_NAME);
+      if (process.platform !== "win32") {
+        expect(statSync(secretPath).mode & 0o777).toBe(PRE_PR_STORE_SECRET_MODE);
+      }
       const second = new FileBackedPrePrStore(root);
       type SecretLoader = { loadSecret(): Buffer | null };
       const proto = FileBackedPrePrStore.prototype as unknown as SecretLoader;
@@ -196,15 +201,18 @@ describe("pre-pr private store", () => {
         }).not.toThrow();
         expect(put?.ok).toBe(true);
         expect(second.getById("ppr_loser")?.id).toBe("ppr_loser");
+        expect(removeSpy).not.toHaveBeenCalled();
+        expect(existsSync(secretPath)).toBe(true);
       } finally {
         proto.loadSecret = original;
       }
     } finally {
+      removeSpy.mockRestore();
       rmSync(root, { recursive: true, force: true });
     }
   });
 
-  it("does not unlink the HMAC secret when chmod fails after exclusive create", () => {
+  it("removes OUR unusable 0644 HMAC secret after chmod-fail so the next put can create", () => {
     const root = mkdtempSync(join(tmpdir(), "pre-pr-hmac-chmod-"));
     const secretPath = join(privatePrePrStoreDir(root), PRE_PR_STORE_MAC_SECRET_NAME);
     const removeSpy = vi.spyOn(containedWriteMod, "containedRemove");
@@ -222,14 +230,25 @@ describe("pre-pr private store", () => {
         id: "ppr_chmod_fail",
         prNodeId: "PR_chmod",
       } as PrePrExecutionRecord);
-      expect(existsSync(secretPath)).toBe(true);
-      expect(removeSpy).not.toHaveBeenCalled();
-      if (process.platform !== "win32") {
-        expect(decision.ok).toBe(false);
-        expect(decision.code).toBe("deny-missing-record");
-        expect(statSync(secretPath).mode & 0o777).toBe(0o644);
-        expect(store.getById("ppr_chmod_fail")).toBeNull();
+      if (process.platform === "win32") {
+        expect(existsSync(secretPath)).toBe(true);
+        return;
       }
+      expect(decision.ok).toBe(false);
+      expect(decision.code).toBe("deny-missing-record");
+      expect(removeSpy).toHaveBeenCalled();
+      expect(existsSync(secretPath)).toBe(false);
+      expect(store.getById("ppr_chmod_fail")).toBeNull();
+      chmodSpy.mockRestore();
+      const next = store.put({
+        schema: "deft.pre-pr-execution.v1",
+        id: "ppr_chmod_retry",
+        prNodeId: "PR_chmod2",
+      } as PrePrExecutionRecord);
+      expect(next.ok).toBe(true);
+      expect(existsSync(secretPath)).toBe(true);
+      expect(statSync(secretPath).mode & 0o777).toBe(PRE_PR_STORE_SECRET_MODE);
+      expect(store.getById("ppr_chmod_retry")?.id).toBe("ppr_chmod_retry");
     } finally {
       chmodSpy.mockRestore();
       removeSpy.mockRestore();
@@ -281,10 +300,11 @@ describe("pre-pr private store", () => {
     }
   });
 
-  it("does not load a 0644 HMAC secret", () => {
+  it("does not load or delete a 0644 HMAC secret on EXISTS race", () => {
     const root = mkdtempSync(join(tmpdir(), "pre-pr-hmac-0644-"));
     const dir = privatePrePrStoreDir(root);
     const secretPath = join(dir, PRE_PR_STORE_MAC_SECRET_NAME);
+    const removeSpy = vi.spyOn(containedWriteMod, "containedRemove");
     try {
       mkdirSync(dir, { recursive: true });
       writeFileSync(secretPath, `${"ab".repeat(32)}\n`);
@@ -302,9 +322,12 @@ describe("pre-pr private store", () => {
       expect(decision.ok).toBe(false);
       expect(decision.code).toBe("deny-missing-record");
       expect(existsSync(secretPath)).toBe(true);
+      expect(statSync(secretPath).mode & 0o777).toBe(0o644);
+      expect(removeSpy).not.toHaveBeenCalled();
       expect(store.getById("ppr_world")).toBeNull();
       expect(store.list()).toHaveLength(0);
     } finally {
+      removeSpy.mockRestore();
       rmSync(root, { recursive: true, force: true });
     }
   });

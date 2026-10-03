@@ -13,6 +13,7 @@ import {
   ContainedWriteError,
   ContainedWriteErrorCode,
   containedChmod,
+  containedRemove,
   containedWrite,
 } from "../fs/contained-write.js";
 import {
@@ -212,16 +213,29 @@ export class FileBackedPrePrStore implements PrePrExecutionStore {
       });
     } catch (err) {
       if (isExclusiveCreateRace(err)) {
+        // EXISTS race: do not delete the winner. Load only at 0600.
         return this.loadSecret();
       }
       return null;
     }
+    // This process created the secret; no records are signed yet.
     try {
       containedChmod({ root, target, mode: PRE_PR_STORE_SECRET_MODE });
     } catch {
-      /* chmod failure MUST NOT delete the secret; load only if mode is 0600 */
+      try {
+        containedChmod({ root, target, mode: PRE_PR_STORE_SECRET_MODE });
+      } catch {
+        /* retry exhausted */
+      }
     }
-    return this.loadSecret();
+    const loaded = this.loadSecret();
+    if (loaded !== null) return loaded;
+    try {
+      containedRemove({ root, target });
+    } catch {
+      /* leftover unusable 0644; next start can exclusive-create */
+    }
+    return null;
   }
 
   put(record: PrePrExecutionRecord): PrePrDecision {

@@ -521,6 +521,10 @@ export function run(argv: string[]): number {
     approvedRevisionSha: args.approvedRevision,
     runId: args.runId ?? undefined,
   });
+  if (!started.ok) {
+    emit(args.json, started.decision, started.decision.message, true);
+    return 1;
+  }
   const payload = { ok: started.ok, runId: started.runId, hint: "run id is a lookup hint only" };
   emit(
     args.json,

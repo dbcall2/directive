@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   computeControllerObservedHash,
+  deny,
   FileBackedPrePrStore,
   MARK_COMPLETE_NOT_AUTHORITY,
   PRE_PR_PHASES,
@@ -90,6 +91,29 @@ describe("deft pre-pr:run", () => {
   it("starts a run and treats the id as a lookup hint", () => {
     const code = run([...START, "--run-id", "ppr_cli", "--json"]);
     expect(code).toBe(0);
+  });
+
+  it("does not print started when store.put denies", () => {
+    setDefaultPrePrStore({
+      put: () =>
+        deny("deny-missing-record", "pre-PR private store HMAC secret could not be created"),
+      getById: () => null,
+      getByPrNodeId: () => null,
+      list: () => [],
+    });
+    const out: string[] = [];
+    const err: string[] = [];
+    vi.spyOn(process.stdout, "write").mockImplementation((chunk) => {
+      out.push(String(chunk));
+      return true;
+    });
+    vi.spyOn(process.stderr, "write").mockImplementation((chunk) => {
+      err.push(String(chunk));
+      return true;
+    });
+    expect(run([...START, "--run-id", "ppr_deny"])).toBe(1);
+    expect(out.join("")).not.toMatch(/started/);
+    expect(err.join("")).toMatch(/HMAC secret could not be created|deny-missing-record/);
   });
 
   it("refuses skill-open and mark-complete", () => {

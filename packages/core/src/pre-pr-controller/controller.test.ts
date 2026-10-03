@@ -14,8 +14,8 @@ import {
 import { digestApprovedCriteria } from "./criteria.js";
 import { evaluatePrePrEvidence } from "./evaluate.js";
 import { ALLOWED_SKIP_REASONS, PRE_PR_PHASES } from "./phases.js";
-import { InProcessPrePrStore, mintPublisher } from "./store.js";
-import type { PrePrExecutionRecord } from "./types.js";
+import { InProcessPrePrStore, mintPublisher, type PrePrExecutionStore } from "./store.js";
+import { deny, type PrePrExecutionRecord } from "./types.js";
 
 const approved = digestApprovedCriteria({
   sourceRevisionSha: "base",
@@ -68,6 +68,35 @@ describe("computeControllerObservedHash", () => {
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+});
+
+describe("startControllerRun put deny", () => {
+  it("returns ok false and a null run id when store.put denies", () => {
+    const store: PrePrExecutionStore = {
+      put: () =>
+        deny("deny-missing-record", "pre-PR private store HMAC secret could not be created"),
+      getById: () => null,
+      getByPrNodeId: () => null,
+      list: () => [],
+    };
+    const started = startControllerRun(store, {
+      repo: "deftai/directive",
+      baseSha: "base",
+      headSha: "head",
+      treeHash: "tree",
+      prBodyHash: "body",
+      prNodeId: null,
+      criteria: approved,
+      skillVersion: "0.1",
+      policyVersion: "1",
+      approvedRevisionSha: "base",
+      runId: "ppr_put_deny",
+    });
+    expect(started.ok).toBe(false);
+    expect(started.runId).toBeNull();
+    expect(started.decision.ok).toBe(false);
+    expect(started.decision.code).toBe("deny-missing-record");
   });
 });
 

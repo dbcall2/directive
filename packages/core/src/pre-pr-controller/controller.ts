@@ -134,7 +134,8 @@ export function startControllerRun(
     failedAt: null,
     publishedAt: null,
   };
-  store.put(record);
+  const d = store.put(record);
+  if (!d.ok) return { ok: false, runId: null, decision: d };
   return {
     ok: true,
     runId: id,
