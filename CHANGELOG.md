@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Pre-PR HMAC secret chmod-fail removes the world-readable key; agents-entry names `deft pre-pr:run` (#4912).** Exclusive create still loads the winner on EXISTS/EEXIST. Tracking #4912.
 - **Pre-PR HMAC secret create race and unreadable reviewed-file hash (#4912).** Concurrent file-backed stores load the winner secret when exclusive create hits EXISTS; `computeControllerObservedHash` returns null for directories and unreadable paths. Tracking #4912.
 - **Pre-PR controller residual (#4912).** CLI default store survives process exit; `--observe-command` requires `--exit-code`; semantic hashes must match independently hashed reviewed-file contents for every semantic phase; file-backed records are HMAC-wrapped; newest run wins PR-node lookup and a presented run id beats an older node match; live evaluate uses current approved criteria. PR node id and body hash bind the live check; required phases must complete in PRE_PR_PHASES order. Tracking #4912.
 - **Incomplete failed x-claims still need `invalidates`; empty Verifier/VerifiedAt keys require Source (#479).** Skip the invalidates edge only when both `ruledOutReason` and `evidenceRefs` are non-empty. Evidence-only narratives stay a mission-style exception. Tracking #479.

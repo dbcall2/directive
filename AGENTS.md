@@ -162,7 +162,7 @@ Note: root-relative paths (this repo IS deft/); run `task agents:refresh` after 
 
 <!-- placeholder -->
 
-<!-- deft:managed-section v3 sha=67b482a4f68c refreshed=2026-10-01T21:11:51Z session=55e0586bb124 -->
+<!-- deft:managed-section v3 sha=357ee0a4cb60 refreshed=2026-10-03T00:09:39Z session=1d2957605208 -->
 # Deft — AI Development Framework
 
 Deft is installed in .deft/core/. Full guidelines: .deft/core/main.md
@@ -239,7 +239,7 @@ Deft is installed in .deft/core/. Full guidelines: .deft/core/main.md
 ## Skill pin policy (#2508)
 
 ! Process-critical skills with false-negative risk MUST be named in AGENTS.md (always-pin tier) — tier definitions: `.deft/core/docs/skill-pin-policy.md` (#2508).
-! **Default always-pins:** `deft-directive-build`, `deft-directive-pre-pr`, `deft-directive-review-cycle`, `deft-directive-swarm` — read each `SKILL.md` when that work type starts.
+! **Default always-pins:** `deft-directive-build`, `deft-directive-pre-pr`, `deft-directive-review-cycle`, `deft-directive-swarm` — read each `SKILL.md` when that work type starts. Controller invocation (#4912): `deft pre-pr:run` starts prescribed pre-PR.
 ! Policy-anchored review-response (#3452): HEAD policy before out-of-model. Depth: review-cycle SKILL.
 ⊗ Pin entire language packs, deployment docs, or framework bulk into AGENTS.md — pins are for false-negative-sensitive process gates only (#2508).
 ! **Dual stop (#2442):** multi-iteration work MUST have success + failure/budget stop (max iters / no-progress / budget); single-turn exempt; halt with operator-visible report; ⊗ thrash. Defaults: build, swarm, review-cycle skills. See main.md Dual Stop Rule. Ledger #3143.

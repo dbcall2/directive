@@ -44,6 +44,7 @@ const PROPAGATION_COMMAND_MARKERS: ReadonlyArray<readonly [string, string]> = [
   ["deft scope:complete -- <active-story-path>", "task scope:complete -- <active-story-path>"],
   ["deft umbrella:current-shape", "task umbrella:current-shape"],
   ["deft xbrief:preflight", "task xbrief:preflight"],
+  ["deft pre-pr:run", "deft pre-pr:run"],
   ["deft policy:enable-value-feedback", "task policy:enable-value-feedback"],
   ["deft policy:show --field=valueFeedback", "task policy:show --field=valueFeedback"],
   ["deft value:show", "task value:show"],
@@ -278,6 +279,11 @@ const INDEXED_SKILL_IDS = [
   "deft-directive-write-skill",
   "deft-directive-article-review",
   "deft-directive-feedback",
+] as const;
+
+const CONTROLLER_INVOCATION_4912_MARKERS = [
+  "Controller invocation (#4912)",
+  "deft pre-pr:run",
 ] as const;
 
 const DEFAULT_ALWAYS_PIN_SKILL_IDS = [
@@ -945,6 +951,11 @@ describe("test_agents_entry_contract", () => {
   it("deft_directive_disable_markers_present_in_both_files", () => {
     expect(missingMarkers(template, DEFT_DIRECTIVE_DISABLE_MARKERS)).toEqual([]);
     expect(missingMarkers(agents, DEFT_DIRECTIVE_DISABLE_MARKERS)).toEqual([]);
+  });
+
+  it("controller_invocation_pre_pr_run_pointer_present (#4912 / #1309)", () => {
+    expect(missingMarkers(templateManaged, CONTROLLER_INVOCATION_4912_MARKERS)).toEqual([]);
+    expect(missingMarkers(agentsManaged, CONTROLLER_INVOCATION_4912_MARKERS)).toEqual([]);
   });
 
   it("stamp_retirement_markers_present_in_both_files (#4271)", () => {

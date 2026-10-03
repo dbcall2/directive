@@ -1,7 +1,16 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import * as containedWriteMod from "../fs/contained-write.js";
 import { startControllerRun } from "./controller.js";
 import { digestApprovedCriteria } from "./criteria.js";
 import {
@@ -190,6 +199,36 @@ describe("pre-pr private store", () => {
         proto.loadSecret = original;
       }
     } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("does not load a world-readable HMAC secret when chmod fails after exclusive create", () => {
+    const root = mkdtempSync(join(tmpdir(), "pre-pr-hmac-chmod-"));
+    const secretPath = join(privatePrePrStoreDir(root), PRE_PR_STORE_MAC_SECRET_NAME);
+    const chmodSpy = vi.spyOn(containedWriteMod, "containedChmod").mockImplementation(() => {
+      throw new containedWriteMod.ContainedWriteError("contained write I/O failed: chmod denied", {
+        code: containedWriteMod.ContainedWriteErrorCode.IO,
+        root,
+        target: secretPath,
+      });
+    });
+    try {
+      const store = new FileBackedPrePrStore(root);
+      const decision = store.put({
+        id: "ppr_chmod_fail",
+        prNodeId: "PR_chmod",
+      } as PrePrExecutionRecord);
+      expect(decision.ok).toBe(false);
+      expect(decision.code).toBe("deny-missing-record");
+      expect(store.getById("ppr_chmod_fail")).toBeNull();
+      if (existsSync(secretPath)) {
+        expect(statSync(secretPath).mode & 0o777).not.toBe(0o644);
+      } else {
+        expect(existsSync(secretPath)).toBe(false);
+      }
+    } finally {
+      chmodSpy.mockRestore();
       rmSync(root, { recursive: true, force: true });
     }
   });

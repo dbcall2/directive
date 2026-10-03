@@ -9,7 +9,13 @@
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { containedChmod, containedWrite } from "../fs/contained-write.js";
+import {
+  ContainedWriteError,
+  ContainedWriteErrorCode,
+  containedChmod,
+  containedRemove,
+  containedWrite,
+} from "../fs/contained-write.js";
 import {
   DISK_STORE_NOT_SOT,
   deny,
@@ -90,6 +96,18 @@ function newestMatchingPrNode(
     if (best === null || prePrRecordIsNewer(rec, best)) best = rec;
   }
   return best;
+}
+
+function isExclusiveCreateRace(err: unknown): boolean {
+  if (err instanceof ContainedWriteError && err.code === ContainedWriteErrorCode.EXISTS) {
+    return true;
+  }
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    "code" in err &&
+    (err as NodeJS.ErrnoException).code === "EEXIST"
+  );
 }
 
 function hmacHex(secret: Buffer, payload: string): string {
@@ -181,10 +199,21 @@ export class FileBackedPrePrStore implements PrePrExecutionStore {
         data: `${randomBytes(32).toString("hex")}\n`,
         mode: "create",
       });
+    } catch (err) {
+      if (isExclusiveCreateRace(err)) {
+        return this.loadSecret();
+      }
+      throw err;
+    }
+    try {
       containedChmod({ root, target, mode: PRE_PR_STORE_SECRET_MODE });
     } catch {
-      // Exclusive create lost the race (EXISTS / EEXIST) or create failed.
-      // Load the winner secret; put denies if it is still missing.
+      try {
+        containedRemove({ root, target });
+      } catch {
+        /* never load a world-readable key left behind after chmod failure */
+      }
+      return null;
     }
     return this.loadSecret();
   }
