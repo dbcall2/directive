@@ -1,0 +1,471 @@
+{
+  "xBRIEFInfo": {
+    "version": "0.8",
+    "description": "Scope xBRIEF ingested from GitHub issue #5551",
+    "updated": "2026-10-12T21:02:00.914Z"
+  },
+  "plan": {
+    "title": "BLOCKER: approved planning publication hits coverage and active-story membership gates",
+    "status": "running",
+    "narratives": {
+      "Description": "BLOCKER: approved planning publication hits coverage and active-story membership gates",
+      "Origin": "Ingested from https://github.com/deftai/directive/issues/5551",
+      "Overview": "## Problem\n\nApproved planning-only Phase A refinement in FreshService AI cannot publish under Directive 0.125.0. Coverage applicability refuses `.deft/plan-sequence.json`; root plan/specification JSON separately classify as coverable live settings. Scope provenance binds the whole planning package to active A1 although A1 only updates five lifecycle lineage references.\n\n## Reproduction\n\nConsumer HEAD `d76ea56e17d7a3c559a8c5931eb75d7e68eadd92`, base `da867b00bd7a22ce6b9394bba8b3d2020697b4d3`, clean and unpushed. Local evidence: `.deft-scratch/phase-a-publication-blockers.md` and `.deft-scratch/phase-a-pre-pr-binding.json`.\n\n- `deft coverage:hotspots --base-ref origin/master --json`: exit 2, unknown path classification `.deft/plan-sequence.json`.\n- Committed `task repo:rehearse` under Node 24.20.0 passes 13 repository-transition tests, then `deft check` fails `verify:scope-provenance`: `change-set-outside-approved-scope`, 21 paths outside A1's merge-base membership. Application tests are not reached.\n- Both failing checks independently reproduce against the exact base. Current Directive `origin/master` at `c01fe37c3` retains both mechanisms. Related: #5421, #5479, #5192. #5541 covers a distinct Bun-artifact case.\n\n## Bounded planning shape\n\n- A1 remains active/running with unchanged scope, acceptance, status, and implementation contract. Only five `parent_lineage.coverage_map.*.provenance.target_path` values change proposed to pending.\n- Other nine Phase A stories remain pending, estimates unset. No implementation or execution proof.\n- Root plan changes only timestamp and interviewContinuation targetDeliverable, reopenableDecisionSet, confirmations. Specification changes only timestamp and requirements/design narratives. PROJECT-DEFINITION changes only timestamp and generated registry items.\n- Sequence retains 46 prior entries unchanged as parked history; current index 46 selects one `pr:phase-a-refinement` publication, continuation disabled.\n- Other changes are documentation, decision, pending/proposed planning briefs, CHANGELOG/ROADMAP.\n\nEarlier direct writes were denied under A1's implementation fence. Requirements posture admits docs/specs/proposed briefs but not pending briefs or root plan. David already applied reviewed content repairs manually; do not require repetition.\n\n## Requested remedy\n\nDiagnose whether this is false-positive implementation-gate application, a missing supported planning-publication workflow, or a legitimate scope prerequisite. Implement and document the narrow supported remedy, with content/type proof and bound Git evidence. Do not weaken a gate solely to pass this consumer diff.\n\nPreserve enforcement for product changes, executable config, active scope/acceptance widening, forged authority, malformed or unknown artifacts, dirty/unbound diffs, and unauthorized lifecycle changes. No blanket exemption for `.deft/**`, xBRIEF JSON, docs JSON, or documentation diffs; no self-attested N/A.\n\nRegressions must exercise the shared coverage classifier/pre-PR controller and scope-provenance entry point, including negative mixed-code/config/scope-expansion cases. Document the earlier write-time limitation without gratuitously broadening it.\n\nNo changes to installed/deposited consumer code, gates/policy, A1 scope, parked commit, or story statuses. Consumer upgrade/push/merge requires a separate handoff after review.\n\n## Acceptance\n\n- Tested supported publication path for this planning shape; precise explanation of any legitimate prerequisite.\n- Meaningful negative enforcement regressions.\n- Normal Directive quality gate, committed local CI rehearsal, pre-PR, Greptile 5/5, all review conversations resolved before mergeability.\n- Exact recovery steps without reapplying content repairs or falsely completing controller `ppr_4f4f742a82a52988`.\n\n",
+      "AcceptanceCriteria": "Behavior and safety requirements, including the original four acceptance criteria:\n- Tested supported publication path for this planning shape; precise explanation of any legitimate prerequisite.\n- Meaningful negative enforcement regressions.\n- Normal Directive quality gate, committed local CI rehearsal, pre-PR, Greptile 5/5, all review conversations resolved before mergeability.\n- Exact recovery steps without reapplying content repairs or falsely completing controller `ppr_4f4f742a82a52988`.\n- Bounded planning shape - A1 remains active/running with unchanged scope, acceptance, status, and implementation contract.\n- Only five `parent_lineage.coverage_map.*.provenance.target_path` values change proposed to pending.\n- Other nine Phase A stories remain pending, estimates unset.\n- No implementation or execution proof.\n- Root plan changes only timestamp and interviewContinuation targetDeliverable, reopenableDecisionSet, confirmations.\n- Specification changes only timestamp and requirements/design narratives.\n- PROJECT-DEFINITION changes only timestamp and generated registry items.\n- Sequence retains 46 prior entries unchanged as parked history; current index 46 selects one `pr:phase-a-refinement` publication, continuation disabled.\n- Other changes are documentation, decision, pending/proposed planning briefs, CHANGELOG/ROADMAP.\n- David already applied reviewed content repairs manually; do not require repetition.\n- Requested remedy Diagnose whether this is false-positive implementation-gate application, a missing supported planning-publication workflow, or a legitimate scope prerequisite.\n- Implement and document the narrow supported remedy, with content/type proof and bound Git evidence.\n- Do not weaken a gate solely to pass this consumer diff.\n- Preserve enforcement for product changes, executable config, active scope/acceptance widening, forged authority, malformed or unknown artifacts, dirty/unbound diffs, and unauthorized lifecycle changes.\n- No blanket exemption for `.deft/`, xBRIEF JSON, docs JSON, or documentation diffs; no self-attested N/A.\n- Regressions must exercise the shared coverage classifier/pre-PR controller and scope-provenance entry point, including negative mixed-code/config/scope-expansion cases.\n- Document the earlier write-time limitation without gratuitously broadening it.\n- No changes to installed/deposited consumer code, gates/policy, A1 scope, parked commit, or story statuses.\n- Consumer upgrade/push/merge requires a separate handoff after review.\n- Acceptance - Tested supported publication path for this planning shape; precise explanation of any legitimate prerequisite.\n\nHistorical reproduction and intake context retained as same-text clauses under #5055. These describe the observed baseline, not desired post-fix behavior:\n- Problem Approved planning-only Phase A refinement in FreshService AI cannot publish under Directive 0.125.0.\n- Coverage applicability refuses `.deft/plan-sequence.json`; root plan/specification JSON separately classify as coverable live settings.\n- Scope provenance binds the whole planning package to active A1 although A1 only updates five lifecycle lineage references.\n- Reproduction Consumer HEAD `d76ea56e17d7a3c559a8c5931eb75d7e68eadd92`, base `da867b00bd7a22ce6b9394bba8b3d2020697b4d3`, clean and unpushed.\n- Local evidence: `.deft-scratch/phase-a-publication-blockers.md` and `.deft-scratch/phase-a-pre-pr-binding.json`.\n- `deft coverage:hotspots --base-ref origin/master --json`: exit 2, unknown path classification `.deft/plan-sequence.json`.\n- Committed `task repo:rehearse` under Node 24.20.0 passes 13 repository-transition tests, then `deft check` fails `verify:scope-provenance`: `change-set-outside-approved-scope`, 21 paths outside A1's merge-base membership.\n- Application tests are not reached.\n- Both failing checks independently reproduce against the exact base.\n- Current Directive `origin/master` at `c01fe37c3` retains both mechanisms.\n- Related: #5421, #5479, #5192.\n- #5541 covers a distinct Bun-artifact case.\n- Earlier direct writes were denied under A1's implementation fence.\n- Requirements posture admits docs/specs/proposed briefs but not pending briefs or root plan.",
+      "AcceptanceReconciliation": "Intake authoring reconciliation preserves the original sentence list, admitted-source digest, four original acceptance criteria and all behavioral/safety constraints. #3550 documents confessions, but #5055 additionally requires every admitted-source identity to remain a same-text clause. The existing #3323 derivation and quality writers therefore retain historical reproduction/context sentences as derived clauses, explicitly labeled as baseline observations in AcceptanceCriteria; only the non-admitted issue title is confessed. No future requirement to preserve the defect, oracle, verified claim, or product completion is asserted."
+    },
+    "items": [
+      {
+        "id": "publication-proof",
+        "title": "Implement narrow content-proven planning publication classification",
+        "status": "pending",
+        "narrative": {
+          "Acceptance": "The preserved planning shape has a supported coverage and scope-provenance path. Root settings, sequence authorization, active-scope widening, mixed product/config, malformed input and unbound trees retain enforcement; never treat filename or self-attestation as sufficient proof."
+        }
+      },
+      {
+        "id": "regressions",
+        "title": "Verify real entry points and negative controls",
+        "status": "pending",
+        "narrative": {
+          "Acceptance": "Meaningful tests exercise coverage applicability/controller and scope-provenance with lineage-only updates, planning JSON, sequence publication, mixed code/config and unauthorized scope/lifecycle changes."
+        }
+      },
+      {
+        "id": "recovery",
+        "title": "Document consumer recovery and complete normal PR review",
+        "status": "pending",
+        "narrative": {
+          "Acceptance": "Provide reviewed supported recovery steps without touching the parked consumer commit, A1 scope/status or installed code. Run full repository check and committed CI rehearsal; reach Greptile 5/5 and resolve every review conversation before mergeability."
+        }
+      }
+    ],
+    "references": [
+      {
+        "uri": "https://github.com/deftai/directive/issues/5551",
+        "type": "x-xbrief/github-issue",
+        "title": "Issue #5551: BLOCKER: approved planning publication hits coverage and active-story membership gates"
+      }
+    ],
+    "metadata": {
+      "literal_acceptance_commands": [],
+      "literal_acceptance_rejected": [
+        {
+          "command": "task repo:rehearse",
+          "reason": "inline backtick in prose is a mention, not a stated acceptance command (#3721)",
+          "sourceSpan": "inline@L12"
+        },
+        {
+          "command": "deft check",
+          "reason": "inline backtick in prose is a mention, not a stated acceptance command (#3721)",
+          "sourceSpan": "inline@L12"
+        }
+      ],
+      "kind": "story",
+      "swarm": {
+        "file_scope": [
+          "packages/core/src/planning-publication/evaluate.ts",
+          "packages/core/src/planning-publication/evaluate.test.ts",
+          "packages/core/src/planning-publication/evaluate-git.test.ts",
+          "packages/core/src/coverage-applicability/evaluate.ts",
+          "packages/core/src/coverage-applicability/evaluate.test.ts",
+          "packages/core/src/coverage-applicability/planning-publication.test.ts",
+          "packages/core/src/pre-pr-controller/planning-publication.test.ts",
+          "packages/core/src/scope-provenance/evaluate.ts",
+          "packages/core/src/scope-provenance/evaluate.test.ts",
+          "packages/core/src/scope-provenance/evaluate-git.test.ts",
+          "packages/core/src/scope-provenance/planning-publication.test.ts",
+          "content/docs/scope-provenance.md",
+          "content/docs/planning-publication.md",
+          "content/docs/coverage-applicability.md",
+          "CHANGELOG.md",
+          "docs/analysis/phase-a-publication-issue-draft.md",
+          ".tmp/investigations/phase-a-publication/investigation.xbrief.json"
+        ],
+        "dependencies": [],
+        "conflict_group": "planning-publication-gates"
+      },
+      "intended_placement": {
+        "schema": "deft.scope.intended_placement.v1",
+        "files": [
+          "packages/core/src/planning-publication/evaluate.ts",
+          "packages/core/src/coverage-applicability/evaluate.ts",
+          "packages/core/src/scope-provenance/evaluate.ts"
+        ],
+        "module_boundary": "Shared content proof for planning publication, consumed by coverage applicability and scope provenance; preserve executable and authority enforcement. No consumer or installed framework edits.",
+        "cohesion_exemption": "Keep the existing scope-provenance orchestrator intact. Put new content-proof logic in the small planning-publication module and add only its bounded invocation to evaluate.ts; a broad unrelated orchestrator split is outside this consumer blocker."
+      },
+      "x-directive/plan-id": {
+        "version": 1,
+        "source": "github-rest-id",
+        "github_issue_id": 5820138360,
+        "origin": "deftai/directive#5551",
+        "id": "github.issue.5820138360"
+      },
+      "lifecycleWrite": {
+        "action": "cancel",
+        "writtenAt": "2026-10-12T20:44:38Z"
+      }
+    },
+    "acceptance": {
+      "commands": [],
+      "none_stated": true,
+      "source_rung": "derived",
+      "derived_reason": "derived 38 independently testable clauses from the task statement before product edit (#3323)",
+      "sentences": [
+        "BLOCKER: approved planning publication hits coverage and active-story membership gates",
+        "Problem Approved planning-only Phase A refinement in FreshService AI cannot publish under Directive 0.125.0.",
+        "Coverage applicability refuses `.deft/plan-sequence.json`; root plan/specification JSON separately classify as coverable live settings.",
+        "Scope provenance binds the whole planning package to active A1 although A1 only updates five lifecycle lineage references.",
+        "Reproduction Consumer HEAD `d76ea56e17d7a3c559a8c5931eb75d7e68eadd92`, base `da867b00bd7a22ce6b9394bba8b3d2020697b4d3`, clean and unpushed.",
+        "Local evidence: `.deft-scratch/phase-a-publication-blockers.md` and `.deft-scratch/phase-a-pre-pr-binding.json`.",
+        "`deft coverage:hotspots --base-ref origin/master --json`: exit 2, unknown path classification `.deft/plan-sequence.json`.",
+        "Committed `task repo:rehearse` under Node 24.20.0 passes 13 repository-transition tests, then `deft check` fails `verify:scope-provenance`: `change-set-outside-approved-scope`, 21 paths outside A1's merge-base membership.",
+        "Application tests are not reached.",
+        "Both failing checks independently reproduce against the exact base.",
+        "Current Directive `origin/master` at `c01fe37c3` retains both mechanisms.",
+        "Related: #5421, #5479, #5192.",
+        "#5541 covers a distinct Bun-artifact case.",
+        "Bounded planning shape - A1 remains active/running with unchanged scope, acceptance, status, and implementation contract.",
+        "Only five `parent_lineage.coverage_map.*.provenance.target_path` values change proposed to pending.",
+        "Other nine Phase A stories remain pending, estimates unset.",
+        "No implementation or execution proof.",
+        "Root plan changes only timestamp and interviewContinuation targetDeliverable, reopenableDecisionSet, confirmations.",
+        "Specification changes only timestamp and requirements/design narratives.",
+        "PROJECT-DEFINITION changes only timestamp and generated registry items.",
+        "Sequence retains 46 prior entries unchanged as parked history; current index 46 selects one `pr:phase-a-refinement` publication, continuation disabled.",
+        "Other changes are documentation, decision, pending/proposed planning briefs, CHANGELOG/ROADMAP.",
+        "Earlier direct writes were denied under A1's implementation fence.",
+        "Requirements posture admits docs/specs/proposed briefs but not pending briefs or root plan.",
+        "David already applied reviewed content repairs manually; do not require repetition.",
+        "Requested remedy Diagnose whether this is false-positive implementation-gate application, a missing supported planning-publication workflow, or a legitimate scope prerequisite.",
+        "Implement and document the narrow supported remedy, with content/type proof and bound Git evidence.",
+        "Do not weaken a gate solely to pass this consumer diff.",
+        "Preserve enforcement for product changes, executable config, active scope/acceptance widening, forged authority, malformed or unknown artifacts, dirty/unbound diffs, and unauthorized lifecycle changes.",
+        "No blanket exemption for `.deft/`, xBRIEF JSON, docs JSON, or documentation diffs; no self-attested N/A.",
+        "Regressions must exercise the shared coverage classifier/pre-PR controller and scope-provenance entry point, including negative mixed-code/config/scope-expansion cases.",
+        "Document the earlier write-time limitation without gratuitously broadening it.",
+        "No changes to installed/deposited consumer code, gates/policy, A1 scope, parked commit, or story statuses.",
+        "Consumer upgrade/push/merge requires a separate handoff after review.",
+        "Acceptance - Tested supported publication path for this planning shape; precise explanation of any legitimate prerequisite.",
+        "Meaningful negative enforcement regressions.",
+        "Normal Directive quality gate, committed local CI rehearsal, pre-PR, Greptile 5/5, all review conversations resolved before mergeability.",
+        "Exact recovery steps without reapplying content repairs or falsely completing controller `ppr_4f4f742a82a52988`."
+      ],
+      "admitted_source_sentences": [
+        "Problem Approved planning-only Phase A refinement in FreshService AI cannot publish under Directive 0.125.0.",
+        "Coverage applicability refuses `.deft/plan-sequence.json`; root plan/specification JSON separately classify as coverable live settings.",
+        "Scope provenance binds the whole planning package to active A1 although A1 only updates five lifecycle lineage references.",
+        "Reproduction Consumer HEAD `d76ea56e17d7a3c559a8c5931eb75d7e68eadd92`, base `da867b00bd7a22ce6b9394bba8b3d2020697b4d3`, clean and unpushed.",
+        "Local evidence: `.deft-scratch/phase-a-publication-blockers.md` and `.deft-scratch/phase-a-pre-pr-binding.json`.",
+        "`deft coverage:hotspots --base-ref origin/master --json`: exit 2, unknown path classification `.deft/plan-sequence.json`.",
+        "Committed `task repo:rehearse` under Node 24.20.0 passes 13 repository-transition tests, then `deft check` fails `verify:scope-provenance`: `change-set-outside-approved-scope`, 21 paths outside A1's merge-base membership.",
+        "Application tests are not reached.",
+        "Both failing checks independently reproduce against the exact base.",
+        "Current Directive `origin/master` at `c01fe37c3` retains both mechanisms.",
+        "Related: #5421, #5479, #5192.",
+        "#5541 covers a distinct Bun-artifact case.",
+        "Bounded planning shape - A1 remains active/running with unchanged scope, acceptance, status, and implementation contract.",
+        "Only five `parent_lineage.coverage_map.*.provenance.target_path` values change proposed to pending.",
+        "Other nine Phase A stories remain pending, estimates unset.",
+        "No implementation or execution proof.",
+        "Root plan changes only timestamp and interviewContinuation targetDeliverable, reopenableDecisionSet, confirmations.",
+        "Specification changes only timestamp and requirements/design narratives.",
+        "PROJECT-DEFINITION changes only timestamp and generated registry items.",
+        "Sequence retains 46 prior entries unchanged as parked history; current index 46 selects one `pr:phase-a-refinement` publication, continuation disabled.",
+        "Other changes are documentation, decision, pending/proposed planning briefs, CHANGELOG/ROADMAP.",
+        "Earlier direct writes were denied under A1's implementation fence.",
+        "Requirements posture admits docs/specs/proposed briefs but not pending briefs or root plan.",
+        "David already applied reviewed content repairs manually; do not require repetition.",
+        "Requested remedy Diagnose whether this is false-positive implementation-gate application, a missing supported planning-publication workflow, or a legitimate scope prerequisite.",
+        "Implement and document the narrow supported remedy, with content/type proof and bound Git evidence.",
+        "Do not weaken a gate solely to pass this consumer diff.",
+        "Preserve enforcement for product changes, executable config, active scope/acceptance widening, forged authority, malformed or unknown artifacts, dirty/unbound diffs, and unauthorized lifecycle changes.",
+        "No blanket exemption for `.deft/`, xBRIEF JSON, docs JSON, or documentation diffs; no self-attested N/A.",
+        "Regressions must exercise the shared coverage classifier/pre-PR controller and scope-provenance entry point, including negative mixed-code/config/scope-expansion cases.",
+        "Document the earlier write-time limitation without gratuitously broadening it.",
+        "No changes to installed/deposited consumer code, gates/policy, A1 scope, parked commit, or story statuses.",
+        "Consumer upgrade/push/merge requires a separate handoff after review.",
+        "Acceptance - Tested supported publication path for this planning shape; precise explanation of any legitimate prerequisite.",
+        "Meaningful negative enforcement regressions.",
+        "Normal Directive quality gate, committed local CI rehearsal, pre-PR, Greptile 5/5, all review conversations resolved before mergeability.",
+        "Exact recovery steps without reapplying content repairs or falsely completing controller `ppr_4f4f742a82a52988`."
+      ],
+      "admitted_source_digest": "13b16dd7efff8649fd0eaaa6d53c416f7d9e794beeccf6100e710ea30efe6f34",
+      "clauses": [
+        {
+          "id": 1,
+          "text": "Tested supported publication path for this planning shape; precise explanation of any legitimate prerequisite.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 2,
+          "text": "Meaningful negative enforcement regressions.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 3,
+          "text": "Normal Directive quality gate, committed local CI rehearsal, pre-PR, Greptile 5/5, all review conversations resolved before mergeability.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 4,
+          "text": "Exact recovery steps without reapplying content repairs or falsely completing controller `ppr_4f4f742a82a52988`.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 5,
+          "text": "Bounded planning shape - A1 remains active/running with unchanged scope, acceptance, status, and implementation contract.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 6,
+          "text": "Only five `parent_lineage.coverage_map.*.provenance.target_path` values change proposed to pending.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 7,
+          "text": "Other nine Phase A stories remain pending, estimates unset.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 8,
+          "text": "No implementation or execution proof.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 9,
+          "text": "Root plan changes only timestamp and interviewContinuation targetDeliverable, reopenableDecisionSet, confirmations.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 10,
+          "text": "Specification changes only timestamp and requirements/design narratives.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 11,
+          "text": "PROJECT-DEFINITION changes only timestamp and generated registry items.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 12,
+          "text": "Sequence retains 46 prior entries unchanged as parked history; current index 46 selects one `pr:phase-a-refinement` publication, continuation disabled.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 13,
+          "text": "Other changes are documentation, decision, pending/proposed planning briefs, CHANGELOG/ROADMAP.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 14,
+          "text": "David already applied reviewed content repairs manually; do not require repetition.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 15,
+          "text": "Requested remedy Diagnose whether this is false-positive implementation-gate application, a missing supported planning-publication workflow, or a legitimate scope prerequisite.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 16,
+          "text": "Implement and document the narrow supported remedy, with content/type proof and bound Git evidence.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 17,
+          "text": "Do not weaken a gate solely to pass this consumer diff.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 18,
+          "text": "Preserve enforcement for product changes, executable config, active scope/acceptance widening, forged authority, malformed or unknown artifacts, dirty/unbound diffs, and unauthorized lifecycle changes.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 19,
+          "text": "No blanket exemption for `.deft/`, xBRIEF JSON, docs JSON, or documentation diffs; no self-attested N/A.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 20,
+          "text": "Regressions must exercise the shared coverage classifier/pre-PR controller and scope-provenance entry point, including negative mixed-code/config/scope-expansion cases.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 21,
+          "text": "Document the earlier write-time limitation without gratuitously broadening it.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 22,
+          "text": "No changes to installed/deposited consumer code, gates/policy, A1 scope, parked commit, or story statuses.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 23,
+          "text": "Consumer upgrade/push/merge requires a separate handoff after review.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 24,
+          "text": "Acceptance - Tested supported publication path for this planning shape; precise explanation of any legitimate prerequisite.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 25,
+          "text": "Problem Approved planning-only Phase A refinement in FreshService AI cannot publish under Directive 0.125.0.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 26,
+          "text": "Coverage applicability refuses `.deft/plan-sequence.json`; root plan/specification JSON separately classify as coverable live settings.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 27,
+          "text": "Scope provenance binds the whole planning package to active A1 although A1 only updates five lifecycle lineage references.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 28,
+          "text": "Reproduction Consumer HEAD `d76ea56e17d7a3c559a8c5931eb75d7e68eadd92`, base `da867b00bd7a22ce6b9394bba8b3d2020697b4d3`, clean and unpushed.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 29,
+          "text": "Local evidence: `.deft-scratch/phase-a-publication-blockers.md` and `.deft-scratch/phase-a-pre-pr-binding.json`.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 30,
+          "text": "`deft coverage:hotspots --base-ref origin/master --json`: exit 2, unknown path classification `.deft/plan-sequence.json`.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 31,
+          "text": "Committed `task repo:rehearse` under Node 24.20.0 passes 13 repository-transition tests, then `deft check` fails `verify:scope-provenance`: `change-set-outside-approved-scope`, 21 paths outside A1's merge-base membership.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 32,
+          "text": "Application tests are not reached.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 33,
+          "text": "Both failing checks independently reproduce against the exact base.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 34,
+          "text": "Current Directive `origin/master` at `c01fe37c3` retains both mechanisms.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 35,
+          "text": "Related: #5421, #5479, #5192.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 36,
+          "text": "#5541 covers a distinct Bun-artifact case.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 37,
+          "text": "Earlier direct writes were denied under A1's implementation fence.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        },
+        {
+          "id": 38,
+          "text": "Requirements posture admits docs/specs/proposed briefs but not pending briefs or root plan.",
+          "artifact_path": null,
+          "ambiguous": false,
+          "provenance": "statement"
+        }
+      ],
+      "ambiguity_attestation": "none_found",
+      "confessions": [
+        "BLOCKER: approved planning publication hits coverage and active-story membership gates"
+      ]
+    },
+    "id": "github.issue.5820138360",
+    "updated": "2026-10-12T20:44:54Z"
+  }
+}
