@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Record the implementation scope for the planning publication remedy (#5551).
+
 ### Changed
 
 ### Fixed
