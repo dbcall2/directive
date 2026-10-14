@@ -388,13 +388,7 @@ describe("evaluateClassChecks (#4980)", () => {
     const bothNeedles =
       '{ "seed": "tests/fixtures/seed.json", "identity": { "name": "smoke-test-identity" } }\n';
     const yamlNeedles = "seed: tests/fixtures/seed.json\nname: 'smoke-test-identity'\n";
-    const lifecycleFolders = [
-      "proposed",
-      "pending",
-      "active",
-      "completed",
-      "cancelled",
-    ] as const;
+    const lifecycleFolders = ["proposed", "pending", "active", "completed", "cancelled"] as const;
     const pipelineSlug = "2026-10-14-5159-ci-pipeline-fix.xbrief.json";
 
     function run(changedFiles: string[], fileContents: Map<string, string>) {
