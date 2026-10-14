@@ -215,4 +215,96 @@ describe("routing-set + routing-verify CLIs", () => {
       expect(message).toContain(linked);
     }
   });
+
+  it("routing-set with DEFT_ROUTING_PATH inside the linked worktree records that file (#3827)", () => {
+    const base = mkdtempSync(join(tmpdir(), "routing-wt-override-in-"));
+    cleanups.push(base);
+    const primary = join(base, "primary");
+    const linked = join(base, "linked");
+    mkdirSync(primary);
+    execFileSync("git", ["init", "-q", "-b", "master", primary]);
+    execFileSync("git", ["config", "user.email", "t@t.local"], { cwd: primary });
+    execFileSync("git", ["config", "user.name", "t"], { cwd: primary });
+    execFileSync("git", ["commit", "--allow-empty", "-q", "-m", "init"], { cwd: primary });
+    execFileSync("git", ["worktree", "add", "--detach", "-q", linked], { cwd: primary });
+
+    const inside = join(linked, "routing.local.json");
+    const prevStderr = process.stderr.write.bind(process.stderr);
+    const prevStdout = process.stdout.write.bind(process.stdout);
+    process.stderr.write = (() => true) as typeof process.stderr.write;
+    process.stdout.write = (() => true) as typeof process.stdout.write;
+    let code: number;
+    try {
+      code = routingSetMain(
+        [
+          "--project-root",
+          linked,
+          "--provider",
+          "codex",
+          "--role",
+          "review-monitor",
+          "--model",
+          "gpt-5.6-sol",
+        ],
+        { DEFT_ROUTING_PATH: inside },
+      );
+    } finally {
+      process.stderr.write = prevStderr;
+      process.stdout.write = prevStdout;
+    }
+
+    expect(code).toBe(0);
+    expect(loadRoutingFile(inside).data?.codex?.["review-monitor"]?.model).toBe("gpt-5.6-sol");
+    expect(existsSync(join(primary, ".deft", "routing.local.json"))).toBe(false);
+  });
+
+  it("routing-set with DEFT_ROUTING_PATH outside the linked worktree exits 2 without writing (#3827)", () => {
+    const base = mkdtempSync(join(tmpdir(), "routing-wt-override-out-"));
+    cleanups.push(base);
+    const primary = join(base, "primary");
+    const linked = join(base, "linked");
+    const outsideDir = join(base, "outside");
+    mkdirSync(primary);
+    mkdirSync(outsideDir);
+    execFileSync("git", ["init", "-q", "-b", "master", primary]);
+    execFileSync("git", ["config", "user.email", "t@t.local"], { cwd: primary });
+    execFileSync("git", ["config", "user.name", "t"], { cwd: primary });
+    execFileSync("git", ["commit", "--allow-empty", "-q", "-m", "init"], { cwd: primary });
+    execFileSync("git", ["worktree", "add", "--detach", "-q", linked], { cwd: primary });
+
+    const outside = join(outsideDir, "routing.local.json");
+    const stderrChunks: string[] = [];
+    const prevStderr = process.stderr.write.bind(process.stderr);
+    const prevStdout = process.stdout.write.bind(process.stdout);
+    process.stderr.write = ((chunk: string | Uint8Array) => {
+      stderrChunks.push(typeof chunk === "string" ? chunk : Buffer.from(chunk).toString("utf8"));
+      return true;
+    }) as typeof process.stderr.write;
+    process.stdout.write = (() => true) as typeof process.stdout.write;
+    let code: number;
+    try {
+      code = routingSetMain(
+        [
+          "--project-root",
+          linked,
+          "--provider",
+          "codex",
+          "--role",
+          "review-monitor",
+          "--model",
+          "gpt-5.6-sol",
+        ],
+        { DEFT_ROUTING_PATH: outside },
+      );
+    } finally {
+      process.stderr.write = prevStderr;
+      process.stdout.write = prevStdout;
+    }
+
+    expect(code).toBe(2);
+    expect(stderrChunks.join("")).toMatch(/projection write refused/);
+    expect(existsSync(outside)).toBe(false);
+    expect(existsSync(join(primary, ".deft", "routing.local.json"))).toBe(false);
+    expect(existsSync(join(linked, ".deft", "routing.local.json"))).toBe(false);
+  });
 });
