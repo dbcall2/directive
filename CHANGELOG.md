@@ -18,6 +18,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+### Fixed
+
+### Removed
+
+## [0.125.1] - 2026-10-14
+
+> Prefer-A cohort: gate-override (#5542), deft-core-guard paths (#5552), coverage skips (#5551), safe fetch argv (#5545), acceptance-activate (#4768), tutorial (#4981); Path B leftover completes; intent-constraint throw+mint docs (#5574).
+
+### Added
+
+### Changed
+
 - **docs(intent-constraint): Prefer-A throw+mint for invariant/corruption (#5574).** Operational denials stay returned-failure/filter; invariant / corruption / impossible-if-healthy keep fail-fast + attended mint (unattended parks). Bound 6159841941. Tracking #5574.
 - Bump `actions/setup-node` from 7.0.0 to 7.1.0 (#5557).
 - Bump `actions/upload-artifact` 7.0.1→7.0.2 (#5554).
@@ -7161,7 +7173,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.125.0...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.125.1...HEAD
+[0.125.1]: https://github.com/deftai/directive/compare/v0.125.0...v0.125.1
 [0.125.0]: https://github.com/deftai/directive/compare/v0.124.0...v0.125.0
 [0.124.0]: https://github.com/deftai/directive/compare/v0.123.0...v0.124.0
 [0.123.0]: https://github.com/deftai/directive/compare/v0.122.0...v0.123.0
