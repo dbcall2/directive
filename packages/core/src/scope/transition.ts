@@ -42,7 +42,10 @@ import {
   snapshotSpecDriftLedger,
   spentGrantIdsSinceSnapshot,
 } from "../verify-source/spec-drift.js";
-import { evaluateAcceptanceActivateGate } from "./acceptance-activate-gate.js";
+import {
+  evaluateAcceptanceActivateGate,
+  prepareActiveIngressAcceptance,
+} from "./acceptance-activate-gate.js";
 import {
   type CriterionAcceptanceReport,
   evaluateAcceptanceEvidenceGate,
@@ -236,8 +239,13 @@ export function runTransition(
 
   const { allowedSources, targetFolder, targetStatus } = TRANSITIONS[act];
   const restampCompleted = act === "complete" && currentFolder === "completed";
+  // #4768 Prefer-A: already-in-active activate is ingress revalidation, not a
+  // hard invalid. vbrief-activate already treats this as a no-op; scope:activate
+  // must revalidate usable clause text before succeeding.
+  const activateAlreadyActive = act === "activate" && currentFolder === "active";
   if (
     !restampCompleted &&
+    !activateAlreadyActive &&
     !allowedSources.includes(currentFolder as (typeof allowedSources)[number])
   ) {
     const allowedStr = allowedSources.map((s) => `${s}/`).join(", ");
@@ -253,7 +261,10 @@ export function runTransition(
     };
   }
 
-  if (act === "promote" || act === "activate") {
+  // Already-active activate is acceptance ingress revalidation only (#4768).
+  // D7 filename was enforced when the brief first landed; do not re-block a
+  // settled active brief on a fixture / legacy name during no-op revalidation.
+  if ((act === "promote" || act === "activate") && !activateAlreadyActive) {
     const d7 = validateFilename(basename);
     if (d7.length > 0) {
       return { ok: false, message: d7.join("\n") };
@@ -311,7 +322,46 @@ export function runTransition(
     });
   }
 
+  if (activateAlreadyActive) {
+    if (currentStatus !== targetStatus) {
+      return {
+        ok: false,
+        message:
+          `vBRIEF is already in active/ but plan.status is '${currentStatus}', ` +
+          `not '${targetStatus}'. Use the appropriate task (e.g. ` +
+          "`task scope:unblock`) instead of `task scope:activate`.",
+      };
+    }
+    const ingress = prepareActiveIngressAcceptance(planObj, { projectRoot });
+    if (!ingress.ok) {
+      return { ok: false, message: ingress.message };
+    }
+    if (ingress.applied) {
+      const written = atomicWriteBrief(resolvedPath, data, vbriefRoot, { projectRoot });
+      if (!written.ok) {
+        return { ok: false, message: written.message };
+      }
+    }
+    const notice =
+      ingress.message.length > 0
+        ? `No-op: ${basename} is already in active/ (status: ${currentStatus}). ${ingress.message}`
+        : `No-op: ${basename} is already in active/ (status: ${currentStatus})`;
+    return { ok: true, message: notice };
+  }
+
   if (targetFolder !== null && targetFolder === currentFolder) {
+    if (act === "activate" || act === "promote") {
+      const ingress = prepareActiveIngressAcceptance(planObj, { projectRoot });
+      if (!ingress.ok) {
+        return { ok: false, message: ingress.message };
+      }
+      if (ingress.applied) {
+        const written = atomicWriteBrief(resolvedPath, data, vbriefRoot, { projectRoot });
+        if (!written.ok) {
+          return { ok: false, message: written.message };
+        }
+      }
+    }
     return {
       ok: true,
       message: `No-op: ${basename} is already in ${currentFolder}/ (status: ${currentStatus})`,
