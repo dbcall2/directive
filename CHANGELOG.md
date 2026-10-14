@@ -24,9 +24,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `actions/download-artifact` from 8.0.1 to 8.0.2 (#5555).
 
 ### Fixed
+- **Gate-override admission locks publish without stealing live owners (#5542).**
 - Mint intent-constraint for #5542 (approve gate-override invariant throw sites).
 - **Complete the #4768 scope brief after product #5571.** Move the acceptance-activate brief into xbrief/completed/ so orphan tracking clears. Tracking #4768.
 - Activating a brief that contains commands now requires usable acceptance text. Activation derives that text when possible and otherwise refuses, including when the brief is already active. Already-active restamp uses temp+rename, and settled active briefs skip D7 re-block on ingress no-op. Tracking #4768.
+- **Harden gate-override admission for audited coverage refusals (#5542).** Operators can renew a matching grant after expiry without colliding on attempt receipts. Tracking #5542.
+- **Operators can grant a one-use audited override for eligible coverage-applicability refuse codes (#5542).** The grant records a review obligation and is single-use. Tracking #5542.
 - **fix(coverage): classify Bun locks, .gitignore, and fixtures JSON for pre-PR applicability (#5541).** Bun lock diffs stay coverable; `.gitignore` and repo-root `fixtures/*.json` are inert N/A; unknown paths stay fail-closed. Tracking #5541.
 - **Keep-active #5541 Path B activation.** Lands Prefer-A Bound active xBRIEF with reminted file_scope; productPullRequest unset. Tracking #5541.
 - **Complete the #5541 scope brief after product #5568.** Move the Bun coverage applicability brief into `xbrief/completed/` so orphan tracking clears. Tracking #5541.
