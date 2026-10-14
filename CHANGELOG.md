@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Activate Prefer-A leftover-complete write-guard Path B brief for #5602 (productPullRequest unset; swarm-ready story fields). Tracking #5602.
+- **Track the completed #4881 scope record after #5607.** The shipped already-completed scope:complete message now has its completed brief on the delivery branch. Tracking #4881.
 
 ### Fixed
 
