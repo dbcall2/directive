@@ -27,8 +27,14 @@ import {
   type IssueCloseKind,
 } from "../lifecycle/completed-tracked-on-delivery.js";
 import type { LiteralAcceptanceRunner } from "../literal-acceptance/index.js";
+import { evaluateOnePrUnit } from "../one-pr-unit/evaluate.js";
+import { normalizeOrigin, uniqueOrigins } from "../one-pr-unit/origin-set.js";
+import { getDefaultAppStore } from "../one-pr-unit/simulator.js";
+import { enforceLiveOnePrUnitCheck, resolveProductionAppStore } from "../one-pr-unit/store.js";
+import type { OriginRef } from "../one-pr-unit/types.js";
 import type { IssueRef } from "../orphan-active/refs.js";
 import { resolveSpecGuard } from "../policy/spec-guard.js";
+import { defaultRunGh, fetchClosingIssuesReferences } from "../pr-protected-issues/gh.js";
 import type { RunGhFn } from "../pr-protected-issues/types.js";
 import type { GitRunner } from "../session/git.js";
 import { ITEM_STATUS_ALIASES } from "../vbrief-validate/constants.js";
@@ -80,8 +86,10 @@ import {
   briefWithoutDurableCompletionProvenance,
   classifyStoredDeliveryDisposition,
   type DeliveryEvidenceInput,
+  discoverDeliveryEvidenceForComplete,
   evaluateDeliveryGate,
   type FetchClosingIssueIdsFn,
+  type FetchClosingPrRefsFn,
   type FetchPrPayloadFn,
   type NonDeliveryDisposition,
   resolveCompletionSessionId,
@@ -112,6 +120,8 @@ export interface TransitionOptions {
   /** Prefer-A identity-join seams (#3675); forwarded to evaluateDeliveryGate. */
   readonly fetchPrPayload?: FetchPrPayloadFn;
   readonly fetchClosingIssueIds?: FetchClosingIssueIdsFn;
+  /** Prefer-A complete-time issue→PR discovery seam (#3583). */
+  readonly fetchClosingPrRefs?: FetchClosingPrRefsFn;
   /**
    * Test-only escape hatch: skip the #3240 per-item acceptance evidence gate.
    * Production callers MUST leave this false/undefined.
@@ -133,6 +143,131 @@ export interface TransitionOptions {
   readonly resolveIssueCloseKind?: (ref: IssueRef) => IssueCloseKind;
   /** Test seam: override completed tip-twin probe for cancel refuse. */
   readonly hasCompletedTipTwin?: (ref: IssueRef) => CompletedTipTwinResult;
+}
+
+/** REST node_id for one-PR-unit binding; mirrors pr-closing-keywords live path. */
+function fetchDeliveryPrNodeId(pr: number, repo: string, runGh: RunGhFn): string | null {
+  let result: { readonly returncode: number; readonly stdout: string; readonly stderr: string };
+  try {
+    result = runGh(["gh", "api", `repos/${repo}/pulls/${pr}`]);
+  } catch {
+    return null;
+  }
+  if (result.returncode !== 0) {
+    return null;
+  }
+  try {
+    const payload: unknown = JSON.parse(result.stdout);
+    if (payload === null || typeof payload !== "object" || Array.isArray(payload)) {
+      return null;
+    }
+    const node = (payload as { node_id?: unknown }).node_id;
+    if (typeof node === "string" && node.trim().length > 0) {
+      return node.trim();
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+/**
+ * After #3583 discovery (or explicit --pr), re-run one-PR-unit on the closer-set
+ * before complete/restamp mutates. CLI skips this when --pr is omitted; discovery
+ * must not bypass the multi-origin grant (#4494 / Greptile P1 on #3583).
+ * Multi-origin uses the production App store + PR node id (enforceLiveOnePrUnitCheck).
+ */
+function enforceOnePrUnitForDiscoveredEvidence(
+  _projectRoot: string,
+  evidence: DeliveryEvidenceInput | null | undefined,
+  options: {
+    readonly runGh?: RunGhFn;
+    readonly fetchClosingIssueIds?: FetchClosingIssueIdsFn;
+  } = {},
+): { ok: true } | { ok: false; message: string } {
+  if (evidence === null || evidence === undefined) {
+    return { ok: true };
+  }
+  const prNumber = evidence.prNumber;
+  if (typeof prNumber !== "number" || !Number.isInteger(prNumber) || prNumber <= 0) {
+    return { ok: true };
+  }
+  const repo = typeof evidence.repository === "string" ? evidence.repository.trim() : "";
+  if (repo.length === 0) {
+    return { ok: true };
+  }
+
+  const runGh = options.runGh ?? defaultRunGh;
+  let closerSet: OriginRef[];
+  if (options.fetchClosingIssueIds !== undefined) {
+    const refs = options.fetchClosingIssueIds(prNumber, repo);
+    if (refs === null) {
+      return {
+        ok: false,
+        message:
+          "could not read closing-issue references for one-PR-unit recheck. " +
+          "Retry after fixing gh auth, rate limit, or network.",
+      };
+    }
+    closerSet = uniqueOrigins(refs.map((ref) => normalizeOrigin(ref.repository, ref.issueNumber)));
+  } else {
+    const linked = fetchClosingIssuesReferences(prNumber, repo, runGh);
+    if (linked === null) {
+      return {
+        ok: false,
+        message:
+          "could not read closing-issue references for one-PR-unit recheck. " +
+          "Retry after fixing gh auth, rate limit, or network.",
+      };
+    }
+    closerSet = uniqueOrigins(linked.map((issueNumber) => normalizeOrigin(repo, issueNumber)));
+  }
+
+  if (closerSet.length <= 1) {
+    const unit = evaluateOnePrUnit({
+      closerSet,
+      grant: null,
+      binding: { repo },
+    });
+    if (!unit.ok) {
+      return { ok: false, message: unit.message };
+    }
+    return { ok: true };
+  }
+
+  const prNodeId = fetchDeliveryPrNodeId(prNumber, repo, runGh);
+  if (prNodeId === null) {
+    return {
+      ok: false,
+      message: `could not read PR #${prNumber} node id for one-PR-unit recheck.`,
+    };
+  }
+
+  const resolved = resolveProductionAppStore();
+  const store = resolved.ok
+    ? resolved.store
+    : options.fetchClosingIssueIds !== undefined
+      ? getDefaultAppStore()
+      : null;
+  if (store === null) {
+    return {
+      ok: false,
+      message: resolved.ok
+        ? "one-PR-unit App store unavailable for multi-origin discovery recheck."
+        : resolved.message,
+    };
+  }
+
+  const unit = enforceLiveOnePrUnitCheck({
+    store,
+    closerSet,
+    repo,
+    prNodeId,
+  });
+  if (!unit.ok) {
+    return { ok: false, message: unit.message };
+  }
+  return { ok: true };
 }
 
 /** Item statuses that still represent unfinished work and should advance on terminal transitions (#2862). */
@@ -440,11 +575,33 @@ export function runTransition(
   // #3041: fail closed before mutating a code-bearing complete without delivery evidence.
   let reuseValidatedDeliveryAncestry = false;
   if (act === "complete") {
+    // #3583: auto-discover delivery evidence before the validate-only gate.
+    const discovered = discoverDeliveryEvidenceForComplete({
+      projectRoot,
+      plan: planObj,
+      evidence: options.deliveryEvidence,
+      nonDeliveryDisposition: options.nonDeliveryDisposition,
+      runGit: options.runGit,
+      runGh: options.runGh,
+      fetchPrPayload: options.fetchPrPayload,
+      fetchClosingPrRefs: options.fetchClosingPrRefs,
+      verifier: options.verifier ?? "scope:complete",
+    });
+    if (!discovered.ok) {
+      return { ok: false, message: discovered.message };
+    }
+    const onePrUnit = enforceOnePrUnitForDiscoveredEvidence(projectRoot, discovered.evidence, {
+      runGh: options.runGh,
+      fetchClosingIssueIds: options.fetchClosingIssueIds,
+    });
+    if (!onePrUnit.ok) {
+      return { ok: false, message: onePrUnit.message };
+    }
     const gate = evaluateDeliveryGate({
       projectRoot,
       plan: planObj,
       nowIso,
-      evidence: options.deliveryEvidence,
+      evidence: discovered.evidence,
       nonDeliveryDisposition: options.nonDeliveryDisposition,
       runGit: options.runGit,
       runGh: options.runGh,
@@ -964,11 +1121,33 @@ function restampCompletedBrief(args: RestampArgs): TransitionResult {
   const { resolvedPath, basename, data, planObj, projectRoot, vbriefRoot, now, nowIso, options } =
     args;
 
+  // #3583: share discovery with the primary complete path before validate-only gate.
+  const discovered = discoverDeliveryEvidenceForComplete({
+    projectRoot,
+    plan: planObj,
+    evidence: options.deliveryEvidence,
+    nonDeliveryDisposition: options.nonDeliveryDisposition,
+    runGit: options.runGit,
+    runGh: options.runGh,
+    fetchPrPayload: options.fetchPrPayload,
+    fetchClosingPrRefs: options.fetchClosingPrRefs,
+    verifier: options.verifier ?? "scope:complete",
+  });
+  if (!discovered.ok) {
+    return { ok: false, message: discovered.message };
+  }
+  const onePrUnit = enforceOnePrUnitForDiscoveredEvidence(projectRoot, discovered.evidence, {
+    runGh: options.runGh,
+    fetchClosingIssueIds: options.fetchClosingIssueIds,
+  });
+  if (!onePrUnit.ok) {
+    return { ok: false, message: onePrUnit.message };
+  }
   const gate = evaluateDeliveryGate({
     projectRoot,
     plan: planObj,
     nowIso,
-    evidence: options.deliveryEvidence,
+    evidence: discovered.evidence,
     nonDeliveryDisposition: options.nonDeliveryDisposition,
     runGit: options.runGit,
     runGh: options.runGh,
