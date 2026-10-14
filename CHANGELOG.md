@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`swarm:routing-set` records a model decision from a linked worktree (#3827).** Containment uses the same main-checkout root as the resolved `.deft/routing.local.json`, so the command no longer refuses its own target. Tracking #3827.
 - **Class-checks exclude lifecycle xBRIEF records from pipeline-path classification (#5159).** `pathLooksLikePipeline` returns false when `isLifecycleArtifactPath` is true. Real pipeline configs still fail class 2/3.
 - **`scope:complete` now finds delivery evidence automatically (#3583).** You can omit `--pr` and `--merge-commit` when the recorded product PR or a single matching closing PR proves delivery. Explicit flags still override automatic discovery, and completion refuses missing, ambiguous, or incomplete evidence. Tracking #3583.
 - **Finish #5602 leftover-complete after product #5610.** Lands the completed Prefer-A leftover-complete write-guard brief with delivery provenance so the issue can close and scope records stay tracked. Tracking #5602.
