@@ -9,9 +9,11 @@ import {
   defaultFetchClosingIssueIds,
   defaultFetchPrPayload,
   evaluateDeliveryGate,
+  evaluateStoredCompletionProvenanceForWriteGuard,
   type FetchClosingIssueIdsFn,
   type FetchPrPayloadFn,
   isCodeBearingScope,
+  isEligibleStoredDeliveryDisposition,
   NON_DELIVERY_DISPOSITIONS,
   refreshRemoteDeliveryRef,
   resolveCompletionSessionId,
@@ -188,6 +190,96 @@ describe("delivery evidence (#3041)", () => {
         },
       }),
     ).toBe("delivered");
+  });
+
+  it("write-guard helper refuses informal keys and validates eligible dispositions (#5602)", () => {
+    const informal = evaluateStoredCompletionProvenanceForWriteGuard({
+      metadata: {
+        completionProvenance: { productMerge: "abc", productPr: 1 },
+      },
+    });
+    expect(informal.ok).toBe(false);
+    if (!informal.ok) {
+      expect(informal.detail).toMatch(/productMerge|productPr/);
+    }
+
+    const nonCode = evaluateStoredCompletionProvenanceForWriteGuard({
+      tags: ["docs-only"],
+      metadata: { kind: "docs", completedAt: "2026-10-14T00:00:00Z" },
+    });
+    expect(nonCode.ok).toBe(true);
+
+    const codeMissing = evaluateStoredCompletionProvenanceForWriteGuard({
+      references: [
+        { type: "x-xbrief/github-issue", uri: "https://github.com/deftai/directive/issues/1" },
+      ],
+      metadata: { completedAt: "2026-10-14T00:00:00Z" },
+    });
+    expect(codeMissing.ok).toBe(false);
+
+    // Failed gate outcomes are not eligible writer success stamps (#5602 P1).
+    expect(isEligibleStoredDeliveryDisposition("not_delivered")).toBe(false);
+    expect(isEligibleStoredDeliveryDisposition("merged_to_integration")).toBe(false);
+    expect(isEligibleStoredDeliveryDisposition("delivered")).toBe(true);
+    expect(isEligibleStoredDeliveryDisposition("accepted_not_delivered")).toBe(true);
+
+    // Classifier still cast-throughs arbitrary strings; write-guard does not.
+    expect(
+      classifyStoredDeliveryDisposition({
+        metadata: { completionProvenance: { disposition: "shipped-somehow" } },
+      }),
+    ).toBe("shipped-somehow");
+    const castThrough = evaluateStoredCompletionProvenanceForWriteGuard({
+      references: [
+        { type: "x-xbrief/github-issue", uri: "https://github.com/deftai/directive/issues/1" },
+      ],
+      metadata: {
+        completionProvenance: {
+          disposition: "shipped-somehow",
+          verifiedAt: "2026-10-14T00:00:00Z",
+          verifier: "t",
+          deliveryBranch: "master",
+          mergeCommit: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          deliveryCommit: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        },
+      },
+    });
+    expect(castThrough.ok).toBe(false);
+  });
+
+  it("write-guard exempts code-bearing scope:fail without completionProvenance (#5602)", () => {
+    const failed = evaluateStoredCompletionProvenanceForWriteGuard({
+      status: "failed",
+      references: [
+        {
+          type: "x-xbrief/github-issue",
+          uri: "https://github.com/deftai/directive/issues/5602",
+        },
+      ],
+      metadata: {
+        lifecycleWrite: { action: "fail", writtenAt: "2026-10-14T15:00:00Z" },
+      },
+    });
+    expect(failed.ok).toBe(true);
+  });
+
+  it("write-guard refuses completed status with fail stamp and no provenance (#5602)", () => {
+    const mismatched = evaluateStoredCompletionProvenanceForWriteGuard({
+      status: "completed",
+      references: [
+        {
+          type: "x-xbrief/github-issue",
+          uri: "https://github.com/deftai/directive/issues/5602",
+        },
+      ],
+      metadata: {
+        lifecycleWrite: { action: "fail", writtenAt: "2026-10-14T15:00:00Z" },
+      },
+    });
+    expect(mismatched.ok).toBe(false);
+    if (!mismatched.ok) {
+      expect(mismatched.detail).toMatch(/missing completionProvenance/);
+    }
   });
 
   it("fails closed on code-bearing complete without evidence", () => {

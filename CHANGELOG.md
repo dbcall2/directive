@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Stricter completion checks (#5602).** New completed briefs are checked for unfinished items and informal delivery records. Code-bearing briefs also need recorded delivery proof. Swarm guidance directs agents to finish leftover work through `task swarm:finalize-cohort` or `task scope:complete` with delivery evidence, and to stop if those commands refuse.
+
 ### Changed
 
 - Activate Prefer-A leftover-complete write-guard Path B brief for #5602 (productPullRequest unset; swarm-ready story fields). Tracking #5602.
