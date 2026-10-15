@@ -2835,14 +2835,15 @@ function bindExecutionDirectoryValue(
   realpath: (path: string) => string,
   platform: NodeJS.Platform,
   field: string,
-): { readonly ok: true; readonly actual: string } | { readonly ok: false; readonly message: string } {
+):
+  | { readonly ok: true; readonly actual: string }
+  | { readonly ok: false; readonly message: string } {
   const expected = normalizeHookProjectRoot(projectRoot);
   const trimmed = raw.trim();
   if (isWindowsDriveOnlyRoot(trimmed, platform)) {
     return {
       ok: false,
-      message:
-        `Directive denied launcher dest-proof: execution-directory field ${field} is missing or invalid`,
+      message: `Directive denied launcher dest-proof: execution-directory field ${field} is missing or invalid`,
     };
   }
   if (trimmed.replace(/\\/g, "/").split("/").includes("..")) {
@@ -2864,11 +2865,12 @@ function bindExecutionDirectoryValue(
   }
 }
 
-function collectPresentExecutionDirectories(
-  source: Record<string, unknown>,
-):
+function collectPresentExecutionDirectories(source: Record<string, unknown>):
   | { readonly kind: "invalid"; readonly field: string }
-  | { readonly kind: "values"; readonly values: ReadonlyArray<{ readonly field: string; readonly value: string }> } {
+  | {
+      readonly kind: "values";
+      readonly values: ReadonlyArray<{ readonly field: string; readonly value: string }>;
+    } {
   const values: { field: string; value: string }[] = [];
   for (const field of LIFECYCLE_EXECUTION_DIRECTORY_FIELDS) {
     if (!(field in source)) continue;

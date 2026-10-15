@@ -985,7 +985,9 @@ describe("Codex workdir dest-proof (#4998)", () => {
       readySeams(),
     );
     expect(decision).toMatchObject({ verdict: "deny", code: "spawn-not-ready" });
-    expect(decision.message).toMatch(/nested execution-directory fields are not the same directory/);
+    expect(decision.message).toMatch(
+      /nested execution-directory fields are not the same directory/,
+    );
   });
 
   it("denies present empty nested workdir instead of falling back to outer cwd", () => {
@@ -1006,7 +1008,9 @@ describe("Codex workdir dest-proof (#4998)", () => {
       readySeams({ prepareArcDest }),
     );
     expect(decision).toMatchObject({ verdict: "deny", code: "spawn-not-ready" });
-    expect(decision.message).toMatch(/nested execution-directory field workdir is missing or invalid/);
+    expect(decision.message).toMatch(
+      /nested execution-directory field workdir is missing or invalid/,
+    );
     expect(prepareArcDest).not.toHaveBeenCalled();
   });
 
