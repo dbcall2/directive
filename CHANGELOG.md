@@ -18,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Activate Prefer-A Bound keep-active brief for #3907 (productPullRequest unset; swarm-ready story fields). Tracking #3907.
-- Activate Prefer-A Bound keep-active brief for #3908 (productPullRequest unset; swarm-ready story fields). Tracking #3908.
+- Activate Prefer-A Bound keep-active brief for #3908 (productPullRequest unset; concrete file_scope). Tracking #3908.
 
 ### Fixed
 - **Competing sessions cannot change worktree files before claiming occupancy (#3906).** Cold, re-arm, and `session:ready` persist the worktree lease before any linked-deposit copy. Failed setup rolls back only this invocation's claim. Tracking #3906.
