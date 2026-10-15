@@ -1,5 +1,5 @@
-import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { containedWrite } from "../fs/contained-write.js";
 import { runSessionStart } from "./session-start.js";
 
 export const SESSION_START_BARRIER_DEST_REL = join(".deft", "core", "DEST-MARKER");
@@ -12,7 +12,6 @@ export function runSessionStartOccupancyBarrier(input: {
   readonly destWrote: boolean;
   readonly sessionId: string;
 } {
-  const destPath = join(input.root, SESSION_START_BARRIER_DEST_REL);
   let destWrote = false;
   const result = runSessionStart(input.root, {
     sessionId: input.sessionId,
@@ -60,8 +59,12 @@ export function runSessionStartOccupancyBarrier(input: {
       failureKind: null,
     }),
     reconstituteWorktreeDeposit: () => {
-      mkdirSync(join(input.root, ".deft", "core"), { recursive: true });
-      writeFileSync(destPath, `${input.sessionId}\n`, "utf8");
+      containedWrite({
+        root: input.root,
+        target: SESSION_START_BARRIER_DEST_REL,
+        data: `${input.sessionId}\n`,
+        mode: "replace",
+      });
       destWrote = true;
       return {
         status: "reconstituted" as const,
