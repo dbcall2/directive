@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Activate Prefer-A Bound keep-active brief for #3907 (productPullRequest unset; swarm-ready story fields). Tracking #3907.
 ### Fixed
-- **Same-worktree CAS for ordered-plan mutations (#3907).** `writePlanSequence` and `clearPlanSequence` take `expected_generation`, re-read under a sidecar lock beside `.deft/plan-sequence.json`, and mint N+1 only for the lock holder. The generation sidecar is persisted before the plan file. Token replace is tmp+rename, so a failed persist leaves the previous token intact. Persist and published-file IO failures return `{ ok:false, code: "persist-error" }` (caller may retry); they do not throw. Clear keeps a generation token, so a later set cannot reuse generation 1. CLI `set` / `advance` / `clear` require `--expected-generation`. Tracking #3907.
+- **Prevent stale ordered-plan changes (#3907).** Competing commands in the same worktree can no longer overwrite or clear a plan using an outdated generation. Clearing and recreating a plan keeps older commands from changing its replacement. Persist failures are retryable. CLI `set`, `advance`, and `clear` require `--expected-generation`. Tracking #3907.
 - **Competing sessions cannot change worktree files before claiming occupancy (#3906).** Cold, re-arm, and `session:ready` persist the worktree lease before any linked-deposit copy. Failed setup rolls back only this invocation's claim. Tracking #3906.
 - **A session re-checks occupancy before writing ritual (#3906).** A steal during ceremony no longer lets the first session overwrite the new owner's ritual. Tracking #3906.
 ### Removed
