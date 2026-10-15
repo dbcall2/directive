@@ -10,6 +10,7 @@ export {
   type PlanSequenceMutationCode,
   type PlanSequenceMutationFail,
   type PlanSequenceMutationOptions,
+  planSequenceGenerationPath,
   planSequenceLockPath,
   planSequencePath,
   readPlanSequence,

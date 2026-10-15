@@ -5,6 +5,7 @@ import { basename, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   clearPlanSequence,
+  planSequenceGenerationPath,
   planSequenceLockPath,
   planSequencePath,
   readPlanSequence,
@@ -59,6 +60,87 @@ describe("plan-sequence store", () => {
     expect(cleared.removed).toBe(true);
     expect(readPlanSequence(root)).toBeNull();
     expect(existsSync(planSequenceLockPath(root))).toBe(false);
+    expect(JSON.parse(readFileSync(planSequenceGenerationPath(root), "utf8"))).toEqual({
+      generation: 2,
+    });
+  });
+
+  it("keeps a generation token across clear so recreate cannot reuse generation 1", () => {
+    const root = seed();
+    expect(writePlanSequence(root, sample("a"), 0, { sourceRevision: "a" }).ok).toBe(true);
+    expect(clearPlanSequence(root, 1).ok).toBe(true);
+    const staleCreate = writePlanSequence(root, sample("stale"), 0, { sourceRevision: "stale" });
+    expect(staleCreate.ok).toBe(false);
+    if (!staleCreate.ok) {
+      expect(staleCreate.code).toBe("generation-mismatch");
+      expect(staleCreate.current_generation).toBe(2);
+    }
+    expect(readPlanSequence(root)).toBeNull();
+    const replacement = writePlanSequence(root, sample("b"), 2, { sourceRevision: "b" });
+    expect(replacement.ok).toBe(true);
+    if (!replacement.ok) return;
+    expect(replacement.sequence.generation).toBe(3);
+    expect(replacement.sequence.sequence_id).toBe("b");
+    const staleWrite = writePlanSequence(root, sample("c"), 1, { sourceRevision: "c" });
+    expect(staleWrite.ok).toBe(false);
+    if (!staleWrite.ok) expect(staleWrite.code).toBe("generation-mismatch");
+    const staleClear = clearPlanSequence(root, 1);
+    expect(staleClear.ok).toBe(false);
+    if (!staleClear.ok) expect(staleClear.code).toBe("generation-mismatch");
+    expect(readPlanSequence(root)?.sequence_id).toBe("b");
+    expect(readPlanSequence(root)?.generation).toBe(3);
+  });
+
+  it("returns already-absent without bumping the surviving generation token", () => {
+    const root = seed();
+    expect(writePlanSequence(root, sample("a"), 0, { sourceRevision: "a" }).ok).toBe(true);
+    expect(clearPlanSequence(root, 1).ok).toBe(true);
+    const again = clearPlanSequence(root, 2);
+    expect(again.ok).toBe(true);
+    if (!again.ok) return;
+    expect(again.removed).toBe(false);
+    expect(JSON.parse(readFileSync(planSequenceGenerationPath(root), "utf8"))).toEqual({
+      generation: 2,
+    });
+  });
+
+  it("prefers the sequence generation when the sidecar is stale", () => {
+    const root = seed();
+    expect(writePlanSequence(root, sample("live"), 0, { sourceRevision: "live" }).ok).toBe(true);
+    writeFileSync(planSequenceGenerationPath(root), `${JSON.stringify({ generation: 99 })}\n`);
+    const staleSidecar = writePlanSequence(root, sample("next"), 99, { sourceRevision: "next" });
+    expect(staleSidecar.ok).toBe(false);
+    if (!staleSidecar.ok) {
+      expect(staleSidecar.code).toBe("generation-mismatch");
+      expect(staleSidecar.current_generation).toBe(1);
+    }
+    const next = writePlanSequence(root, sample("next"), 1, { sourceRevision: "next" });
+    expect(next.ok).toBe(true);
+    if (!next.ok) return;
+    expect(next.sequence.generation).toBe(2);
+    expect(JSON.parse(readFileSync(planSequenceGenerationPath(root), "utf8"))).toEqual({
+      generation: 2,
+    });
+  });
+
+  it("fail-closes when the generation sidecar cannot be parsed after clear", () => {
+    const root = seed();
+    expect(writePlanSequence(root, sample("a"), 0, { sourceRevision: "a" }).ok).toBe(true);
+    expect(clearPlanSequence(root, 1).ok).toBe(true);
+    const sidecar = planSequenceGenerationPath(root);
+    writeFileSync(sidecar, "{not-json\n");
+    const broken = writePlanSequence(root, sample("b"), 2, { sourceRevision: "b" });
+    expect(broken.ok).toBe(false);
+    if (!broken.ok) expect(broken.code).toBe("parse-error");
+    writeFileSync(sidecar, "[]\n");
+    const arraySidecar = writePlanSequence(root, sample("b"), 2);
+    expect(arraySidecar.ok).toBe(false);
+    if (!arraySidecar.ok) expect(arraySidecar.code).toBe("parse-error");
+    writeFileSync(sidecar, `${JSON.stringify({ generation: -1 })}\n`);
+    const negative = clearPlanSequence(root, 2);
+    expect(negative.ok).toBe(false);
+    if (!negative.ok) expect(negative.code).toBe("parse-error");
+    expect(readPlanSequence(root)).toBeNull();
   });
 
   it("fail-closes when expected_generation is missing or non-integer", () => {
@@ -333,40 +415,47 @@ function runOverlapWorker(input: {
   readonly holdMs: number;
   readonly startPath: string;
   readonly readyPath: string;
+  readonly inputPath: string;
 }): Promise<void> {
   const workerPath = join(input.root, `worker-${input.op}-${basename(input.resultPath)}.mjs`);
   const storeUrl = new URL("./store.ts", import.meta.url).href;
   const typesUrl = new URL("./types.ts", import.meta.url).href;
   writeFileSync(
     workerPath,
-    `import { existsSync, writeFileSync } from "node:fs";\n` +
+    `import { existsSync, readFileSync, writeFileSync } from "node:fs";\n` +
       `import { advancePlanSequence, createPlanSequence } from ${JSON.stringify(typesUrl)};\n` +
       `import { clearPlanSequence, readPlanSequence, writePlanSequence } from ${JSON.stringify(storeUrl)};\n` +
-      `const [root, resultPath, op, expectedRaw, holdRaw, startPath, readyPath] = process.argv.slice(2);\n` +
+      `const [root, resultPath, op, expectedRaw, holdRaw, startPath, readyPath, inputPath] = process.argv.slice(2);\n` +
       `const expected = Number(expectedRaw);\n` +
       `const holdMs = Number(holdRaw);\n` +
       `const hold = () => { const until = Date.now() + holdMs; while (Date.now() < until) {} };\n` +
+      `let snapshot = null;\n` +
+      `if (op === "advance") {\n` +
+      `  snapshot = readPlanSequence(root);\n` +
+      `  if (snapshot === null) throw new Error("missing sequence");\n` +
+      `} else if (op === "replace") {\n` +
+      `  snapshot = createPlanSequence({\n` +
+      `    sequence_id: "replacement",\n` +
+      `    sequence_kind: "checklist",\n` +
+      `    authorized_by: "op",\n` +
+      `    entries: [{ id: "r", kind: "task" }],\n` +
+      `  });\n` +
+      `}\n` +
+      `writeFileSync(inputPath, JSON.stringify({ op, expected, snapshot }) + "\\n");\n` +
       `writeFileSync(readyPath, "ready\\n");\n` +
       `const waitStart = Date.now();\n` +
       `while (!existsSync(startPath)) {\n` +
       `  if (Date.now() - waitStart > 5000) throw new Error("start gate timeout");\n` +
       `  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10);\n` +
       `}\n` +
+      `const saved = JSON.parse(readFileSync(inputPath, "utf8"));\n` +
       `let result;\n` +
-      `if (op === "clear") {\n` +
-      `  result = clearPlanSequence(root, expected, { afterAcquire: hold });\n` +
-      `} else if (op === "replace") {\n` +
-      `  const seq = createPlanSequence({\n` +
-      `    sequence_id: "replacement",\n` +
-      `    sequence_kind: "checklist",\n` +
-      `    authorized_by: "op",\n` +
-      `    entries: [{ id: "r", kind: "task" }],\n` +
-      `  });\n` +
-      `  result = writePlanSequence(root, seq, expected, { afterAcquire: hold, sourceRevision: "replace" });\n` +
+      `if (saved.op === "clear") {\n` +
+      `  result = clearPlanSequence(root, saved.expected, { afterAcquire: hold });\n` +
+      `} else if (saved.op === "replace") {\n` +
+      `  result = writePlanSequence(root, saved.snapshot, saved.expected, { afterAcquire: hold, sourceRevision: "replace" });\n` +
       `} else {\n` +
-      `  const seq = readPlanSequence(root);\n` +
-      `  if (seq === null) throw new Error("missing sequence");\n` +
-      `  result = writePlanSequence(root, advancePlanSequence(seq), expected, { afterAcquire: hold, sourceRevision: "advance" });\n` +
+      `  result = writePlanSequence(root, advancePlanSequence(saved.snapshot), saved.expected, { afterAcquire: hold, sourceRevision: "advance" });\n` +
       `}\n` +
       `writeFileSync(resultPath, JSON.stringify(result) + "\\n");\n`,
   );
@@ -384,6 +473,7 @@ function runOverlapWorker(input: {
         String(input.holdMs),
         input.startPath,
         input.readyPath,
+        input.inputPath,
       ],
       { env: { ...process.env, DEFT_PROJECT_PATH: "" }, stdio: ["ignore", "ignore", "pipe"] },
     );
@@ -418,6 +508,7 @@ async function overlap(opA: "advance" | "replace" | "clear", opB: "advance" | "r
       holdMs: 80,
       startPath,
       readyPath: aReady,
+      inputPath: join(root, "a.input.json"),
     }),
     runOverlapWorker({
       root,
@@ -427,6 +518,7 @@ async function overlap(opA: "advance" | "replace" | "clear", opB: "advance" | "r
       holdMs: 80,
       startPath,
       readyPath: bReady,
+      inputPath: join(root, "b.input.json"),
     }),
   ]);
   await waitForFile(aReady, 5000);

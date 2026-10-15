@@ -156,9 +156,12 @@ describe("plan-sequence CLI (#2402)", () => {
     expect(planSequenceMain(["clear", "--project-root", root, "--expected-generation", "2"])).toBe(
       0,
     );
-    // already absent
-    expect(planSequenceMain(["clear", "--project-root", root, "--expected-generation", "0"])).toBe(
+    // already absent — compare token survives clear
+    expect(planSequenceMain(["clear", "--project-root", root, "--expected-generation", "3"])).toBe(
       0,
+    );
+    expect(planSequenceMain(["clear", "--project-root", root, "--expected-generation", "0"])).toBe(
+      1,
     );
 
     // Full sequence object with current_index uses parsePlanSequence path
@@ -188,7 +191,7 @@ describe("plan-sequence CLI (#2402)", () => {
         "--project-root",
         root,
         "--expected-generation",
-        "0",
+        "3",
       ]),
     ).toBe(0);
     expect(planSequenceMain(["current", "--project-root", root])).toBe(0);

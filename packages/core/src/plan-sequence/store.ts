@@ -13,6 +13,11 @@ export function planSequenceLockPath(projectRoot: string): string {
   return `${planSequencePath(projectRoot)}.lock`;
 }
 
+/** Survives clear so recreate cannot reuse generation 1 (#3907 Greptile P1). */
+export function planSequenceGenerationPath(projectRoot: string): string {
+  return `${planSequencePath(projectRoot)}.generation`;
+}
+
 export type PlanSequenceMutationCode =
   | "missing-expected-generation"
   | "generation-mismatch"
@@ -57,16 +62,19 @@ function missingExpected(): PlanSequenceMutationFail {
   };
 }
 
-function mismatch(current: PlanSequence | null, expected: number): PlanSequenceMutationFail {
-  const current_generation = current?.generation ?? 0;
+function mismatch(
+  current: PlanSequence | null,
+  expected: number,
+  currentGeneration: number,
+): PlanSequenceMutationFail {
   const source_revision = current?.source_revision ?? "";
   return {
     ok: false,
     code: "generation-mismatch",
-    current_generation,
+    current_generation: currentGeneration,
     source_revision,
     message:
-      `plan-sequence generation mismatch: expected ${String(expected)}, current ${String(current_generation)}. ` +
+      `plan-sequence generation mismatch: expected ${String(expected)}, current ${String(currentGeneration)}. ` +
       "Reload .deft/plan-sequence.json and retry with the current generation.",
   };
 }
@@ -93,11 +101,45 @@ function parseError(detail: string): PlanSequenceMutationFail {
   };
 }
 
+function persistGenerationToken(root: string, path: string, generation: number): void {
+  containedWrite({
+    root,
+    target: path,
+    data: `${JSON.stringify({ generation })}\n`,
+    mode: "replace",
+  });
+}
+
+function readGenerationSidecar(
+  path: string,
+): { ok: true; generation: number } | PlanSequenceMutationFail {
+  if (!existsSync(path)) {
+    return { ok: true, generation: 0 };
+  }
+  try {
+    const raw = JSON.parse(readFileSync(path, "utf8")) as unknown;
+    if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
+      return parseError("generation sidecar must be an object");
+    }
+    const generation = (raw as { generation: unknown }).generation;
+    if (!isExpectedGeneration(generation)) {
+      return parseError("generation sidecar must be a non-negative integer");
+    }
+    return { ok: true, generation };
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    return parseError(detail);
+  }
+}
+
 function readOnDisk(
   path: string,
-): { ok: true; sequence: PlanSequence | null } | PlanSequenceMutationFail {
+  generationPath: string,
+): { ok: true; sequence: PlanSequence | null; generation: number } | PlanSequenceMutationFail {
   if (!existsSync(path)) {
-    return { ok: true, sequence: null };
+    const sidecar = readGenerationSidecar(generationPath);
+    if (!sidecar.ok) return sidecar;
+    return { ok: true, sequence: null, generation: sidecar.generation };
   }
   try {
     const raw = JSON.parse(readFileSync(path, "utf8")) as unknown;
@@ -107,7 +149,8 @@ function readOnDisk(
         return parseError("generation must be a non-negative integer");
       }
     }
-    return { ok: true, sequence: parsePlanSequence(raw) };
+    const sequence = parsePlanSequence(raw);
+    return { ok: true, sequence, generation: sequence.generation };
   } catch (err) {
     const detail = err instanceof Error ? err.message : String(err);
     return parseError(detail);
@@ -148,16 +191,17 @@ export function writePlanSequence(
   }
   const root = resolve(projectRoot);
   const path = planSequencePath(root);
+  const generationPath = planSequenceGenerationPath(root);
   const locked = withPlanSequenceSidecarLock(
     planSequenceLockPath(root),
     () => {
       options.afterAcquire?.();
-      const onDisk = readOnDisk(path);
+      const onDisk = readOnDisk(path, generationPath);
       if (!onDisk.ok) return onDisk;
       const current = onDisk.sequence;
-      const currentGeneration = current?.generation ?? 0;
+      const currentGeneration = onDisk.generation;
       if (expected_generation !== currentGeneration) {
-        return mismatch(current, expected_generation);
+        return mismatch(current, expected_generation, currentGeneration);
       }
       const published: PlanSequence = {
         ...sequence,
@@ -165,6 +209,7 @@ export function writePlanSequence(
         source_revision: observeSourceRevision(root, options.sourceRevision),
       };
       persistPublished(root, path, published, current === null);
+      persistGenerationToken(root, generationPath, published.generation);
       return { ok: true as const, path, sequence: published };
     },
     options.lock,
@@ -191,20 +236,22 @@ export function clearPlanSequence(
   }
   const root = resolve(projectRoot);
   const path = planSequencePath(root);
+  const generationPath = planSequenceGenerationPath(root);
   const locked = withPlanSequenceSidecarLock(
     planSequenceLockPath(root),
     () => {
       options.afterAcquire?.();
-      const onDisk = readOnDisk(path);
+      const onDisk = readOnDisk(path, generationPath);
       if (!onDisk.ok) return onDisk;
       const current = onDisk.sequence;
-      const currentGeneration = current?.generation ?? 0;
+      const currentGeneration = onDisk.generation;
       if (expected_generation !== currentGeneration) {
-        return mismatch(current, expected_generation);
+        return mismatch(current, expected_generation, currentGeneration);
       }
       if (current === null) {
         return { ok: true as const, path, removed: false };
       }
+      persistGenerationToken(root, generationPath, currentGeneration + 1);
       containedRemove({ root, target: path });
       return { ok: true as const, path, removed: true };
     },

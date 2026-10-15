@@ -96,4 +96,23 @@ describe("plan-sequence sidecar lock (#3907)", () => {
       expect(short.message).toMatch(/short write while recording plan-sequence lock owner/);
     }
   });
+
+  it("returns lock-timeout when lock setup mkdir fails without running fn", () => {
+    const root = mkdtempSync(join(tmpdir(), "ps-lock-setup-"));
+    roots.push(root);
+    const blocking = join(root, "blocked");
+    writeFileSync(blocking, "file\n");
+    const lockPath = join(blocking, "plan-sequence.json.lock");
+    let ran = false;
+    const result = withPlanSequenceSidecarLock(lockPath, () => {
+      ran = true;
+      return "nope";
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.code).toBe("lock-timeout");
+      expect(result.message).toMatch(/setup failed/);
+    }
+    expect(ran).toBe(false);
+  });
 });

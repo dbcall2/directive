@@ -208,93 +208,98 @@ export function withPlanSequenceSidecarLock<T>(
   let preparedLockPath: string | undefined;
   let acquired = false;
   try {
-    mkdirSync(dirname(lockPath), { recursive: true });
-    ownerToken = randomBytes(16).toString("hex");
-    const ownerEntryName = `${process.pid}-${ownerToken}`;
-    const preparedPath = `${lockPath}.claim-${ownerEntryName}`;
-    preparedLockPath = preparedPath;
-    preparedEntryPath = join(preparedPath, ownerEntryName);
-    mkdirSync(preparedPath);
-    const payload = `${JSON.stringify({ pid: process.pid, token: ownerToken })}\n`;
     try {
-      fd = openSync(preparedEntryPath, "wx");
-      const written = writeOwner(fd, payload);
-      if (written !== Buffer.byteLength(payload)) {
-        return lockBusy("short write while recording plan-sequence lock owner");
-      }
-      closeSync(fd);
-      fd = undefined;
-    } catch (err) {
-      if (fd !== undefined) {
-        try {
-          closeSync(fd);
-        } catch {
-          /* best-effort */
-        }
-        fd = undefined;
-      }
-      const detail = err instanceof Error ? err.message : String(err);
-      return lockBusy(`plan-sequence lock owner record failed: ${detail}`);
-    }
-
-    const startedAt = monotonicNowMs();
-    const expired = (): boolean => monotonicNowMs() - startedAt >= budgetMs;
-    const yieldOrFail = (_reason: PlanSequenceLockBlockedReason): boolean => {
-      if (expired()) {
-        return true;
-      }
-      sleepMs(20);
-      return false;
-    };
-
-    let timeoutReason: PlanSequenceLockBlockedReason | undefined;
-    while (true) {
-      const existing = lstatIfExists(lockPath);
-      if (existing !== null && !existing.isDirectory()) {
-        if (yieldOrFail("legacy-file-sidecar")) {
-          timeoutReason = "legacy-file-sidecar";
-          break;
-        }
-        continue;
-      }
+      mkdirSync(dirname(lockPath), { recursive: true });
+      ownerToken = randomBytes(16).toString("hex");
+      const ownerEntryName = `${process.pid}-${ownerToken}`;
+      const preparedPath = `${lockPath}.claim-${ownerEntryName}`;
+      preparedLockPath = preparedPath;
+      preparedEntryPath = join(preparedPath, ownerEntryName);
+      mkdirSync(preparedPath);
+      const payload = `${JSON.stringify({ pid: process.pid, token: ownerToken })}\n`;
       try {
-        renameLock(preparedPath, lockPath);
-        acquired = true;
-        preparedLockPath = undefined;
-        preparedEntryPath = undefined;
-        ownerEntryPath = join(lockPath, ownerEntryName);
-        break;
-      } catch (err: unknown) {
-        const code = (err as NodeJS.ErrnoException).code;
-        if (code === undefined || !RENAME_CONTENTION_CODES.has(code)) {
-          const detail = err instanceof Error ? err.message : String(err);
-          return lockBusy(`plan-sequence lock publish failed: ${detail}`);
+        fd = openSync(preparedEntryPath, "wx");
+        const written = writeOwner(fd, payload);
+        if (written !== Buffer.byteLength(payload)) {
+          return lockBusy("short write while recording plan-sequence lock owner");
         }
-        const lockStat = lstatIfExists(lockPath);
-        if (lockStat === null) {
-          if (code === "EACCES" || code === "EPERM") {
-            const detail = err instanceof Error ? err.message : String(err);
-            return lockBusy(`plan-sequence lock publish failed: ${detail}`);
+        closeSync(fd);
+        fd = undefined;
+      } catch (err) {
+        if (fd !== undefined) {
+          try {
+            closeSync(fd);
+          } catch {
+            /* best-effort */
           }
-          continue;
+          fd = undefined;
         }
-        if (lockStat.isDirectory()) {
-          const outcome = reapDirectoryLock(lockPath, probeProcess, beforeLockDirRemove);
-          if (outcome.reaped) continue;
-          if (yieldOrFail(outcome.reason)) {
-            timeoutReason = outcome.reason;
+        const detail = err instanceof Error ? err.message : String(err);
+        return lockBusy(`plan-sequence lock owner record failed: ${detail}`);
+      }
+
+      const startedAt = monotonicNowMs();
+      const expired = (): boolean => monotonicNowMs() - startedAt >= budgetMs;
+      const yieldOrFail = (_reason: PlanSequenceLockBlockedReason): boolean => {
+        if (expired()) {
+          return true;
+        }
+        sleepMs(20);
+        return false;
+      };
+
+      let timeoutReason: PlanSequenceLockBlockedReason | undefined;
+      while (true) {
+        const existing = lstatIfExists(lockPath);
+        if (existing !== null && !existing.isDirectory()) {
+          if (yieldOrFail("legacy-file-sidecar")) {
+            timeoutReason = "legacy-file-sidecar";
             break;
           }
           continue;
         }
-        if (yieldOrFail("legacy-file-sidecar")) {
-          timeoutReason = "legacy-file-sidecar";
+        try {
+          renameLock(preparedPath, lockPath);
+          acquired = true;
+          preparedLockPath = undefined;
+          preparedEntryPath = undefined;
+          ownerEntryPath = join(lockPath, ownerEntryName);
           break;
+        } catch (err: unknown) {
+          const code = (err as NodeJS.ErrnoException).code;
+          if (code === undefined || !RENAME_CONTENTION_CODES.has(code)) {
+            const detail = err instanceof Error ? err.message : String(err);
+            return lockBusy(`plan-sequence lock publish failed: ${detail}`);
+          }
+          const lockStat = lstatIfExists(lockPath);
+          if (lockStat === null) {
+            if (code === "EACCES" || code === "EPERM") {
+              const detail = err instanceof Error ? err.message : String(err);
+              return lockBusy(`plan-sequence lock publish failed: ${detail}`);
+            }
+            continue;
+          }
+          if (lockStat.isDirectory()) {
+            const outcome = reapDirectoryLock(lockPath, probeProcess, beforeLockDirRemove);
+            if (outcome.reaped) continue;
+            if (yieldOrFail(outcome.reason)) {
+              timeoutReason = outcome.reason;
+              break;
+            }
+            continue;
+          }
+          if (yieldOrFail("legacy-file-sidecar")) {
+            timeoutReason = "legacy-file-sidecar";
+            break;
+          }
         }
       }
-    }
-    if (!acquired) {
-      return lockBusy(describeLockFailure(lockPath, timeoutReason ?? "contended", budgetMs));
+      if (!acquired) {
+        return lockBusy(describeLockFailure(lockPath, timeoutReason ?? "contended", budgetMs));
+      }
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
+      return lockBusy(`plan-sequence lock setup failed: ${detail}`);
     }
     return { ok: true, value: fn() };
   } finally {
