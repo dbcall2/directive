@@ -1022,11 +1022,13 @@ export function runTransition(
               relative(projectRoot, destPath).replace(/\\/g, "/"),
             );
             if (driftRecord !== null) {
-              // Lock refuse returns completedAt=null with no ledger write — never
-              // roll back (a concurrent same-scope writer may have landed coverage).
+              // Lock refuse returns completedAt=null with no ledger write.
+              // Unlink dest this process exclusive-created so retry is not
+              // Target already exists. Skip unlink when destCreatedThisAttempt
+              // is false (concurrent writer or matching-bytes dest).
               const lockRefuseNoWrite = driftRecord.completedAt === null;
               if (lockRefuseNoWrite) {
-                rollbackDest(false);
+                rollbackDest(destCreatedThisAttempt);
               } else {
                 // Finding may already be on the ledger — restore prior rows for THIS
                 // scope only when this attempt mutated them.

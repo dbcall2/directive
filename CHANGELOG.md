@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Prevent stale ordered-plan changes (#3907).** Competing commands in the same worktree can no longer overwrite or clear a plan using an outdated generation. Clearing and recreating a plan keeps older commands from changing its replacement. Persist failures are retryable. CLI `set`, `advance`, and `clear` require `--expected-generation`. Tracking #3907.
 - **Competing sessions cannot change worktree files before claiming occupancy (#3906).** Cold, re-arm, and `session:ready` persist the worktree lease before any linked-deposit copy. Failed setup rolls back only this invocation's claim. Tracking #3906.
 - **A session re-checks occupancy before writing ritual (#3906).** A steal during ceremony no longer lets the first session overwrite the new owner's ritual. Tracking #3906.
-- **Scope lifecycle folder-moves exclusive-create dest and only roll back dest this process owns (#3908).** Folder-move actions hold the plan-id identity lock; dest publish uses O_EXCL and removes dest this process created if that write fails; matching dest bytes are not accepted through a destPath symlink and still run dest schema checks; dest unlink skips spec-drift lock-refuse. Tracking #3908.
+- **Scope lifecycle folder-moves exclusive-create dest and only roll back dest this process owns (#3908).** Folder-move actions hold the plan-id identity lock; dest publish uses O_EXCL and removes dest this process created if that write fails; matching dest bytes are not accepted through a destPath symlink and still run dest schema checks; spec-drift lock-refuse unlinks dest this process created so a retry is not blocked. Tracking #3908.
 ### Removed
 
 ## [0.125.2] - 2026-10-15

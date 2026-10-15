@@ -13,10 +13,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import * as containedWriteMod from "../fs/contained-write.js";
 import { ContainedWriteError, ContainedWriteErrorCode } from "../fs/contained-write.js";
 import * as clauseDerivation from "../intake/clause-derivation.js";
+import * as specGuardMod from "../policy/spec-guard.js";
 import { ENV_RUN_SUMMARY_PATH } from "../run-summary/index.js";
 import type { GitRunner } from "../session/git.js";
 import { withAppendLock } from "../slice/lock.js";
 import { validateVbriefSchema } from "../vbrief-validate/schema.js";
+import * as specDrift from "../verify-source/spec-drift.js";
 import * as briefIo from "./brief-io.js";
 import { atomicWriteBrief, readBriefForMutation } from "./brief-io.js";
 import {
@@ -2467,7 +2469,9 @@ describe("scope dest exclusive-create and owned unlink (#3908)", () => {
     const dest = join(root, "xbrief", "completed", name);
     expect(existsSync(dest)).toBe(true);
     const restored = writeVbrief(root, "active", "running", name);
-    const spy = vi.spyOn(briefIo, "validateBriefForPersist").mockReturnValue("plan.title is required");
+    const spy = vi
+      .spyOn(briefIo, "validateBriefForPersist")
+      .mockReturnValue("plan.title is required");
     try {
       const second = runTransition("complete", restored, now);
       expect(second.ok).toBe(false);
@@ -2476,6 +2480,48 @@ describe("scope dest exclusive-create and owned unlink (#3908)", () => {
     } finally {
       spy.mockRestore();
     }
+  });
+
+  it("spec-drift lock-refuse unlinks dest this process exclusive-created", () => {
+    root = makeRepo();
+    const name = "2026-01-01-lock-refuse-retry.xbrief.json";
+    const file = writeVbrief(root, "active", "running", name);
+    const dest = join(root, "xbrief", "completed", name);
+    const guard = vi.spyOn(specGuardMod, "resolveSpecGuard").mockReturnValue({
+      enabled: true,
+      driftGuard: { enforcement: "enforce", trigger: "both" },
+      sqaPass: { enforcement: "advise", sampling: "shape-changing", onFail: "escalate" },
+      source: "typed",
+      error: null,
+    });
+    const gate = vi.spyOn(specDrift, "gateScopeCompleteSpecDrift").mockReturnValue({
+      ok: true,
+      message: "",
+      enforcement: "enforce",
+      finding: null,
+      shadowFinding: null,
+    });
+    const drift = vi.spyOn(specDrift, "recordScopeCompleteDrift").mockReturnValue({
+      scopeId: `xbrief/completed/${name}`,
+      reason: "ledger lock refused",
+      specImpact: null,
+      completedAt: null,
+    });
+    try {
+      const result = runTransition("complete", file, new Date("2026-10-15T12:00:00.000Z"));
+      expect(result.ok).toBe(false);
+      expect(result.message).toMatch(/spec-drift ledger write failed under enforce/);
+      expect(existsSync(dest)).toBe(false);
+      expect(existsSync(file)).toBe(true);
+    } finally {
+      guard.mockRestore();
+      gate.mockRestore();
+      drift.mockRestore();
+    }
+    const retry = runTransition("complete", file, new Date("2026-10-15T12:00:00.000Z"));
+    expect(retry.ok).toBe(true);
+    expect(existsSync(dest)).toBe(true);
+    expect(existsSync(file)).toBe(false);
   });
 
   it("unlinkOwnedScopeDest skips when the held lock is not owned", () => {
