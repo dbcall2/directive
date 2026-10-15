@@ -9,6 +9,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { writeKillAttestation } from "../orchestration/subagent-kill-attestation.js";
 import { DEFAULT_RUNTIME_AUTHORITY_POLICY } from "../policy/runtime-authority.js";
@@ -5805,6 +5806,258 @@ describe("MCP dest-bearing writes share inspectMutationGates (#3593)", () => {
       ritualNotReady,
     );
     expect(decision).toMatchObject({ verdict: "deny", code: "ritual-not-ready" });
+  });
+
+  it("harvests uri dest and routes write-shaped MCP through gates (#5366)", () => {
+    const decision = decideHook(
+      {
+        host: "cursor",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          tool_name: "mcp__filesystem__write_file",
+          tool_input: { uri: "src/via-uri.ts", contents: "x" },
+        },
+      },
+      ritualNotReady,
+    );
+    expect(decision).toMatchObject({ verdict: "deny", code: "ritual-not-ready" });
+  });
+
+  it("fail-closes write-shaped MCP when dest harvest is empty (#5366)", () => {
+    // use_tool keeps the outer name; contents alone must not skip empty-harvest deny.
+    // (Bare mcp__* + contents remaps to Write via #4199 inference and enters gates.)
+    const decision = decideHook(
+      {
+        host: "grok",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          toolName: "use_tool",
+          tool_input: {
+            tool_name: "mcp__filesystem__write_file",
+            arguments: { contents: "no dest field" },
+          },
+        },
+      },
+      ritualNotReady,
+    );
+    expect(decision).toMatchObject({
+      verdict: "deny",
+      code: "runtime-policy-deny-path",
+    });
+    expect(decision.message).toMatch(/no classifiable mutation target/i);
+  });
+
+  it("keeps remote write-shaped MCP on the MCP route when harvest is empty (#5366)", () => {
+    const decision = decideHook(
+      {
+        host: "cursor",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          tool_name: "mcp__github__create_issue",
+          tool_input: { title: "remote", body: "no local dest" },
+        },
+      },
+      readySeams(),
+    );
+    expect(decision.verdict).toBe("allow");
+    expect(decision.code).not.toBe("runtime-policy-deny-path");
+    expect(decision.message ?? "").not.toMatch(/no classifiable mutation target/i);
+  });
+
+  it("routes serena create_text_file with relative_path through Write gates (#5366)", () => {
+    const decision = decideHook(
+      {
+        host: "grok",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          toolName: "use_tool",
+          tool_input: {
+            tool_name: "mcp__serena__create_text_file",
+            arguments: { relative_path: "src/a.ts", content: "x" },
+          },
+        },
+      },
+      ritualNotReady,
+    );
+    expect(decision).toMatchObject({ verdict: "deny", code: "ritual-not-ready" });
+  });
+
+  it("allows CallMcpTool-wrapped session:start rewrite under ready seams (#5366)", () => {
+    const decision = decideHook(
+      {
+        host: "cursor",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          tool_name: "CallMcpTool",
+          conversation_id: "conversation-a",
+          tool_input: {
+            tool_name: "run_terminal_command",
+            arguments: { command: "deft session:start" },
+          },
+        },
+        environ: {},
+      },
+      readySeams(),
+    );
+    expect(decision.verdict).toBe("allow");
+    expect(decision.code).not.toBe("occupancy-identity-unavailable");
+    // Hosts replace proxy arguments, not the whole CallMcpTool payload.
+    expect(decision.updatedInput).toMatchObject({
+      tool_name: "run_terminal_command",
+      arguments: {
+        command: "deft session:start --session-id=host:cursor:v1:Y29udmVyc2F0aW9uLWE",
+      },
+    });
+  });
+
+  it("denies percent-encoded file: URI writes into the inventoried authz store (#5366)", () => {
+    const root = mkdtempSync(join(tmpdir(), "deft-5366-encoded-authz-"));
+    hookTemps.push(root);
+    mkdirSync(join(root, ".deft", "authz", "grants"), { recursive: true });
+    const evil = join(root, ".deft", "authz", "grants", "evil.json");
+    // Encode `.deft` as `%2Edeft` so raw-URI approval would miss the store path.
+    const encodedUri = pathToFileURL(evil).href.replace("/.deft/", "/%2Edeft/");
+    expect(encodedUri).toContain("%2Edeft");
+    const decision = decideHook(
+      {
+        host: "cursor",
+        event: "tool.before",
+        projectRoot: root,
+        payload: {
+          tool_name: "mcp__filesystem__write_file",
+          tool_input: { uri: encodedUri, contents: '{"origin":{"kind":"operator-cli"}}' },
+        },
+      },
+      readySeams(),
+    );
+    expect(decision.verdict).toBe("deny");
+    expect(decision.code).toMatch(/^authz-/);
+    expect(decision.message).toMatch(/covering-grant escape|inventoried authz store/i);
+  });
+
+  it("routes use_tool inner shell through Shell/UAT with nested command (#5366)", () => {
+    const decision = decideHook(
+      {
+        host: "grok",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          toolName: "use_tool",
+          tool_input: {
+            tool_name: "run_terminal_command",
+            arguments: {
+              command: "git push origin HEAD",
+              path: "decoy/src/a.ts",
+            },
+          },
+        },
+      },
+      readySeams({
+        loadRuntimeAuthority: () => ({
+          enabled: true,
+          allowPaths: ["**"],
+          denyPaths: [],
+          scopes: { edits: true, push: false, merge: false },
+        }),
+      }),
+    );
+    expect(decision).toMatchObject({
+      verdict: "deny",
+      code: "runtime-policy-deny-scope",
+    });
+    expect(decision.message).toMatch(/scopes\.push/i);
+  });
+
+  it("keeps wrapped read-only shell fail-open when unclassifiable (#5366)", () => {
+    const decision = decideHook(
+      {
+        host: "grok",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          toolName: "use_tool",
+          tool_input: {
+            tool_name: "run_terminal_command",
+            arguments: { command: "git status" },
+          },
+        },
+      },
+      ritualNotReady,
+    );
+    expect(decision.verdict).toBe("allow");
+    expect(decision.code).toBe("shell-op-unclassifiable");
+  });
+
+  it("refuses unsupported URI schemes under write gates (#5366)", () => {
+    const decision = decideHook(
+      {
+        host: "cursor",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          tool_name: "mcp__filesystem__write_file",
+          tool_input: { uri: "https://example.com/secret.ts", contents: "x" },
+        },
+      },
+      readySeams(),
+    );
+    expect(decision).toMatchObject({
+      verdict: "deny",
+      code: "runtime-policy-deny-path",
+    });
+    expect(decision.message).toMatch(/not a local file path/i);
+  });
+
+  it("denies empty harvest under an active write fence (#5366)", () => {
+    const decision = decideHook(
+      {
+        host: "claude",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: {
+          tool_name: "Write",
+          // No extractable path — active fence must not null-pass.
+        },
+      },
+      readySeams({
+        loadRuntimeAuthority: () => ({
+          enabled: true,
+          allowPaths: ["src/**"],
+          denyPaths: [],
+          scopes: { edits: true, push: true, merge: true },
+        }),
+      }),
+    );
+    expect(decision).toMatchObject({
+      verdict: "deny",
+      code: "runtime-policy-deny-path",
+    });
+    expect(decision.message).toMatch(/write fence is active/i);
+  });
+
+  it("inactive fence still allows when no path under ready seams (#5366 control)", () => {
+    const decision = decideHook(
+      {
+        host: "claude",
+        event: "tool.before",
+        projectRoot: "/project",
+        payload: { tool_name: "Write" },
+      },
+      readySeams({
+        loadRuntimeAuthority: () => ({
+          enabled: false,
+          allowPaths: [],
+          denyPaths: [],
+          scopes: { edits: true, push: true, merge: true },
+        }),
+      }),
+    );
+    expect(decision).toMatchObject({ verdict: "allow", code: "write-ready" });
   });
 });
 

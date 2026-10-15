@@ -149,6 +149,47 @@ export function isMcpWriteShaped(toolName: string): boolean {
   return false;
 }
 
+/**
+ * True when a write-shaped name is expected to carry a local filesystem dest.
+ * Remote forge/API mutations (create_issue, …) match write-shaped verb markers
+ * but must not empty-harvest fail-close (#5366 Greptile P1).
+ */
+export function expectsLocalMutationDest(toolName: string): boolean {
+  if (isDirectWriteTool(toolName) || isApplyPatchTool(toolName)) return true;
+  const n = normalizedToolName(toolName);
+  if (n.includes("searchreplace") || n.includes("applypatch") || n.includes("applyedit")) {
+    return true;
+  }
+  const localMarkers = [
+    "write",
+    "replace",
+    "patch",
+    "save",
+    "mkdir",
+    "unlink",
+    "rename",
+    "append",
+    "move",
+    "filesystem",
+    "writefile",
+    "editfile",
+    "deletefile",
+    "createfile",
+    "textfile",
+  ] as const;
+  if (localMarkers.some((marker) => n.includes(marker))) return true;
+  // create_text_file / delete_file: create|delete|edit + file (not create_issue).
+  if (
+    n.includes("file") &&
+    (n.includes("create") || n.includes("delete") || n.includes("edit") || n.includes("path"))
+  ) {
+    return true;
+  }
+  // Bare "edit"/"create"/"delete" alone are too broad (issue/repo APIs).
+  if (n.includes("edit") && n.includes("content")) return true;
+  return false;
+}
+
 /** Inner tool name for CallMcpTool / use_tool payloads. */
 export function innerMcpToolName(payload: unknown): string | null {
   const input = record(payload);
@@ -171,6 +212,30 @@ export function innerMcpToolName(payload: unknown): string | null {
 export function effectiveHookToolName(toolName: string, payload: unknown): string {
   if (!isMcpProxyWrapper(toolName)) return toolName;
   return innerMcpToolName(payload) ?? toolName;
+}
+
+/**
+ * Project nested proxy arguments so shell/write extractors see command/path
+ * at tool_input.* (#5366 Prefer-A). Name unwrap alone leaves
+ * tool_input.arguments.command invisible to hookShellCommand. Preserves
+ * payload-root identity fields (cwd, session_id, …).
+ */
+export function effectiveHookArgumentView(toolName: string, payload: unknown): unknown {
+  if (!isMcpProxyWrapper(toolName)) return payload;
+  const input = record(payload);
+  if (input === null) return payload;
+  const toolInput = toolInputRecord(input);
+  if (toolInput === null) return payload;
+  if (typeof toolInput.command === "string" && toolInput.command.trim().length > 0) {
+    return payload;
+  }
+  const nested =
+    record(toolInput.arguments) ?? record(toolInput.tool_input) ?? record(toolInput.params);
+  if (nested === null) return payload;
+  return {
+    ...input,
+    tool_input: { ...nested },
+  };
 }
 
 /**

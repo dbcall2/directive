@@ -1,11 +1,16 @@
 import { describe, expect, it } from "vitest";
+import { hookShellCommand } from "./classify/paths.js";
 import {
   DIRECT_WRITE_HOOK_MATCHER,
+  effectiveHookArgumentView,
+  effectiveHookToolName,
+  expectsLocalMutationDest,
   HOST_TOOL_SURFACE_AUDIT,
   isApplyPatchTool,
   isDirectWriteTool,
   isKillTool,
   isMcpTool,
+  isMcpWriteShaped,
   isShellTool,
   isSpawnTool,
   KILL_HOOK_MATCHER,
@@ -40,6 +45,16 @@ describe("hooks tools classifiers (#2711 / #2952)", () => {
     // Bare push/merge names are NOT isMcpTool — classifyMcpTool owns them.
     expect(isMcpTool("merge_pull_request")).toBe(false);
     expect(isMcpTool("git_push")).toBe(false);
+  });
+
+  it("expectsLocalMutationDest separates filesystem writers from remote APIs (#5366)", () => {
+    expect(isMcpWriteShaped("mcp__github__create_issue")).toBe(true);
+    expect(expectsLocalMutationDest("mcp__github__create_issue")).toBe(false);
+    expect(expectsLocalMutationDest("mcp__filesystem__write_file")).toBe(true);
+    expect(expectsLocalMutationDest("edit_file")).toBe(true);
+    expect(expectsLocalMutationDest("Write")).toBe(true);
+    expect(expectsLocalMutationDest("mcp__github__delete_issue")).toBe(false);
+    expect(expectsLocalMutationDest("mcp__serena__create_text_file")).toBe(true);
   });
 
   it("isDirectWriteTool and isSpawnTool stay narrow", () => {
@@ -95,5 +110,22 @@ describe("hooks tools classifiers (#2711 / #2952)", () => {
     expect(HOST_TOOL_SURFACE_AUDIT.grok.unobservedReason).toBeNull();
     expect(QUESTION_HOOK_MATCHER).toContain("ask_user_question");
     expect(QUESTION_HOOK_MATCHER).toContain("AskQuestion");
+  });
+
+  it("projects nested proxy arguments for shell command parity (#5366)", () => {
+    const wrapped = {
+      toolName: "use_tool",
+      tool_input: {
+        tool_name: "run_terminal_command",
+        arguments: { command: "git push origin HEAD", path: "decoy/src/a.ts" },
+      },
+    };
+    expect(effectiveHookToolName("use_tool", wrapped)).toBe("run_terminal_command");
+    expect(isShellTool(effectiveHookToolName("use_tool", wrapped))).toBe(true);
+    expect(hookShellCommand(wrapped)).toBeNull();
+    const view = effectiveHookArgumentView("use_tool", wrapped);
+    expect(hookShellCommand(view)).toBe("git push origin HEAD");
+    const direct = { tool_name: "Bash", tool_input: { command: "git status" } };
+    expect(effectiveHookArgumentView("Bash", direct)).toBe(direct);
   });
 });
