@@ -83,15 +83,14 @@ describe("plan-sequence store", () => {
     const genBefore = readFileSync(genPath, "utf8");
     const planBefore = readFileSync(planPath, "utf8");
     chmodSync(planPath, 0o444);
-    let threw: unknown;
+    let failed: ReturnType<typeof writePlanSequence>;
     try {
-      writePlanSequence(root, sample("b"), 1);
-    } catch (err) {
-      threw = err;
+      failed = writePlanSequence(root, sample("b"), 1);
     } finally {
       chmodSync(planPath, 0o644);
     }
-    expect(threw).toBeInstanceOf(Error);
+    expect(failed.ok).toBe(false);
+    if (!failed.ok) expect(failed.code).toBe("persist-error");
     expect(readFileSync(genPath, "utf8")).not.toBe(genBefore);
     expect(JSON.parse(readFileSync(genPath, "utf8")).generation).toBe(2);
     expect(readFileSync(planPath, "utf8")).toBe(planBefore);
@@ -106,15 +105,17 @@ describe("plan-sequence store", () => {
     const rename = vi.spyOn(containedWriteMod, "containedRename").mockImplementation(() => {
       throw new Error("simulated generation sidecar rename failure");
     });
-    let threw: unknown;
+    let failed: ReturnType<typeof writePlanSequence>;
     try {
-      writePlanSequence(root, sample("b"), 2);
-    } catch (err) {
-      threw = err;
+      failed = writePlanSequence(root, sample("b"), 2);
     } finally {
       rename.mockRestore();
     }
-    expect(threw).toBeInstanceOf(Error);
+    expect(failed.ok).toBe(false);
+    if (!failed.ok) {
+      expect(failed.code).toBe("persist-error");
+      expect(failed.message).toMatch(/simulated generation sidecar rename failure/);
+    }
     expect(readFileSync(genPath, "utf8")).toBe(before);
     expect(JSON.parse(before)).toEqual({ generation: 2 });
     expect(readPlanSequence(root)).toBeNull();

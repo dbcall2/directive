@@ -29,7 +29,8 @@ export type PlanSequenceMutationCode =
   | "generation-mismatch"
   | "lock-timeout"
   | "lock-reentrant"
-  | "parse-error";
+  | "parse-error"
+  | "persist-error";
 
 export interface PlanSequenceMutationFail {
   readonly ok: false;
@@ -107,7 +108,21 @@ function parseError(detail: string): PlanSequenceMutationFail {
   };
 }
 
-function persistGenerationToken(root: string, path: string, generation: number): void {
+function persistError(detail: string): PlanSequenceMutationFail {
+  return {
+    ok: false,
+    code: "persist-error",
+    current_generation: 0,
+    source_revision: "",
+    message: `plan-sequence: persist failed (${detail}). Reload .deft/plan-sequence.json and retry.`,
+  };
+}
+
+function persistGenerationToken(
+  root: string,
+  path: string,
+  generation: number,
+): { ok: true } | PlanSequenceMutationFail {
   const data = `${JSON.stringify({ generation })}\n`;
   const tmp = `${path}.${process.pid}-${randomBytes(8).toString("hex")}.tmp`;
   try {
@@ -123,13 +138,15 @@ function persistGenerationToken(root: string, path: string, generation: number):
       to: path,
     });
     fsyncContainedDirectory(dirname(path));
+    return { ok: true };
   } catch (err) {
     try {
       containedRemove({ root, target: tmp });
     } catch {
       /* best-effort tmp cleanup */
     }
-    throw err;
+    const detail = err instanceof Error ? err.message : String(err);
+    return persistError(detail);
   }
 }
 
@@ -194,13 +211,19 @@ function persistPublished(
   path: string,
   published: PlanSequence,
   exclusiveCreate: boolean,
-): void {
-  containedWrite({
-    root,
-    target: path,
-    data: `${JSON.stringify(published, null, 2)}\n`,
-    mode: exclusiveCreate ? "create" : "replace",
-  });
+): { ok: true } | PlanSequenceMutationFail {
+  try {
+    containedWrite({
+      root,
+      target: path,
+      data: `${JSON.stringify(published, null, 2)}\n`,
+      mode: exclusiveCreate ? "create" : "replace",
+    });
+    return { ok: true };
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    return persistError(detail);
+  }
 }
 
 export function writePlanSequence(
@@ -231,8 +254,10 @@ export function writePlanSequence(
         generation: currentGeneration + 1,
         source_revision: observeSourceRevision(root, options.sourceRevision),
       };
-      persistGenerationToken(root, generationPath, published.generation);
-      persistPublished(root, path, published, current === null);
+      const token = persistGenerationToken(root, generationPath, published.generation);
+      if (!token.ok) return token;
+      const publishedWrite = persistPublished(root, path, published, current === null);
+      if (!publishedWrite.ok) return publishedWrite;
       return { ok: true as const, path, sequence: published };
     },
     options.lock,
@@ -274,8 +299,14 @@ export function clearPlanSequence(
       if (current === null) {
         return { ok: true as const, path, removed: false };
       }
-      persistGenerationToken(root, generationPath, currentGeneration + 1);
-      containedRemove({ root, target: path });
+      const token = persistGenerationToken(root, generationPath, currentGeneration + 1);
+      if (!token.ok) return token;
+      try {
+        containedRemove({ root, target: path });
+      } catch (err) {
+        const detail = err instanceof Error ? err.message : String(err);
+        return persistError(detail);
+      }
       return { ok: true as const, path, removed: true };
     },
     options.lock,
