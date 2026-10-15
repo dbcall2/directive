@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 ### Fixed
+- **Claim occupancy before session:start dest mutations (#3906).** Cold, re-arm, and `session:ready` persist the worktree lease before linked-deposit reconstitution and ready cache fetch-all. Persist-time claimed/stolen rollback is compare-and-delete (steal is release-to-empty); heartbeat stays. Rollback skips a later same-id heartbeat or aligned ritual. Thrown linked-deposit copy rolls back this invocation's claim. Tracking #3906.
+- **session:start re-checks occupancy before writing ritual (#3906).** A confirmed steal during cold or re-arm ceremony no longer lets the first session overwrite the new owner's ritual. Persist-first claim stays. Tracking #3906.
 
 ### Removed
 
