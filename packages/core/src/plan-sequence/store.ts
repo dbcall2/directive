@@ -1,7 +1,13 @@
 import { execFileSync } from "node:child_process";
+import { randomBytes } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
-import { join, resolve } from "node:path";
-import { containedRemove, containedWrite } from "../fs/contained-write.js";
+import { dirname, join, resolve } from "node:path";
+import {
+  containedRemove,
+  containedRename,
+  containedWrite,
+  fsyncContainedDirectory,
+} from "../fs/contained-write.js";
 import { type PlanSequenceLockDeps, withPlanSequenceSidecarLock } from "./mutation-lock.js";
 import { PLAN_SEQUENCE_FILENAME, type PlanSequence, parsePlanSequence } from "./types.js";
 
@@ -102,12 +108,29 @@ function parseError(detail: string): PlanSequenceMutationFail {
 }
 
 function persistGenerationToken(root: string, path: string, generation: number): void {
-  containedWrite({
-    root,
-    target: path,
-    data: `${JSON.stringify({ generation })}\n`,
-    mode: "replace",
-  });
+  const data = `${JSON.stringify({ generation })}\n`;
+  const tmp = `${path}.${process.pid}-${randomBytes(8).toString("hex")}.tmp`;
+  try {
+    containedWrite({
+      root,
+      target: tmp,
+      data,
+      mode: "create",
+    });
+    containedRename({
+      root,
+      from: tmp,
+      to: path,
+    });
+    fsyncContainedDirectory(dirname(path));
+  } catch (err) {
+    try {
+      containedRemove({ root, target: tmp });
+    } catch {
+      /* best-effort tmp cleanup */
+    }
+    throw err;
+  }
 }
 
 function readGenerationSidecar(

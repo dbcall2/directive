@@ -10,7 +10,8 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import * as containedWriteMod from "../fs/contained-write.js";
 import {
   clearPlanSequence,
   planSequenceGenerationPath,
@@ -94,6 +95,29 @@ describe("plan-sequence store", () => {
     expect(readFileSync(genPath, "utf8")).not.toBe(genBefore);
     expect(JSON.parse(readFileSync(genPath, "utf8")).generation).toBe(2);
     expect(readFileSync(planPath, "utf8")).toBe(planBefore);
+  });
+
+  it("leaves the previous generation token intact when sidecar replace fails", () => {
+    const root = seed();
+    expect(writePlanSequence(root, sample("a"), 0).ok).toBe(true);
+    expect(clearPlanSequence(root, 1).ok).toBe(true);
+    const genPath = planSequenceGenerationPath(root);
+    const before = readFileSync(genPath, "utf8");
+    const rename = vi.spyOn(containedWriteMod, "containedRename").mockImplementation(() => {
+      throw new Error("simulated generation sidecar rename failure");
+    });
+    let threw: unknown;
+    try {
+      writePlanSequence(root, sample("b"), 2);
+    } catch (err) {
+      threw = err;
+    } finally {
+      rename.mockRestore();
+    }
+    expect(threw).toBeInstanceOf(Error);
+    expect(readFileSync(genPath, "utf8")).toBe(before);
+    expect(JSON.parse(before)).toEqual({ generation: 2 });
+    expect(readPlanSequence(root)).toBeNull();
   });
 
   it("keeps a generation token across clear so recreate cannot reuse generation 1", () => {
