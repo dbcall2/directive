@@ -13,9 +13,15 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import * as clauseDerivation from "../intake/clause-derivation.js";
 import { ENV_RUN_SUMMARY_PATH } from "../run-summary/index.js";
 import type { GitRunner } from "../session/git.js";
+import { withAppendLock } from "../slice/lock.js";
 import { validateVbriefSchema } from "../vbrief-validate/schema.js";
 import { atomicWriteBrief, readBriefForMutation } from "./brief-io.js";
-import { detectLifecycleFolder, runTransition } from "./transition.js";
+import {
+  detectLifecycleFolder,
+  publishScopeDestExclusive,
+  runTransition,
+  unlinkOwnedScopeDest,
+} from "./transition.js";
 import { formatBriefJson } from "./vbrief-json.js";
 
 const itSymlink = it.skipIf(process.platform === "win32");
@@ -2233,5 +2239,182 @@ describe("runTransition complete persist-path merge stamp (#5120)", () => {
     expect(existsSync(join(root, "xbrief", "completed", "historical-refuse.xbrief.json"))).toBe(
       false,
     );
+  });
+});
+
+describe("scope dest exclusive-create and owned unlink (#3908)", () => {
+  let root = "";
+  afterEach(() => {
+    if (root.length > 0) {
+      rmSync(root, { recursive: true, force: true });
+      root = "";
+    }
+  });
+
+  it("second exclusive dest publish refuses EXISTS and keeps first dest bytes", () => {
+    root = makeRepo();
+    const destPath = join(root, "xbrief", "completed", "dup.xbrief.json");
+    const first = publishScopeDestExclusive({
+      destPath,
+      formatted: "first-payload\n",
+      projectRoot: root,
+    });
+    expect(first.ok).toBe(true);
+    const second = publishScopeDestExclusive({
+      destPath,
+      formatted: "second-payload\n",
+      projectRoot: root,
+    });
+    expect(second.ok).toBe(false);
+    expect(second.message).toContain("Target already exists");
+    expect(readFileSync(destPath, "utf8")).toBe("first-payload\n");
+  });
+
+  it("unlinkOwnedScopeDest skips when destCreatedThisAttempt is false", () => {
+    root = makeRepo();
+    const destPath = join(root, "xbrief", "completed", "keep.xbrief.json");
+    writeFileSync(destPath, "keep-me\n", "utf8");
+    unlinkOwnedScopeDest({
+      destPath,
+      projectRoot: root,
+      destCreatedThisAttempt: false,
+      formatted: "keep-me\n",
+      held: {
+        lockPath: join(root, ".plan-id-identity.lock"),
+        pid: process.pid,
+        token: "unused",
+        acquiredAt: 1,
+      },
+      allowUnlink: true,
+    });
+    expect(readFileSync(destPath, "utf8")).toBe("keep-me\n");
+  });
+
+  it("unlinkOwnedScopeDest skips when allowUnlink is false", () => {
+    root = makeRepo();
+    const destPath = join(root, "xbrief", "completed", "keep.xbrief.json");
+    writeFileSync(destPath, "keep-me\n", "utf8");
+    withAppendLock(join(root, "xbrief", ".plan-id-identity"), (held) => {
+      unlinkOwnedScopeDest({
+        destPath,
+        projectRoot: root,
+        destCreatedThisAttempt: true,
+        formatted: "keep-me\n",
+        held,
+        allowUnlink: false,
+      });
+    });
+    expect(readFileSync(destPath, "utf8")).toBe("keep-me\n");
+  });
+
+  it("unlinkOwnedScopeDest skips when dest bytes differ", () => {
+    root = makeRepo();
+    const destPath = join(root, "xbrief", "completed", "other.xbrief.json");
+    writeFileSync(destPath, "winner-bytes\n", "utf8");
+    withAppendLock(join(root, "xbrief", ".plan-id-identity"), (held) => {
+      unlinkOwnedScopeDest({
+        destPath,
+        projectRoot: root,
+        destCreatedThisAttempt: true,
+        formatted: "loser-bytes\n",
+        held,
+        allowUnlink: true,
+      });
+    });
+    expect(readFileSync(destPath, "utf8")).toBe("winner-bytes\n");
+  });
+
+  it("unlinkOwnedScopeDest removes dest this process published when bytes match", () => {
+    root = makeRepo();
+    const destPath = join(root, "xbrief", "completed", "owned.xbrief.json");
+    const formatted = "owned-bytes\n";
+    const published = publishScopeDestExclusive({ destPath, formatted, projectRoot: root });
+    expect(published.ok).toBe(true);
+    withAppendLock(join(root, "xbrief", ".plan-id-identity"), (held) => {
+      unlinkOwnedScopeDest({
+        destPath,
+        projectRoot: root,
+        destCreatedThisAttempt: true,
+        formatted,
+        held,
+        allowUnlink: true,
+      });
+    });
+    expect(existsSync(destPath)).toBe(false);
+  });
+
+  it("complete then fail on the same basename refuses dest that already exists", () => {
+    root = makeRepo();
+    const name = "2026-01-01-shared-dest.xbrief.json";
+    const file = writeVbrief(root, "active", "running", name);
+    const complete = runTransition("complete", file, new Date("2026-10-15T12:00:00.000Z"));
+    expect(complete.ok).toBe(true);
+    const dest = join(root, "xbrief", "completed", name);
+    const destBytes = readFileSync(dest, "utf8");
+    const again = writeVbrief(root, "active", "running", name);
+    const fail = runTransition("fail", again, new Date("2026-10-15T12:00:00.000Z"));
+    expect(fail.ok).toBe(false);
+    expect(fail.message).toContain("Target already exists");
+    expect(existsSync(again)).toBe(true);
+    expect(readFileSync(dest, "utf8")).toBe(destBytes);
+  });
+
+  it("identical dest retry completes with dest bytes unchanged", () => {
+    root = makeRepo();
+    const name = "2026-01-01-idempotent.xbrief.json";
+    const now = new Date("2026-10-15T12:00:00.000Z");
+    const file = writeVbrief(root, "active", "running", name);
+    const first = runTransition("complete", file, now);
+    expect(first.ok).toBe(true);
+    const dest = join(root, "xbrief", "completed", name);
+    const destBytes = readFileSync(dest, "utf8");
+    const restored = writeVbrief(root, "active", "running", name);
+    const second = runTransition("complete", restored, now);
+    expect(second.ok).toBe(true);
+    expect(existsSync(restored)).toBe(false);
+    expect(readFileSync(dest, "utf8")).toBe(destBytes);
+  });
+
+  it("publishScopeDestExclusive returns Failed to write on non-EXISTS containment refuse", () => {
+    root = makeRepo();
+    const result = publishScopeDestExclusive({
+      destPath: join("/tmp", "scope-3908-outside.xbrief.json"),
+      formatted: "x\n",
+      projectRoot: root,
+    });
+    expect(result.ok).toBe(false);
+    expect(result.message).toContain("Failed to write");
+  });
+
+  it("unlinkOwnedScopeDest skips when the held lock is not owned", () => {
+    root = makeRepo();
+    const destPath = join(root, "xbrief", "completed", "unowned.xbrief.json");
+    const formatted = "owned-bytes\n";
+    expect(publishScopeDestExclusive({ destPath, formatted, projectRoot: root }).ok).toBe(true);
+    unlinkOwnedScopeDest({
+      destPath,
+      projectRoot: root,
+      destCreatedThisAttempt: true,
+      formatted,
+      held: {
+        lockPath: join(root, "xbrief", ".plan-id-identity.lock"),
+        pid: process.pid,
+        token: "not-the-owner",
+        acquiredAt: 1,
+      },
+      allowUnlink: true,
+    });
+    expect(readFileSync(destPath, "utf8")).toBe(formatted);
+  });
+
+  it("refuses dest that exists as an unreadable directory", () => {
+    root = makeRepo();
+    const name = "2026-01-01-dir-dest.xbrief.json";
+    const file = writeVbrief(root, "active", "running", name);
+    mkdirSync(join(root, "xbrief", "completed", name));
+    const result = runTransition("complete", file);
+    expect(result.ok).toBe(false);
+    expect(result.message).toContain("Target already exists");
+    expect(existsSync(file)).toBe(true);
   });
 });
