@@ -8,14 +8,7 @@
  */
 import { randomBytes } from "node:crypto";
 import type { Stats } from "node:fs";
-import {
-  lstatSync,
-  mkdirSync,
-  readdirSync,
-  renameSync,
-  rmdirSync,
-  unlinkSync,
-} from "node:fs";
+import { lstatSync, mkdirSync, readdirSync, renameSync, rmdirSync, unlinkSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { performance } from "node:perf_hooks";
 import { containedWrite } from "../fs/contained-write.js";
