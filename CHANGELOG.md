@@ -14,6 +14,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.125.2] - 2026-10-15
+
+> Fail-closed PreToolUse dest harvest (#5366), Codex critic workdir (#4998), installer tarball SHA pin (#5627), completed-write-guard (#5602), auto-discover delivery evidence (#3583).
+
 ### Fixed
 
 - **Recognize Codex critic launch directories (#4998).** Hooks can allow a Claude critic to launch in a prepared linked worktree when Codex supplies its working directory, even if the session stays in the parent checkout. Invalid or conflicting directory fields remain blocked. Live Codex 0.162 still omits that directory from hook input, so those launches remain blocked. Grok critic launches that name a prepared dest with `--cwd` still succeed when nested workdir is the parent checkout. Tracking #4998.
@@ -7211,7 +7223,8 @@ If you have custom scripts or references to deft files, update these paths:
 
 
 
-[Unreleased]: https://github.com/deftai/directive/compare/v0.125.1...HEAD
+[Unreleased]: https://github.com/deftai/directive/compare/v0.125.2...HEAD
+[0.125.2]: https://github.com/deftai/directive/compare/v0.125.1...v0.125.2
 [0.125.1]: https://github.com/deftai/directive/compare/v0.125.0...v0.125.1
 [0.125.0]: https://github.com/deftai/directive/compare/v0.124.0...v0.125.0
 [0.124.0]: https://github.com/deftai/directive/compare/v0.123.0...v0.124.0
