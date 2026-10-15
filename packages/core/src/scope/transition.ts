@@ -364,10 +364,9 @@ function scopeDestPathUnsafeMessage(projectRoot: string, destPath: string): stri
     assertDestinationNotSymlink(projectRoot, destPath);
     return null;
   } catch (err) {
-    if (err instanceof ProjectionContainmentError) {
-      return err.message;
-    }
-    throw err;
+    // Operational dest-unsafe (symlink / containment / unexpected walk error):
+    // returned-failure, never throw (#3908 intent-constraint free).
+    return err instanceof Error ? err.message : String(err);
   }
 }
 

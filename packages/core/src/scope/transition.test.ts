@@ -12,6 +12,7 @@ import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import * as containedWriteMod from "../fs/contained-write.js";
 import { ContainedWriteError, ContainedWriteErrorCode } from "../fs/contained-write.js";
+import * as projectionContainment from "../fs/projection-containment.js";
 import * as clauseDerivation from "../intake/clause-derivation.js";
 import * as specGuardMod from "../policy/spec-guard.js";
 import { ENV_RUN_SUMMARY_PATH } from "../run-summary/index.js";
@@ -2433,6 +2434,26 @@ describe("scope dest exclusive-create and owned unlink (#3908)", () => {
       expect(result.ok).toBe(false);
       expect(result.message).toContain("Failed to write");
       expect(readFileSync(destPath, "utf8")).toBe("winner-bytes\n");
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it("dest-path unsafe walk errors return a message instead of throwing", () => {
+    root = makeRepo();
+    const name = "2026-01-01-dest-unsafe-unexpected.xbrief.json";
+    const now = new Date("2026-10-15T12:00:00.000Z");
+    const file = writeVbrief(root, "active", "running", name);
+    const spy = vi
+      .spyOn(projectionContainment, "assertDestinationNotSymlink")
+      .mockImplementation(() => {
+        throw new Error("dest walk boom");
+      });
+    try {
+      const result = runTransition("complete", file, now);
+      expect(result.ok).toBe(false);
+      expect(result.message).toContain("dest walk boom");
+      expect(existsSync(file)).toBe(true);
     } finally {
       spy.mockRestore();
     }
