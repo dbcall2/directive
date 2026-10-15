@@ -94,10 +94,13 @@ describe("plan-sequence sidecar lock (#3907)", () => {
     expect(existsSync(lockPath)).toBe(false);
   });
 
-  it("throws on a short owner write", () => {
+  it("returns lock-timeout on a short owner write", () => {
     const lockPath = lockFile();
-    expect(() =>
-      withPlanSequenceSidecarLock(lockPath, () => "nope", { writeOwner: () => 0 }),
-    ).toThrow(/short write while recording plan-sequence lock owner/);
+    const short = withPlanSequenceSidecarLock(lockPath, () => "nope", { writeOwner: () => 0 });
+    expect(short.ok).toBe(false);
+    if (!short.ok) {
+      expect(short.code).toBe("lock-timeout");
+      expect(short.message).toMatch(/short write while recording plan-sequence lock owner/);
+    }
   });
 });

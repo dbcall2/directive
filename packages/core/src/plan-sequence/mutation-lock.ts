@@ -2,7 +2,9 @@
  * Same-worktree sidecar lock for `.deft/plan-sequence.json` (#3907).
  *
  * Reuses the #3909 directory-rename protocol (non-empty claim rename, dead-PID
- * reap only). Does not call the PROJECT-DEFINITION lock.
+ * reap only). Does not call the PROJECT-DEFINITION lock. Lock-busy, reentrancy,
+ * short owner writes, and unexpected filesystem errno are returned-failure
+ * (caller may retry).
  */
 import { randomBytes } from "node:crypto";
 import type { Stats } from "node:fs";
@@ -29,7 +31,6 @@ export type PlanSequenceLockBlockedReason =
   | "malformed-lock-directory"
   | "legacy-file-sidecar";
 
-const DEFAULT_ACQUISITION_BUDGET_MS = 30_000;
 const LOCK_OWNER_ENTRY_RE = /^([1-9]\d*)-([a-f0-9]{32})$/;
 const RENAME_CONTENTION_CODES = new Set([
   "EACCES",
@@ -95,9 +96,8 @@ function readDirectoryLockOwner(lockPath: string): DirectoryLockOwner | null {
   let entries: string[];
   try {
     entries = readdirSync(lockPath);
-  } catch (err: unknown) {
-    if ((err as NodeJS.ErrnoException).code === "ENOENT") return null;
-    throw err;
+  } catch {
+    return null;
   }
   if (entries.length !== 1) return null;
   return parseDirectoryLockOwnerEntry(entries[0] ?? "");
@@ -124,7 +124,7 @@ function reapDirectoryLock(
     if ((err as NodeJS.ErrnoException).code === "ENOENT") {
       return { reaped: false, reason: "contended" };
     }
-    throw err;
+    return { reaped: false, reason: "malformed-lock-directory" };
   }
   beforeLockDirRemove(lockPath);
   try {
@@ -136,7 +136,7 @@ function reapDirectoryLock(
     if (code === "ENOTEMPTY" || code === "EEXIST") {
       return { reaped: false, reason: "contended" };
     }
-    throw err;
+    return { reaped: false, reason: "malformed-lock-directory" };
   }
 }
 
@@ -167,10 +167,14 @@ function describeLockFailure(
   ].join("\n");
 }
 
+function lockBusy(message: string): PlanSequenceLockResult<never> {
+  return { ok: false, code: "lock-timeout", message };
+}
+
 /**
  * Run `fn` while holding the exclusive sidecar directory lock beside the
- * plan-sequence file. Returned-failure for timeout / reentrancy; unexpected
- * filesystem errors still throw.
+ * plan-sequence file. Returned-failure for timeout, reentrancy, short owner
+ * writes, and unexpected filesystem errno.
  */
 export function withPlanSequenceSidecarLock<T>(
   lockPath: string,
@@ -186,7 +190,7 @@ export function withPlanSequenceSidecarLock<T>(
   }
   const sleepMs = deps.sleepMs ?? defaultSleep;
   const monotonicNowMs = deps.monotonicNowMs ?? (() => performance.now());
-  const budgetMs = deps.acquisitionBudgetMs ?? DEFAULT_ACQUISITION_BUDGET_MS;
+  const budgetMs = deps.acquisitionBudgetMs ?? 30_000;
   const probeProcess = deps.probeProcess ?? defaultProbeProcess;
   const writeOwner = deps.writeOwner ?? writeSync;
   const renameLock = deps.renameLock ?? renameSync;
@@ -212,7 +216,7 @@ export function withPlanSequenceSidecarLock<T>(
       fd = openSync(preparedEntryPath, "wx");
       const written = writeOwner(fd, payload);
       if (written !== Buffer.byteLength(payload)) {
-        throw new Error("short write while recording plan-sequence lock owner");
+        return lockBusy("short write while recording plan-sequence lock owner");
       }
       closeSync(fd);
       fd = undefined;
@@ -225,7 +229,8 @@ export function withPlanSequenceSidecarLock<T>(
         }
         fd = undefined;
       }
-      throw err;
+      const detail = err instanceof Error ? err.message : String(err);
+      return lockBusy(`plan-sequence lock owner record failed: ${detail}`);
     }
 
     const startedAt = monotonicNowMs();
@@ -258,11 +263,15 @@ export function withPlanSequenceSidecarLock<T>(
       } catch (err: unknown) {
         const code = (err as NodeJS.ErrnoException).code;
         if (code === undefined || !RENAME_CONTENTION_CODES.has(code)) {
-          throw err;
+          const detail = err instanceof Error ? err.message : String(err);
+          return lockBusy(`plan-sequence lock publish failed: ${detail}`);
         }
         const lockStat = lstatIfExists(lockPath);
         if (lockStat === null) {
-          if (code === "EACCES" || code === "EPERM") throw err;
+          if (code === "EACCES" || code === "EPERM") {
+            const detail = err instanceof Error ? err.message : String(err);
+            return lockBusy(`plan-sequence lock publish failed: ${detail}`);
+          }
           continue;
         }
         if (lockStat.isDirectory()) {
@@ -281,11 +290,7 @@ export function withPlanSequenceSidecarLock<T>(
       }
     }
     if (!acquired) {
-      return {
-        ok: false,
-        code: "lock-timeout",
-        message: describeLockFailure(lockPath, timeoutReason ?? "contended", budgetMs),
-      };
+      return lockBusy(describeLockFailure(lockPath, timeoutReason ?? "contended", budgetMs));
     }
     return { ok: true, value: fn() };
   } finally {

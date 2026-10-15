@@ -435,14 +435,11 @@ export function parsePlanSequence(raw: unknown): PlanSequence {
   const current_index = typeof obj.current_index === "number" ? obj.current_index : 0;
   const exhausted = obj.exhausted === true || current_index >= entries.length;
   let generation = 0;
-  if (Object.hasOwn(obj, "generation")) {
-    if (
-      typeof obj.generation !== "number" ||
-      !Number.isInteger(obj.generation) ||
-      obj.generation < 0
-    ) {
-      throw new Error("plan-sequence: generation must be a non-negative integer");
-    }
+  if (
+    typeof obj.generation === "number" &&
+    Number.isInteger(obj.generation) &&
+    obj.generation >= 0
+  ) {
     generation = obj.generation;
   }
   const source_revision = typeof obj.source_revision === "string" ? obj.source_revision : "";

@@ -190,6 +190,23 @@ describe("plan-sequence store", () => {
     expect(readFileSync(path, "utf8")).toBe("{not-json\n");
   });
 
+  it("refuses mutation when on-disk generation is present but not a non-negative integer", () => {
+    const root = seed();
+    const path = planSequencePath(root);
+    expect(writePlanSequence(root, sample("bad-gen"), 0, { sourceRevision: "bad-gen" }).ok).toBe(
+      true,
+    );
+    const parsed = JSON.parse(readFileSync(path, "utf8")) as Record<string, unknown>;
+    parsed.generation = -1;
+    writeFileSync(path, `${JSON.stringify(parsed)}\n`);
+    const written = writePlanSequence(root, sample("next"), 0);
+    expect(written.ok).toBe(false);
+    if (!written.ok) expect(written.code).toBe("parse-error");
+    expect(JSON.parse(readFileSync(path, "utf8")) as { generation: unknown }).toEqual(
+      expect.objectContaining({ generation: -1, sequence_id: "bad-gen" }),
+    );
+  });
+
   it("rejects a stale expected generation on clear without unlinking", () => {
     const root = seed();
     expect(writePlanSequence(root, sample("keep"), 0, { sourceRevision: "keep" }).ok).toBe(true);
@@ -265,22 +282,28 @@ describe("plan-sequence store", () => {
 
   it("fail-closes a short owner write and unexpected rename errors", () => {
     const root = seed();
-    expect(() =>
-      writePlanSequence(root, sample(), 0, {
-        lock: { writeOwner: () => 0 },
-      }),
-    ).toThrow(/short write/);
-    expect(() =>
-      writePlanSequence(root, sample(), 0, {
-        lock: {
-          renameLock: () => {
-            const err = new Error("boom") as NodeJS.ErrnoException;
-            err.code = "EIO";
-            throw err;
-          },
+    const short = writePlanSequence(root, sample(), 0, {
+      lock: { writeOwner: () => 0 },
+    });
+    expect(short.ok).toBe(false);
+    if (!short.ok) {
+      expect(short.code).toBe("lock-timeout");
+      expect(short.message).toMatch(/short write/);
+    }
+    const boom = writePlanSequence(root, sample(), 0, {
+      lock: {
+        renameLock: () => {
+          const err = new Error("boom") as NodeJS.ErrnoException;
+          err.code = "EIO";
+          throw err;
         },
-      }),
-    ).toThrow(/boom/);
+      },
+    });
+    expect(boom.ok).toBe(false);
+    if (!boom.ok) {
+      expect(boom.code).toBe("lock-timeout");
+      expect(boom.message).toMatch(/boom/);
+    }
   });
 });
 

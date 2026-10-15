@@ -86,22 +86,32 @@ function observeSourceRevision(projectRoot: string, override?: string): string {
   }
 }
 
+function parseError(detail: string): PlanSequenceMutationFail {
+  return {
+    ok: false,
+    code: "parse-error",
+    current_generation: 0,
+    source_revision: "",
+    message: `plan-sequence: refused mutation because the on-disk record could not be parsed (${detail})`,
+  };
+}
+
 function readOnDisk(path: string): { ok: true; sequence: PlanSequence | null } | PlanSequenceMutationFail {
   if (!existsSync(path)) {
     return { ok: true, sequence: null };
   }
   try {
     const raw = JSON.parse(readFileSync(path, "utf8")) as unknown;
+    if (raw !== null && typeof raw === "object" && Object.hasOwn(raw, "generation")) {
+      const generation = (raw as { generation: unknown }).generation;
+      if (!isExpectedGeneration(generation)) {
+        return parseError("generation must be a non-negative integer");
+      }
+    }
     return { ok: true, sequence: parsePlanSequence(raw) };
   } catch (err) {
     const detail = err instanceof Error ? err.message : String(err);
-    return {
-      ok: false,
-      code: "parse-error",
-      current_generation: 0,
-      source_revision: "",
-      message: `plan-sequence: refused mutation because the on-disk record could not be parsed (${detail})`,
-    };
+    return parseError(detail);
   }
 }
 

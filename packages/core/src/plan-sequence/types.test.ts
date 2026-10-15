@@ -63,12 +63,8 @@ describe("plan-sequence types", () => {
     expect(isClosedPlanSequenceShape(created)).toBe(true);
     expect(isClosedPlanSequenceShape(JSON.parse(JSON.stringify(parsed)) as unknown)).toBe(true);
     expect(isClosedPlanSequenceShape({ ...created, extra_authority: true })).toBe(false);
-    expect(() => parsePlanSequence({ ...created, generation: -1 })).toThrow(
-      /generation must be a non-negative integer/,
-    );
-    expect(() => parsePlanSequence({ ...created, generation: 1.5 })).toThrow(
-      /generation must be a non-negative integer/,
-    );
+    expect(parsePlanSequence({ ...created, generation: -1 }).generation).toBe(0);
+    expect(parsePlanSequence({ ...created, generation: 1.5 }).generation).toBe(0);
     expect(() =>
       parsePlanSequence({ sequence_id: "x", sequence_kind: "delivery", entries: [null] }),
     ).toThrow(/entries\[0\] must be an object/);
