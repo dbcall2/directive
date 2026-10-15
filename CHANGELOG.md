@@ -1,28 +1,18 @@
- Changelog
-
-
+# Changelog
 
 All notable changes to the Deft framework will be documented in this file.
 
-
-
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-
-
 ## [Unreleased]
-
 ### Added
-
 ### Changed
 - Activate Prefer-A Bound keep-active brief for #3907 (productPullRequest unset; swarm-ready story fields). Tracking #3907.
-
 ### Fixed
+- **Prevent stale ordered-plan changes (#3907).** Competing commands in the same worktree can no longer overwrite or clear a plan using an outdated generation. Clearing and recreating a plan keeps older commands from changing its replacement. Persist failures are retryable. CLI `set`, `advance`, and `clear` require `--expected-generation`. Tracking #3907.
 - **Competing sessions cannot change worktree files before claiming occupancy (#3906).** Cold, re-arm, and `session:ready` persist the worktree lease before any linked-deposit copy. Failed setup rolls back only this invocation's claim. Tracking #3906.
 - **A session re-checks occupancy before writing ritual (#3906).** A steal during ceremony no longer lets the first session overwrite the new owner's ritual. Tracking #3906.
-
 ### Removed
 
 ## [0.125.2] - 2026-10-15
