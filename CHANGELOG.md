@@ -49,6 +49,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Same-worktree CAS for ordered-plan mutations (#3907).** `writePlanSequence` and `clearPlanSequence` take `expected_generation`, re-read under a sidecar lock beside `.deft/plan-sequence.json`, and mint N+1 only for the lock holder. CLI `set` / `advance` / `clear` require `--expected-generation`. Tracking #3907.
 - **Stricter completion checks (#5602).** New completed briefs are checked for unfinished items and informal delivery records. Code-bearing briefs also need recorded delivery proof. Swarm guidance directs agents to finish leftover work through `task swarm:finalize-cohort` or `task scope:complete` with delivery evidence, and to stop if those commands refuse.
 
 ### Changed

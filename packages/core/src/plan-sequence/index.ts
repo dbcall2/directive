@@ -6,8 +6,14 @@ export {
 } from "./missing-kind.js";
 export {
   clearPlanSequence,
+  type ClearPlanSequenceResult,
+  type PlanSequenceMutationCode,
+  type PlanSequenceMutationFail,
+  type PlanSequenceMutationOptions,
+  planSequenceLockPath,
   planSequencePath,
   readPlanSequence,
+  type WritePlanSequenceResult,
   writePlanSequence,
 } from "./store.js";
 export {

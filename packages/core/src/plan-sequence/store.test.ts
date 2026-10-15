@@ -1,14 +1,16 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { spawn } from "node:child_process";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   clearPlanSequence,
+  planSequenceLockPath,
   planSequencePath,
   readPlanSequence,
   writePlanSequence,
 } from "./store.js";
-import { createPlanSequence } from "./types.js";
+import { createPlanSequence, isClosedPlanSequenceShape } from "./types.js";
 
 const roots: string[] = [];
 afterEach(() => {
@@ -17,6 +19,24 @@ afterEach(() => {
   }
 });
 
+function seed(): string {
+  const root = mkdtempSync(join(tmpdir(), "ps-store-"));
+  roots.push(root);
+  return root;
+}
+
+function sample(id = "s") {
+  return createPlanSequence({
+    sequence_id: id,
+    sequence_kind: "checklist",
+    authorized_by: "op",
+    entries: [
+      { id: "1", kind: "task" },
+      { id: "2", kind: "task" },
+    ],
+  });
+}
+
 describe("plan-sequence store", () => {
   it("planSequencePath lives under .deft", () => {
     expect(planSequencePath("/tmp/proj").replace(/\\/g, "/")).toMatch(
@@ -24,18 +44,409 @@ describe("plan-sequence store", () => {
     );
   });
 
-  it("round-trips write/read/clear", () => {
-    const root = mkdtempSync(join(tmpdir(), "ps-store-"));
-    roots.push(root);
-    const seq = createPlanSequence({
-      sequence_id: "s",
-      sequence_kind: "checklist",
-      authorized_by: "op",
-      entries: [{ id: "1", kind: "task" }],
-    });
-    writePlanSequence(root, seq);
-    expect(readPlanSequence(root)?.sequence_id).toBe("s");
-    expect(clearPlanSequence(root)).toBe(true);
+  it("round-trips write/read/clear with expected_generation", () => {
+    const root = seed();
+    const seq = sample();
+    const written = writePlanSequence(root, seq, 0, { sourceRevision: "abc" });
+    expect(written.ok).toBe(true);
+    if (!written.ok) return;
+    expect(written.sequence.generation).toBe(1);
+    expect(written.sequence.source_revision).toBe("abc");
+    expect(readPlanSequence(root)?.generation).toBe(1);
+    const cleared = clearPlanSequence(root, 1);
+    expect(cleared.ok).toBe(true);
+    if (!cleared.ok) return;
+    expect(cleared.removed).toBe(true);
     expect(readPlanSequence(root)).toBeNull();
+    expect(existsSync(planSequenceLockPath(root))).toBe(false);
+  });
+
+  it("fail-closes when expected_generation is missing or non-integer", () => {
+    const root = seed();
+    const seq = sample();
+    expect(writePlanSequence(root, seq, Number.NaN).ok).toBe(false);
+    expect(writePlanSequence(root, seq, 1.5).ok).toBe(false);
+    const missing = clearPlanSequence(root, undefined as unknown as number);
+    expect(missing.ok).toBe(false);
+    if (!missing.ok) expect(missing.code).toBe("missing-expected-generation");
+    expect(existsSync(planSequencePath(root))).toBe(false);
+  });
+
+  it("rejects a stale expected generation without writing", () => {
+    const root = seed();
+    const first = writePlanSequence(root, sample("a"), 0, { sourceRevision: "r1" });
+    expect(first.ok).toBe(true);
+    const stale = writePlanSequence(root, sample("b"), 0, { sourceRevision: "r2" });
+    expect(stale.ok).toBe(false);
+    if (stale.ok) return;
+    expect(stale.code).toBe("generation-mismatch");
+    expect(stale.current_generation).toBe(1);
+    expect(readPlanSequence(root)?.sequence_id).toBe("a");
+    expect(readPlanSequence(root)?.generation).toBe(1);
+  });
+
+  it("treats a legacy missing generation as expected 0 and does not write anyway", () => {
+    const root = seed();
+    const path = planSequencePath(root);
+    mkdirSync(join(root, ".deft"), { recursive: true });
+    writeFileSync(
+      path,
+      `${JSON.stringify({
+        sequence_id: "legacy",
+        sequence_kind: "checklist",
+        entries: [{ id: "1", kind: "task" }],
+        current_index: 0,
+        batching_allowed: false,
+        continuation_past_final: false,
+        exhausted: false,
+        authorized_by: "op",
+        created_at: "2026-01-01T00:00:00Z",
+        updated_at: "2026-01-01T00:00:00Z",
+      })}\n`,
+    );
+    const anyway = writePlanSequence(root, sample("nope"), 1);
+    expect(anyway.ok).toBe(false);
+    if (!anyway.ok) expect(anyway.current_generation).toBe(0);
+    expect(readPlanSequence(root)?.sequence_id).toBe("legacy");
+    const migrated = writePlanSequence(root, sample("migrated"), 0, { sourceRevision: "mig" });
+    expect(migrated.ok).toBe(true);
+    if (!migrated.ok) return;
+    expect(migrated.sequence.generation).toBe(1);
+    expect(readPlanSequence(root)?.sequence_id).toBe("migrated");
+  });
+
+  it("does not import occupancy or the PROJECT-DEFINITION lock", () => {
+    const storeSrc = readFileSync(new URL("./store.ts", import.meta.url), "utf8");
+    const lockSrc = readFileSync(new URL("./mutation-lock.ts", import.meta.url), "utf8");
+    expect(storeSrc).not.toMatch(/occupancy/);
+    expect(lockSrc).not.toMatch(/occupancy/);
+    expect(storeSrc).not.toMatch(/projectDefinitionMutationLock/);
+    expect(lockSrc).not.toMatch(/projectDefinitionMutationLock/);
+    expect(storeSrc).not.toMatch(/unlinkSync/);
+  });
+
+  it("admits generation and source_revision on the closed shape", () => {
+    const seq = writePlanSequence(seed(), sample(), 0, { sourceRevision: "deadbeef" });
+    expect(seq.ok).toBe(true);
+    if (!seq.ok) return;
+    expect(isClosedPlanSequenceShape(seq.sequence)).toBe(true);
+    expect(isClosedPlanSequenceShape({ ...seq.sequence, extra_authority: true })).toBe(false);
+  });
+
+  it("returns lock-reentrant when a holder nests another mutation", () => {
+    const root = seed();
+    let nestedCode: string | undefined;
+    const first = writePlanSequence(root, sample("outer"), 0, {
+      sourceRevision: "outer",
+      afterAcquire: () => {
+        const nested = writePlanSequence(root, sample("inner"), 0);
+        expect(nested.ok).toBe(false);
+        if (!nested.ok) nestedCode = nested.code;
+      },
+    });
+    expect(first.ok).toBe(true);
+    expect(nestedCode).toBe("lock-reentrant");
+    expect(readPlanSequence(root)?.sequence_id).toBe("outer");
+  });
+
+  it("returns lock-timeout when a live owner holds the sidecar", () => {
+    const root = seed();
+    const lockPath = planSequenceLockPath(root);
+    mkdirSync(lockPath, { recursive: true });
+    writeFileSync(
+      join(lockPath, `${process.pid}-${"ab".repeat(16)}`),
+      `${JSON.stringify({ pid: process.pid, token: "ab".repeat(16) })}\n`,
+    );
+    const timedOut = writePlanSequence(root, sample(), 0, {
+      lock: { acquisitionBudgetMs: 0, sleepMs: () => undefined },
+    });
+    expect(timedOut.ok).toBe(false);
+    if (!timedOut.ok) expect(timedOut.code).toBe("lock-timeout");
+    expect(readPlanSequence(root)).toBeNull();
+  });
+
+  it("reaps a dead-PID sidecar and then mutates", () => {
+    const root = seed();
+    const lockPath = planSequenceLockPath(root);
+    mkdirSync(lockPath, { recursive: true });
+    writeFileSync(join(lockPath, `999999999-${"cd".repeat(16)}`), "{}\n");
+    const written = writePlanSequence(root, sample("reap"), 0, { sourceRevision: "reap" });
+    expect(written.ok).toBe(true);
+    expect(readPlanSequence(root)?.sequence_id).toBe("reap");
+    expect(existsSync(lockPath)).toBe(false);
+  });
+
+  it("refuses mutation when the on-disk record cannot be parsed", () => {
+    const root = seed();
+    const path = planSequencePath(root);
+    mkdirSync(join(root, ".deft"), { recursive: true });
+    writeFileSync(path, "{not-json\n");
+    const written = writePlanSequence(root, sample(), 0);
+    expect(written.ok).toBe(false);
+    if (!written.ok) expect(written.code).toBe("parse-error");
+    const cleared = clearPlanSequence(root, 0);
+    expect(cleared.ok).toBe(false);
+    if (!cleared.ok) expect(cleared.code).toBe("parse-error");
+    expect(readFileSync(path, "utf8")).toBe("{not-json\n");
+  });
+
+  it("rejects a stale expected generation on clear without unlinking", () => {
+    const root = seed();
+    expect(writePlanSequence(root, sample("keep"), 0, { sourceRevision: "keep" }).ok).toBe(true);
+    const stale = clearPlanSequence(root, 0);
+    expect(stale.ok).toBe(false);
+    if (!stale.ok) expect(stale.code).toBe("generation-mismatch");
+    expect(readPlanSequence(root)?.sequence_id).toBe("keep");
+  });
+
+  it("times out on a legacy file sidecar and leaves the file in place", () => {
+    const root = seed();
+    const lockPath = planSequenceLockPath(root);
+    mkdirSync(join(root, ".deft"), { recursive: true });
+    writeFileSync(lockPath, "legacy-lock\n");
+    const timedOut = writePlanSequence(root, sample(), 0, {
+      lock: { acquisitionBudgetMs: 0, sleepMs: () => undefined },
+    });
+    expect(timedOut.ok).toBe(false);
+    if (!timedOut.ok) {
+      expect(timedOut.code).toBe("lock-timeout");
+      expect(timedOut.message).toContain("legacy-file-sidecar");
+      expect(timedOut.message).toContain("plan-sequence");
+    }
+    expect(readFileSync(lockPath, "utf8")).toBe("legacy-lock\n");
+    const cleared = clearPlanSequence(root, 0, {
+      lock: { acquisitionBudgetMs: 0, sleepMs: () => undefined },
+    });
+    expect(cleared.ok).toBe(false);
+    if (!cleared.ok) expect(cleared.code).toBe("lock-timeout");
+  });
+
+  it("times out on a malformed lock directory and unknown owner liveness", () => {
+    const root = seed();
+    const lockPath = planSequenceLockPath(root);
+    mkdirSync(lockPath, { recursive: true });
+    writeFileSync(join(lockPath, "junk"), "x\n");
+    const malformed = writePlanSequence(root, sample(), 0, {
+      lock: { acquisitionBudgetMs: 0, sleepMs: () => undefined },
+    });
+    expect(malformed.ok).toBe(false);
+    if (!malformed.ok) expect(malformed.message).toContain("malformed-lock-directory");
+    rmSync(join(lockPath, "junk"));
+    writeFileSync(join(lockPath, `${process.pid}-${"ef".repeat(16)}`), "{}\n");
+    const unknown = writePlanSequence(root, sample(), 0, {
+      lock: {
+        acquisitionBudgetMs: 0,
+        sleepMs: () => undefined,
+        probeProcess: () => "unknown",
+      },
+    });
+    expect(unknown.ok).toBe(false);
+    if (!unknown.ok) expect(unknown.message).toContain("owner-liveness-unknown");
+  });
+
+  it("treats a contended rmdir during dead-PID reap as lock-timeout", () => {
+    const root = seed();
+    const lockPath = planSequenceLockPath(root);
+    mkdirSync(lockPath, { recursive: true });
+    writeFileSync(join(lockPath, `999999998-${"ab".repeat(16)}`), "{}\n");
+    const timedOut = writePlanSequence(root, sample(), 0, {
+      lock: {
+        acquisitionBudgetMs: 0,
+        sleepMs: () => undefined,
+        probeProcess: () => "dead",
+        beforeLockDirRemove: (observed) => {
+          writeFileSync(join(observed, "extra"), "x\n");
+        },
+      },
+    });
+    expect(timedOut.ok).toBe(false);
+    if (!timedOut.ok) expect(timedOut.code).toBe("lock-timeout");
+  });
+
+  it("fail-closes a short owner write and unexpected rename errors", () => {
+    const root = seed();
+    expect(() =>
+      writePlanSequence(root, sample(), 0, {
+        lock: { writeOwner: () => 0 },
+      }),
+    ).toThrow(/short write/);
+    expect(() =>
+      writePlanSequence(root, sample(), 0, {
+        lock: {
+          renameLock: () => {
+            const err = new Error("boom") as NodeJS.ErrnoException;
+            err.code = "EIO";
+            throw err;
+          },
+        },
+      }),
+    ).toThrow(/boom/);
+  });
+});
+
+function waitForFile(path: string, timeoutMs: number): Promise<void> {
+  const started = Date.now();
+  return new Promise((resolveWait, rejectWait) => {
+    const tick = (): void => {
+      if (existsSync(path)) {
+        resolveWait();
+        return;
+      }
+      if (Date.now() - started > timeoutMs) {
+        rejectWait(new Error(`timed out waiting for ${path}`));
+        return;
+      }
+      setTimeout(tick, 10);
+    };
+    tick();
+  });
+}
+
+function runOverlapWorker(input: {
+  readonly root: string;
+  readonly resultPath: string;
+  readonly op: "advance" | "replace" | "clear";
+  readonly expected: number;
+  readonly holdMs: number;
+  readonly startPath: string;
+  readonly readyPath: string;
+}): Promise<void> {
+  const workerPath = join(input.root, `worker-${input.op}-${basename(input.resultPath)}.mjs`);
+  const storeUrl = new URL("./store.ts", import.meta.url).href;
+  const typesUrl = new URL("./types.ts", import.meta.url).href;
+  writeFileSync(
+    workerPath,
+    `import { existsSync, writeFileSync } from "node:fs";\n` +
+      `import { advancePlanSequence, createPlanSequence } from ${JSON.stringify(typesUrl)};\n` +
+      `import { clearPlanSequence, readPlanSequence, writePlanSequence } from ${JSON.stringify(storeUrl)};\n` +
+      `const [root, resultPath, op, expectedRaw, holdRaw, startPath, readyPath] = process.argv.slice(2);\n` +
+      `const expected = Number(expectedRaw);\n` +
+      `const holdMs = Number(holdRaw);\n` +
+      `const hold = () => { const until = Date.now() + holdMs; while (Date.now() < until) {} };\n` +
+      `writeFileSync(readyPath, "ready\\n");\n` +
+      `const waitStart = Date.now();\n` +
+      `while (!existsSync(startPath)) {\n` +
+      `  if (Date.now() - waitStart > 5000) throw new Error("start gate timeout");\n` +
+      `  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10);\n` +
+      `}\n` +
+      `let result;\n` +
+      `if (op === "clear") {\n` +
+      `  result = clearPlanSequence(root, expected, { afterAcquire: hold });\n` +
+      `} else if (op === "replace") {\n` +
+      `  const seq = createPlanSequence({\n` +
+      `    sequence_id: "replacement",\n` +
+      `    sequence_kind: "checklist",\n` +
+      `    authorized_by: "op",\n` +
+      `    entries: [{ id: "r", kind: "task" }],\n` +
+      `  });\n` +
+      `  result = writePlanSequence(root, seq, expected, { afterAcquire: hold, sourceRevision: "replace" });\n` +
+      `} else {\n` +
+      `  const seq = readPlanSequence(root);\n` +
+      `  if (seq === null) throw new Error("missing sequence");\n` +
+      `  result = writePlanSequence(root, advancePlanSequence(seq), expected, { afterAcquire: hold, sourceRevision: "advance" });\n` +
+      `}\n` +
+      `writeFileSync(resultPath, JSON.stringify(result) + "\\n");\n`,
+  );
+  return new Promise((resolveWorker, rejectWorker) => {
+    const child = spawn(
+      process.execPath,
+      [
+        "--import",
+        "tsx",
+        workerPath,
+        input.root,
+        input.resultPath,
+        input.op,
+        String(input.expected),
+        String(input.holdMs),
+        input.startPath,
+        input.readyPath,
+      ],
+      { env: { ...process.env, DEFT_PROJECT_PATH: "" }, stdio: ["ignore", "ignore", "pipe"] },
+    );
+    let stderr = "";
+    child.stderr.setEncoding("utf8");
+    child.stderr.on("data", (chunk) => {
+      stderr += String(chunk);
+    });
+    child.on("error", rejectWorker);
+    child.on("exit", (code) => {
+      if (code === 0) resolveWorker();
+      else rejectWorker(new Error(`${input.op} exited ${code}: ${stderr}`));
+    });
+  });
+}
+
+async function overlap(opA: "advance" | "replace" | "clear", opB: "advance" | "replace" | "clear") {
+  const root = seed();
+  const first = writePlanSequence(root, sample("seed"), 0, { sourceRevision: "seed" });
+  expect(first.ok).toBe(true);
+  const startPath = join(root, "start");
+  const aReady = join(root, "a.ready");
+  const bReady = join(root, "b.ready");
+  const aResult = join(root, "a.json");
+  const bResult = join(root, "b.json");
+  const running = Promise.all([
+    runOverlapWorker({
+      root,
+      resultPath: aResult,
+      op: opA,
+      expected: 1,
+      holdMs: 80,
+      startPath,
+      readyPath: aReady,
+    }),
+    runOverlapWorker({
+      root,
+      resultPath: bResult,
+      op: opB,
+      expected: 1,
+      holdMs: 80,
+      startPath,
+      readyPath: bReady,
+    }),
+  ]);
+  await waitForFile(aReady, 5000);
+  await waitForFile(bReady, 5000);
+  writeFileSync(startPath, "go\n");
+  await running;
+  const a = JSON.parse(readFileSync(aResult, "utf8")) as { ok: boolean; code?: string };
+  const b = JSON.parse(readFileSync(bResult, "utf8")) as { ok: boolean; code?: string };
+  const wins = [a, b].filter((r) => r.ok);
+  const losses = [a, b].filter((r) => !r.ok);
+  expect(wins).toHaveLength(1);
+  expect(losses).toHaveLength(1);
+  expect(losses[0]?.code).toBe("generation-mismatch");
+  expect(existsSync(planSequenceLockPath(root))).toBe(false);
+  return { root, a, b };
+}
+
+describe("plan-sequence two-process overlap (#3907)", () => {
+  it("serializes advance-versus-advance so only one mints N+1", async () => {
+    const { root } = await overlap("advance", "advance");
+    const loaded = readPlanSequence(root);
+    expect(loaded?.generation).toBe(2);
+    expect(loaded?.current_index).toBe(1);
+    expect(loaded?.entries.filter((e) => e.status === "completed")).toHaveLength(1);
+  });
+
+  it("serializes replace-versus-advance", async () => {
+    const { root } = await overlap("replace", "advance");
+    const loaded = readPlanSequence(root);
+    expect(loaded?.generation).toBe(2);
+    const replaced = loaded?.sequence_id === "replacement";
+    const advanced = loaded?.sequence_id === "seed" && loaded.current_index === 1;
+    expect(replaced || advanced).toBe(true);
+  });
+
+  it("serializes clear-versus-advance", async () => {
+    const { root } = await overlap("clear", "advance");
+    const loaded = readPlanSequence(root);
+    if (loaded === null) {
+      expect(existsSync(planSequencePath(root))).toBe(false);
+    } else {
+      expect(loaded.generation).toBe(2);
+      expect(loaded.current_index).toBe(1);
+    }
   });
 });
