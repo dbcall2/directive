@@ -6,7 +6,7 @@
   },
   "plan": {
     "title": "[framework-gap] Fence scope lifecycle moves across processes",
-    "status": "running",
+    "status": "proposed",
     "narratives": {
       "Description": "[framework-gap] Fence scope lifecycle moves across processes",
       "Origin": "Ingested from https://github.com/deftai/directive/issues/3908",
@@ -525,6 +525,6 @@
       }
     },
     "id": "github.issue.5283616449",
-    "updated": "2026-10-15T13:20:20Z"
+    "updated": "2026-10-15T16:39:03.075Z"
   }
 }
