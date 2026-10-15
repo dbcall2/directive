@@ -17,6 +17,7 @@ import { ENV_RUN_SUMMARY_PATH } from "../run-summary/index.js";
 import type { GitRunner } from "../session/git.js";
 import { withAppendLock } from "../slice/lock.js";
 import { validateVbriefSchema } from "../vbrief-validate/schema.js";
+import * as briefIo from "./brief-io.js";
 import { atomicWriteBrief, readBriefForMutation } from "./brief-io.js";
 import {
   detectLifecycleFolder,
@@ -2454,6 +2455,27 @@ describe("scope dest exclusive-create and owned unlink (#3908)", () => {
     expect(second.message).toMatch(/symlink/i);
     expect(existsSync(restored)).toBe(true);
     expect(readFileSync(shadow, "utf8")).toBe(destBytes);
+  });
+
+  it("validates dest data before accepting matching dest bytes", () => {
+    root = makeRepo();
+    const name = "2026-01-01-match-validate.xbrief.json";
+    const now = new Date("2026-10-15T12:00:00.000Z");
+    const file = writeVbrief(root, "active", "running", name);
+    const first = runTransition("complete", file, now);
+    expect(first.ok).toBe(true);
+    const dest = join(root, "xbrief", "completed", name);
+    expect(existsSync(dest)).toBe(true);
+    const restored = writeVbrief(root, "active", "running", name);
+    const spy = vi.spyOn(briefIo, "validateBriefForPersist").mockReturnValue("plan.title is required");
+    try {
+      const second = runTransition("complete", restored, now);
+      expect(second.ok).toBe(false);
+      expect(second.message).toContain("plan.title is required");
+      expect(existsSync(restored)).toBe(true);
+    } finally {
+      spy.mockRestore();
+    }
   });
 
   it("unlinkOwnedScopeDest skips when the held lock is not owned", () => {

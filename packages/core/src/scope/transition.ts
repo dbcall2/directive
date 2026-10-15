@@ -913,6 +913,14 @@ export function runTransition(
       if (destUnsafe !== null) {
         return { ok: false, message: destUnsafe };
       }
+      // Validate dest data before matching-bytes accept and exclusive-create (#3908).
+      const validationError = validateBriefForPersist(destPath, data, vbriefRoot);
+      if (validationError !== null) {
+        return {
+          ok: false,
+          message: `${validationError} (source still at ${resolvedPath} → intended dest ${destPath})`,
+        };
+      }
       let destCreatedThisAttempt = false;
       if (existsSync(destPath)) {
         let destBytes: string | undefined;
@@ -925,15 +933,7 @@ export function runTransition(
           return { ok: false, message: `Target already exists: ${destPath}` };
         }
       } else {
-        // #2578 / #5391: validate dest path, then exclusive-create (O_EXCL). POSIX
-        // tmp+rename overwrite is not dest publish.
-        const validationError = validateBriefForPersist(destPath, data, vbriefRoot);
-        if (validationError !== null) {
-          return {
-            ok: false,
-            message: `${validationError} (source still at ${resolvedPath} → intended dest ${destPath})`,
-          };
-        }
+        // #2578 / #5391: exclusive-create (O_EXCL). POSIX tmp+rename overwrite is not dest publish.
         const published = publishScopeDestExclusive({ destPath, formatted, projectRoot });
         if (!published.ok) {
           if (published.message.startsWith("Target already exists:")) {
