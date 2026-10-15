@@ -1174,6 +1174,27 @@ describe("Codex workdir dest-proof (#4998)", () => {
     expect(decision).toMatchObject({ verdict: "allow", code: "spawn-process-only-ready" });
     expect(decision.message).toMatch(/codex/);
   });
+
+  it("keeps grok --cwd dest when nested workdir is the parent tree", () => {
+    const { root, dest } = destFixture();
+    const prepareArcDest = preparedDestSeam(dest);
+    const decision = decideHook(
+      {
+        host: "grok",
+        event: "tool.before",
+        projectRoot: root,
+        payload: {
+          toolName: "run_terminal_command",
+          tool_input: {
+            command: `grok --cwd "${dest}" --prompt-file /e.md --always-approve`,
+            workdir: root,
+          },
+        },
+      },
+      readySeams({ prepareArcDest }),
+    );
+    expect(decision).toMatchObject({ verdict: "allow", code: "spawn-process-only-ready" });
+  });
 });
 
 describe("Grok-applied spawn_subagent handler-runtime identity (#4272)", () => {

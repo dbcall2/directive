@@ -2956,7 +2956,7 @@ function launcherArgvNestedDestConflict(
   realpath: (path: string) => string,
   platform: NodeJS.Platform,
 ): string | null {
-  if (classified.family === "codex") return null;
+  if (classified.family === "codex" || classified.family === "grok") return null;
   const argvOnly = classifyLauncherFamilyArgv(command, { payloadCwd: null });
   if (argvOnly.kind !== "launcher" || argvOnly.dest === null) return null;
   const argvBound = bindExecutionDirectoryValue(
