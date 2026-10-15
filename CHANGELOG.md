@@ -19,8 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 ### Fixed
-- **Claim occupancy before session:start dest mutations (#3906).** Cold, re-arm, and `session:ready` persist the worktree lease before linked-deposit reconstitution and ready cache fetch-all. Persist-time claimed/stolen rollback is compare-and-delete (steal is release-to-empty); heartbeat stays. Rollback skips a later same-id heartbeat or aligned ritual. Thrown linked-deposit copy rolls back this invocation's claim. Tracking #3906.
-- **session:start re-checks occupancy before writing ritual (#3906).** A confirmed steal during cold or re-arm ceremony no longer lets the first session overwrite the new owner's ritual. Persist-first claim stays. Tracking #3906.
+- **Competing sessions cannot change worktree files before claiming occupancy (#3906).** Cold, re-arm, and `session:ready` persist the worktree lease before any linked-deposit copy. Failed setup rolls back only this invocation's claim. Tracking #3906.
+- **A session re-checks occupancy before writing ritual (#3906).** A steal during ceremony no longer lets the first session overwrite the new owner's ritual. Tracking #3906.
 
 ### Removed
 
@@ -30,8 +30,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **Claim occupancy before session:start dest mutations (#3906).** Cold, re-arm, and `session:ready` persist the worktree lease before linked-deposit reconstitution and ready cache fetch-all. Persist-time claimed/stolen rollback is compare-and-delete (steal is release-to-empty); heartbeat stays. Rollback skips a later same-id heartbeat or aligned ritual. Thrown linked-deposit copy rolls back this invocation's claim. Tracking #3906.
-- **session:start re-checks occupancy before writing ritual (#3906).** A confirmed steal during cold or re-arm ceremony no longer lets the first session overwrite the new owner's ritual. Persist-first claim stays. Tracking #3906.
 - **Recognize Codex critic launch directories (#4998).** Hooks can allow a Claude critic to launch in a prepared linked worktree when Codex supplies its working directory, even if the session stays in the parent checkout. Invalid or conflicting directory fields remain blocked. Live Codex 0.162 still omits that directory from hook input, so those launches remain blocked. Grok critic launches that name a prepared dest with `--cwd` still succeed when nested workdir is the parent checkout. Tracking #4998.
 - **`verify:scope-provenance` no longer tells operators to pass `--enforce` to fail closed (#5057).** Soft findings are advisory intent-pin drift on a brief with no intent pin. `--enforce` stays parsed for compatibility, prints that it has no effect after #4956 / #5002, and does not change the exit code. Tracking #5057.
 - **PreToolUse dest harvest miss no longer fail-opens write-shaped MCP (#5366).** Harvest `uri`/`file`; empty-harvest fail-closes write-shaped effective names (ApplyPatch class); unwrap `use_tool`/`CallMcpTool` shell inners with an effective argument view into Shell/UAT; decode local `file:` URIs and refuse unsupported schemes; active write fence denies empty/unclassified targets. Tracking #5366.
