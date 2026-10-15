@@ -15,6 +15,7 @@ import {
   applyWorktreeOccupancy,
   type OccupancyDecision,
   readOccupancy,
+  stealOccupancy,
 } from "./occupancy.js";
 import {
   COLD_EXCLUSIVE_PHASE_NAMES,
@@ -1373,5 +1374,58 @@ describe("runSessionStart worktree deposit reconstitution (#4443)", () => {
     });
     expect(result.code).toBe(1);
     expect(rolled).toHaveLength(0);
+  });
+});
+
+describe("runSessionStart mid-ceremony occupancy steal (#3906)", () => {
+  it("refuses ritual write after a confirmed steal by a different owner", () => {
+    const root = tempRoot();
+    const ownerA = "host:test:v1:b3duZXItYQ";
+    const ownerB = "host:test:v1:b3duZXItYg";
+    const result = runSessionStart(root, {
+      ...baseOptions(root, () => userMdResult({})),
+      sessionId: ownerA,
+      orientation: null,
+      runStalenessTickler: () => ({ lines: [], prompted: false }),
+      probeFinalizeOwed: () => {
+        expect(readOccupancy(root)?.sessionId).toBe(ownerA);
+        const stolen = stealOccupancy(root, {
+          sessionId: ownerB,
+          confirm: true,
+          occupant: ownerA,
+          env: {},
+        });
+        expect(stolen.code).toBe(0);
+        expect(readOccupancy(root)?.sessionId).toBe(ownerB);
+        return { lines: [], blocks: false, unknown: false };
+      },
+    });
+    expect(result.code).toBe(1);
+    expect(result.payload.ready).toBe(false);
+    expect(String(result.payload.message)).toMatch(/overwrite the new owner/i);
+    expect(readOccupancy(root)?.sessionId).toBe(ownerB);
+    expect(readRitualState(root)[0]).toBeNull();
+  });
+
+  it("refuses ritual write when occupancy vanishes mid-ceremony", () => {
+    const root = tempRoot();
+    const ownerA = "host:test:v1:dmFuaXNoLWE";
+    const result = runSessionStart(root, {
+      ...baseOptions(root, () => userMdResult({})),
+      sessionId: ownerA,
+      orientation: null,
+      runStalenessTickler: () => ({ lines: [], prompted: false }),
+      probeFinalizeOwed: () => {
+        expect(readOccupancy(root)?.sessionId).toBe(ownerA);
+        rmSync(join(root, ".deft", "occupancy.json"));
+        expect(readOccupancy(root)).toBeNull();
+        return { lines: [], blocks: false, unknown: false };
+      },
+    });
+    expect(result.code).toBe(1);
+    expect(result.payload.ready).toBe(false);
+    expect(String(result.payload.message)).toMatch(/live occupant none/i);
+    expect(readOccupancy(root)).toBeNull();
+    expect(readRitualState(root)[0]).toBeNull();
   });
 });

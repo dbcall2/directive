@@ -112,7 +112,9 @@ import {
   type ApplyOccupancyInput,
   applyWorktreeOccupancy,
   evaluateOccupancyCeremonyEligibility,
+  formatOccupancyRemediation,
   isPersistTimeAcquisition,
+  liveOccupant,
   type OccupancyDecision,
   type OccupancyIdentityProvenance,
   type PrimaryClaimException,
@@ -1410,6 +1412,72 @@ function returnAfterUnalignedAcquisition(
   };
 }
 
+/**
+ * Persist-first stays; re-read occupancy immediately before ritual write so a
+ * confirmed steal mid-ceremony cannot overwrite the new owner's ritual (#3906).
+ */
+function refuseRitualWriteIfOccupancyLost(
+  projectRoot: string,
+  options: SessionStartOptions,
+  sessionId: string,
+  now: Date,
+  acquired: OccupancyDecision | null,
+  persisted: OccupancyDecision,
+  environment: EnvironmentContext,
+  context: {
+    ceremonyTier: SessionCeremonyTier;
+    overallStarted: number;
+    stepTimings: SessionStartStepTiming[];
+    allowOptionalNetwork: boolean;
+    lines: string[];
+  },
+): SessionStartResult | null {
+  // Injected applyOccupancy with no durable record is the unit-test seam.
+  // Production CLI does not inject it; steal coverage uses real occupancy.
+  if (options.applyOccupancy !== undefined && persisted.record === null) {
+    return null;
+  }
+  const live = liveOccupant(projectRoot, now);
+  if (live !== null && live.sessionId === sessionId) {
+    return null;
+  }
+  const occupantId = live?.sessionId ?? null;
+  const message =
+    `session:start refused to write ritual: occupancy is no longer owned by session ${sessionId}` +
+    ` (live occupant ${occupantId ?? "none"}). A confirmed steal during ceremony must not overwrite the new owner.` +
+    (live !== null ? `\n${formatOccupancyRemediation(live, now, sessionId, options.env)}` : "");
+  context.lines.push(message);
+  emitSessionStartProcessCost(
+    {
+      ceremonyTier: context.ceremonyTier,
+      durationMs: elapsedMs(context.overallStarted),
+      exitCode: 1,
+      ready: false,
+      optionalNetwork: context.allowOptionalNetwork,
+      steps: asProcessCostSteps(context.stepTimings),
+    },
+    { projectRoot },
+  );
+  return returnAfterUnalignedAcquisition(projectRoot, options, acquired, {
+    code: 1,
+    payload: {
+      ready: false,
+      exit_code: 1,
+      ceremony_tier: context.ceremonyTier,
+      occupancy: {
+        action: "denied",
+        session_id: sessionId,
+        occupant_id: occupantId,
+      },
+      environment: environmentContextToDict(environment),
+      message,
+      steps: context.stepTimings,
+      duration_ms: elapsedMs(context.overallStarted),
+    },
+    lines: context.lines,
+  });
+}
+
 function runReadOnlySessionStart(
   projectRoot: string,
   options: SessionStartOptions,
@@ -1801,6 +1869,23 @@ function runSessionRearm(
   const rearmSessionId = persistedOccupancy.sessionId;
   lines.push(persistedOccupancy.message);
   pushWorkClaimScan(lines, projectRoot, options);
+  const lostRearm = refuseRitualWriteIfOccupancyLost(
+    projectRoot,
+    options,
+    rearmSessionId,
+    instant,
+    acquired,
+    persistedOccupancy,
+    environment,
+    {
+      ceremonyTier: REARM_CEREMONY_TIER,
+      overallStarted,
+      stepTimings,
+      allowOptionalNetwork: false,
+      lines,
+    },
+  );
+  if (lostRearm !== null) return lostRearm;
   // Fresh payload (no rearm_needed / compact_resume_at) clears compact markers (#2992).
   const writePayload: Record<string, unknown> = {
     ...newRitualStatePayload({
@@ -2672,6 +2757,23 @@ export function runSessionStart(
   const coldSessionId = persistedOccupancy.sessionId;
   lines.push(persistedOccupancy.message);
   pushWorkClaimScan(lines, projectRoot, options);
+  const lostCold = refuseRitualWriteIfOccupancyLost(
+    projectRoot,
+    options,
+    coldSessionId,
+    instant,
+    acquired,
+    persistedOccupancy,
+    environment,
+    {
+      ceremonyTier: COLD_CEREMONY_TIER,
+      overallStarted,
+      stepTimings,
+      allowOptionalNetwork,
+      lines,
+    },
+  );
+  if (lostCold !== null) return lostCold;
   const dialDict = {
     ...ceremonyDialToDict(ceremonyDialSelection),
     start_tier: ceremonyDialSelection.depth,
