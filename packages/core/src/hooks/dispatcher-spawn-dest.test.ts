@@ -1175,6 +1175,7 @@ describe("Codex workdir dest-proof (#4998)", () => {
     expect(decision.message).toMatch(/codex/);
   });
 
+  // CI retrigger after unrelated evaluator-worktree flake on 29af4e1e0 (#4998).
   it("keeps grok --cwd dest when nested workdir is the parent tree", () => {
     const { root, dest } = destFixture();
     const prepareArcDest = preparedDestSeam(dest);
