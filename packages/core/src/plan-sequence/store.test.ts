@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -63,6 +63,29 @@ describe("plan-sequence store", () => {
     expect(JSON.parse(readFileSync(planSequenceGenerationPath(root), "utf8"))).toEqual({
       generation: 2,
     });
+  });
+
+  it("persists the generation sidecar before the plan file", () => {
+    const root = seed();
+    const first = writePlanSequence(root, sample("a"), 0);
+    expect(first.ok).toBe(true);
+    const genPath = planSequenceGenerationPath(root);
+    const planPath = planSequencePath(root);
+    const genBefore = readFileSync(genPath, "utf8");
+    const planBefore = readFileSync(planPath, "utf8");
+    chmodSync(planPath, 0o444);
+    let threw: unknown;
+    try {
+      writePlanSequence(root, sample("b"), 1);
+    } catch (err) {
+      threw = err;
+    } finally {
+      chmodSync(planPath, 0o644);
+    }
+    expect(threw).toBeInstanceOf(Error);
+    expect(readFileSync(genPath, "utf8")).not.toBe(genBefore);
+    expect(JSON.parse(readFileSync(genPath, "utf8")).generation).toBe(2);
+    expect(readFileSync(planPath, "utf8")).toBe(planBefore);
   });
 
   it("keeps a generation token across clear so recreate cannot reuse generation 1", () => {

@@ -9,18 +9,16 @@
 import { randomBytes } from "node:crypto";
 import type { Stats } from "node:fs";
 import {
-  closeSync,
   lstatSync,
   mkdirSync,
-  openSync,
   readdirSync,
   renameSync,
   rmdirSync,
   unlinkSync,
-  writeSync,
 } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { performance } from "node:perf_hooks";
+import { containedWrite } from "../fs/contained-write.js";
 
 export type ProcessLiveness = "dead" | "alive" | "unknown";
 
@@ -196,12 +194,11 @@ export function withPlanSequenceSidecarLock<T>(
   const monotonicNowMs = deps.monotonicNowMs ?? (() => performance.now());
   const budgetMs = deps.acquisitionBudgetMs ?? 30_000;
   const probeProcess = deps.probeProcess ?? defaultProbeProcess;
-  const writeOwner = deps.writeOwner ?? writeSync;
+  const writeOwner = deps.writeOwner;
   const renameLock = deps.renameLock ?? renameSync;
   const beforeLockDirRemove = deps.beforeLockDirRemove ?? (() => undefined);
 
   mutationThreadLock.held = true;
-  let fd: number | undefined;
   let ownerEntryPath: string | undefined;
   let ownerToken: string | undefined;
   let preparedEntryPath: string | undefined;
@@ -218,22 +215,20 @@ export function withPlanSequenceSidecarLock<T>(
       mkdirSync(preparedPath);
       const payload = `${JSON.stringify({ pid: process.pid, token: ownerToken })}\n`;
       try {
-        fd = openSync(preparedEntryPath, "wx");
-        const written = writeOwner(fd, payload);
-        if (written !== Buffer.byteLength(payload)) {
-          return lockBusy("short write while recording plan-sequence lock owner");
-        }
-        closeSync(fd);
-        fd = undefined;
-      } catch (err) {
-        if (fd !== undefined) {
-          try {
-            closeSync(fd);
-          } catch {
-            /* best-effort */
+        if (writeOwner !== undefined) {
+          const written = writeOwner(-1, payload);
+          if (written !== Buffer.byteLength(payload)) {
+            return lockBusy("short write while recording plan-sequence lock owner");
           }
-          fd = undefined;
+        } else {
+          containedWrite({
+            root: dirname(dirname(lockPath)),
+            target: preparedEntryPath,
+            data: payload,
+            mode: "create",
+          });
         }
+      } catch (err) {
         const detail = err instanceof Error ? err.message : String(err);
         return lockBusy(`plan-sequence lock owner record failed: ${detail}`);
       }
@@ -304,13 +299,6 @@ export function withPlanSequenceSidecarLock<T>(
     return { ok: true, value: fn() };
   } finally {
     try {
-      if (fd !== undefined) {
-        try {
-          closeSync(fd);
-        } catch {
-          /* best-effort */
-        }
-      }
       if (acquired) {
         try {
           if (ownerEntryPath !== undefined && ownerToken !== undefined) {

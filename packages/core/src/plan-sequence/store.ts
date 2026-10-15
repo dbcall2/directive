@@ -208,8 +208,8 @@ export function writePlanSequence(
         generation: currentGeneration + 1,
         source_revision: observeSourceRevision(root, options.sourceRevision),
       };
-      persistPublished(root, path, published, current === null);
       persistGenerationToken(root, generationPath, published.generation);
+      persistPublished(root, path, published, current === null);
       return { ok: true as const, path, sequence: published };
     },
     options.lock,
