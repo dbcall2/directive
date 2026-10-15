@@ -118,12 +118,11 @@ function persistError(detail: string): PlanSequenceMutationFail {
   };
 }
 
-function persistGenerationToken(
+function persistAtomicFile(
   root: string,
   path: string,
-  generation: number,
+  data: string,
 ): { ok: true } | PlanSequenceMutationFail {
-  const data = `${JSON.stringify({ generation })}\n`;
   const tmp = `${path}.${process.pid}-${randomBytes(8).toString("hex")}.tmp`;
   try {
     containedWrite({
@@ -148,6 +147,14 @@ function persistGenerationToken(
     const detail = err instanceof Error ? err.message : String(err);
     return persistError(detail);
   }
+}
+
+function persistGenerationToken(
+  root: string,
+  path: string,
+  generation: number,
+): { ok: true } | PlanSequenceMutationFail {
+  return persistAtomicFile(root, path, `${JSON.stringify({ generation })}\n`);
 }
 
 function readGenerationSidecar(
@@ -175,11 +182,18 @@ function readGenerationSidecar(
 function readOnDisk(
   path: string,
   generationPath: string,
-): { ok: true; sequence: PlanSequence | null; generation: number } | PlanSequenceMutationFail {
+):
+  | {
+      ok: true;
+      sequence: PlanSequence | null;
+      generation: number;
+      publishedDamaged: boolean;
+    }
+  | PlanSequenceMutationFail {
   if (!existsSync(path)) {
     const sidecar = readGenerationSidecar(generationPath);
     if (!sidecar.ok) return sidecar;
-    return { ok: true, sequence: null, generation: sidecar.generation };
+    return { ok: true, sequence: null, generation: sidecar.generation, publishedDamaged: false };
   }
   try {
     const raw = JSON.parse(readFileSync(path, "utf8")) as unknown;
@@ -190,10 +204,25 @@ function readOnDisk(
       }
     }
     const sequence = parsePlanSequence(raw);
-    return { ok: true, sequence, generation: sequence.generation };
+    return {
+      ok: true,
+      sequence,
+      generation: sequence.generation,
+      publishedDamaged: false,
+    };
   } catch (err) {
-    const detail = err instanceof Error ? err.message : String(err);
-    return parseError(detail);
+    if (!existsSync(generationPath)) {
+      const detail = err instanceof Error ? err.message : String(err);
+      return parseError(detail);
+    }
+    const sidecar = readGenerationSidecar(generationPath);
+    if (!sidecar.ok) return sidecar;
+    return {
+      ok: true,
+      sequence: null,
+      generation: sidecar.generation,
+      publishedDamaged: true,
+    };
   }
 }
 
@@ -210,20 +239,8 @@ function persistPublished(
   root: string,
   path: string,
   published: PlanSequence,
-  exclusiveCreate: boolean,
 ): { ok: true } | PlanSequenceMutationFail {
-  try {
-    containedWrite({
-      root,
-      target: path,
-      data: `${JSON.stringify(published, null, 2)}\n`,
-      mode: exclusiveCreate ? "create" : "replace",
-    });
-    return { ok: true };
-  } catch (err) {
-    const detail = err instanceof Error ? err.message : String(err);
-    return persistError(detail);
-  }
+  return persistAtomicFile(root, path, `${JSON.stringify(published, null, 2)}\n`);
 }
 
 export function writePlanSequence(
@@ -256,7 +273,7 @@ export function writePlanSequence(
       };
       const token = persistGenerationToken(root, generationPath, published.generation);
       if (!token.ok) return token;
-      const publishedWrite = persistPublished(root, path, published, current === null);
+      const publishedWrite = persistPublished(root, path, published);
       if (!publishedWrite.ok) return publishedWrite;
       return { ok: true as const, path, sequence: published };
     },
@@ -296,7 +313,7 @@ export function clearPlanSequence(
       if (expected_generation !== currentGeneration) {
         return mismatch(current, expected_generation, currentGeneration);
       }
-      if (current === null) {
+      if (current === null && !onDisk.publishedDamaged) {
         return { ok: true as const, path, removed: false };
       }
       const token = persistGenerationToken(root, generationPath, currentGeneration + 1);

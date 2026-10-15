@@ -1,6 +1,5 @@
 import { spawn } from "node:child_process";
 import {
-  chmodSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -82,12 +81,18 @@ describe("plan-sequence store", () => {
     const planPath = planSequencePath(root);
     const genBefore = readFileSync(genPath, "utf8");
     const planBefore = readFileSync(planPath, "utf8");
-    chmodSync(planPath, 0o444);
+    const origRename = containedWriteMod.containedRename;
+    const rename = vi.spyOn(containedWriteMod, "containedRename").mockImplementation((input) => {
+      if (input.to === planPath) {
+        throw new Error("simulated published rename failure");
+      }
+      return origRename(input);
+    });
     let failed: ReturnType<typeof writePlanSequence>;
     try {
       failed = writePlanSequence(root, sample("b"), 1);
     } finally {
-      chmodSync(planPath, 0o644);
+      rename.mockRestore();
     }
     expect(failed.ok).toBe(false);
     if (!failed.ok) expect(failed.code).toBe("persist-error");
@@ -326,6 +331,25 @@ describe("plan-sequence store", () => {
     expect(cleared.ok).toBe(false);
     if (!cleared.ok) expect(cleared.code).toBe("parse-error");
     expect(readFileSync(path, "utf8")).toBe("{not-json\n");
+  });
+
+  it("clears a damaged published plan using the surviving generation token", () => {
+    const root = seed();
+    expect(writePlanSequence(root, sample("a"), 0, { sourceRevision: "a" }).ok).toBe(true);
+    const path = planSequencePath(root);
+    writeFileSync(path, "{not-json\n");
+    const cleared = clearPlanSequence(root, 1);
+    expect(cleared.ok).toBe(true);
+    if (!cleared.ok) return;
+    expect(cleared.removed).toBe(true);
+    expect(existsSync(path)).toBe(false);
+    expect(JSON.parse(readFileSync(planSequenceGenerationPath(root), "utf8"))).toEqual({
+      generation: 2,
+    });
+    const next = writePlanSequence(root, sample("b"), 2, { sourceRevision: "b" });
+    expect(next.ok).toBe(true);
+    if (!next.ok) return;
+    expect(next.sequence.generation).toBe(3);
   });
 
   it("refuses mutation when on-disk generation is present but not a non-negative integer", () => {
