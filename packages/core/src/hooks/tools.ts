@@ -364,15 +364,18 @@ export const HOST_TOOL_SURFACE_AUDIT: Readonly<Record<ClassifyHookHost, HostTool
     source: "Issue #3987 comment 5471374558 finding F8.",
   },
   codex: {
-    mutation: { directWrite: [], shell: ["shell"], spawn: [], kill: [] },
+    mutation: { directWrite: [], shell: ["shell", "Bash"], spawn: [], kill: [] },
     nonMutation: {},
     unobservedReason:
-      "Shell (`shell`) is established (F8). The apply_patch write-form record is downgraded " +
-      "until a live PreToolUse payload is observed in this tree (#5094 / #5129); assumed " +
-      "command vs patch vs input field shapes are not coverage.",
+      "Shell (`shell`, `Bash`) is established (F8 plus #4998 live PreToolUse tool_name Bash). " +
+      "Live Codex 0.162 PreToolUse stdin omits exec_command workdir (tool_input.command only; " +
+      "outer cwd is the session). The apply_patch write-form record is downgraded until a live " +
+      "PreToolUse payload is observed in this tree (#5094 / #5129); assumed command vs patch vs " +
+      "input field shapes are not coverage.",
     source:
       "Issue #3987 comment 5471374558 finding F8; #5094 / #5129 Codex apply_patch payload " +
-      "observation.",
+      "observation; #4998 live Codex 0.162.0-alpha.17.2 PreToolUse tool_name Bash, nested " +
+      "workdir omitted, outer cwd session.",
   },
   cursor: {
     mutation: { directWrite: [], shell: [], spawn: [], kill: [] },

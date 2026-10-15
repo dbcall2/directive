@@ -77,9 +77,14 @@ describe("hooks tools classifiers (#2711 / #2952)", () => {
   it("downgrades Codex apply_patch write-form until a live payload is observed (#5094)", () => {
     expect(HOST_TOOL_SURFACE_AUDIT.codex.mutation.directWrite).toEqual([]);
     expect(HOST_TOOL_SURFACE_AUDIT.codex.mutation.shell).toContain("shell");
+    expect(HOST_TOOL_SURFACE_AUDIT.codex.mutation.shell).toContain("Bash");
     expect(HOST_TOOL_SURFACE_AUDIT.codex.unobservedReason).toMatch(/apply_patch/i);
     expect(HOST_TOOL_SURFACE_AUDIT.codex.unobservedReason).toMatch(/#5094/);
     expect(HOST_TOOL_SURFACE_AUDIT.codex.unobservedReason).toMatch(/#5129/);
+    expect(HOST_TOOL_SURFACE_AUDIT.codex.unobservedReason).toMatch(/workdir/i);
+    expect(HOST_TOOL_SURFACE_AUDIT.codex.source).toMatch(/#4998/);
+    expect(HOST_TOOL_SURFACE_AUDIT.codex.source).toMatch(/Bash/);
+    expect(isShellTool("exec_command")).toBe(false);
   });
 
   it("SHELL / MCP hook matchers include expected tokens", () => {

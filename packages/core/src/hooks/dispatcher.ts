@@ -418,7 +418,7 @@ function isLauncherFamilySpawnNotReady(input: HookDispatchInput, toolName: strin
   const command = hookShellCommand(input.payload);
   if (command === null) return false;
   const launcher = classifyLauncherFamilyArgv(command, {
-    payloadCwd: hookExecutionCwd(input.payload),
+    payloadCwd: hookExecutionCwd(input.payload, input.projectRoot, realpathSync, process.platform),
   });
   return launcher.kind === "launcher" || launcher.kind === "compound";
 }
@@ -2821,6 +2821,169 @@ function sameExecutionDirectory(left: string, right: string): boolean {
   return left === right;
 }
 
+type HookExecutionDirectoryResolution =
+  | {
+      readonly ok: true;
+      readonly cwd: string | null;
+      readonly nestedCwd: string | null;
+    }
+  | { readonly ok: false; readonly message: string };
+
+function bindExecutionDirectoryValue(
+  raw: string,
+  projectRoot: string,
+  realpath: (path: string) => string,
+  platform: NodeJS.Platform,
+  field: string,
+):
+  | { readonly ok: true; readonly actual: string }
+  | { readonly ok: false; readonly message: string } {
+  const expected = normalizeHookProjectRoot(projectRoot);
+  const trimmed = raw.trim();
+  if (isWindowsDriveOnlyRoot(trimmed, platform)) {
+    return {
+      ok: false,
+      message: `Directive denied launcher dest-proof: execution-directory field ${field} is missing or invalid`,
+    };
+  }
+  if (trimmed.replace(/\\/g, "/").split("/").includes("..")) {
+    return {
+      ok: false,
+      message: `Directive denied launcher dest-proof: execution-directory field ${field} contains parent traversal`,
+    };
+  }
+  const candidate = isAbsolute(trimmed) ? trimmed : `${expected}${sep}${trimmed}`;
+  try {
+    return { ok: true, actual: normalizeHookProjectRoot(realpath(candidate)) };
+  } catch (cause) {
+    return {
+      ok: false,
+      message:
+        `Directive denied launcher dest-proof: execution-directory field ${field} could not be ` +
+        `realpath-bound: ${String(cause)}`,
+    };
+  }
+}
+
+function collectPresentExecutionDirectories(source: Record<string, unknown>):
+  | { readonly kind: "invalid"; readonly field: string }
+  | {
+      readonly kind: "values";
+      readonly values: ReadonlyArray<{ readonly field: string; readonly value: string }>;
+    } {
+  const values: { field: string; value: string }[] = [];
+  for (const field of LIFECYCLE_EXECUTION_DIRECTORY_FIELDS) {
+    if (!(field in source)) continue;
+    const raw = source[field];
+    if (typeof raw !== "string" || raw.trim().length === 0) {
+      return { kind: "invalid", field };
+    }
+    values.push({ field, value: raw.trim() });
+  }
+  return { kind: "values", values };
+}
+
+function bindSameNestedExecutionDirectory(
+  values: ReadonlyArray<{ readonly field: string; readonly value: string }>,
+  projectRoot: string,
+  realpath: (path: string) => string,
+  platform: NodeJS.Platform,
+): HookExecutionDirectoryResolution {
+  let expectedActual: string | null = null;
+  let firstRaw: string | null = null;
+  for (const { field, value } of values) {
+    const bound = bindExecutionDirectoryValue(value, projectRoot, realpath, platform, field);
+    if (!bound.ok) return bound;
+    if (expectedActual === null) {
+      expectedActual = bound.actual;
+      firstRaw = value;
+      continue;
+    }
+    if (!sameExecutionDirectory(bound.actual, expectedActual)) {
+      return {
+        ok: false,
+        message:
+          `Directive denied launcher dest-proof: nested execution-directory fields are not the ` +
+          `same directory after realpath (${firstRaw} vs ${value}).`,
+      };
+    }
+  }
+  return { ok: true, cwd: firstRaw, nestedCwd: firstRaw };
+}
+
+/**
+ * Nested-first dest-proof cwd (#4998). Present empty or non-string nested
+ * execution-directory fields deny. Outer payload cwd/workdir is fallback only
+ * when nested dest fields are absent.
+ */
+function resolveHookExecutionDirectory(
+  payload: unknown,
+  projectRoot: string,
+  realpath: (path: string) => string,
+  platform: NodeJS.Platform,
+): HookExecutionDirectoryResolution {
+  const input = record(payload);
+  if (input === null) return { ok: true, cwd: null, nestedCwd: null };
+  const nested = toolInputRecord(input);
+  const nestedSource = nested !== null && nested !== input ? nested : null;
+  if (nestedSource !== null) {
+    const collected = collectPresentExecutionDirectories(nestedSource);
+    if (collected.kind === "invalid") {
+      return {
+        ok: false,
+        message:
+          `Directive denied launcher dest-proof: nested execution-directory field ` +
+          `${collected.field} is missing or invalid`,
+      };
+    }
+    if (collected.values.length > 0) {
+      return bindSameNestedExecutionDirectory(collected.values, projectRoot, realpath, platform);
+    }
+  }
+  const outerCwd =
+    fieldString(input, "cwd") ??
+    fieldString(input, "workdir") ??
+    fieldString(input, "working_directory") ??
+    fieldString(input, "workingDirectory");
+  return { ok: true, cwd: outerCwd, nestedCwd: null };
+}
+
+function launcherArgvNestedDestConflict(
+  command: string,
+  classified: Extract<LauncherArgvClass, { kind: "launcher" }>,
+  nestedCwd: string,
+  projectRoot: string,
+  realpath: (path: string) => string,
+  platform: NodeJS.Platform,
+): string | null {
+  if (classified.family === "codex" || classified.family === "grok") return null;
+  const argvOnly = classifyLauncherFamilyArgv(command, { payloadCwd: null });
+  if (argvOnly.kind !== "launcher" || argvOnly.dest === null) return null;
+  const argvBound = bindExecutionDirectoryValue(
+    argvOnly.dest,
+    projectRoot,
+    realpath,
+    platform,
+    "argv --cwd",
+  );
+  const nestedBound = bindExecutionDirectoryValue(
+    nestedCwd,
+    projectRoot,
+    realpath,
+    platform,
+    "nested dest",
+  );
+  if (!argvBound.ok) return argvBound.message;
+  if (!nestedBound.ok) return nestedBound.message;
+  if (!sameExecutionDirectory(argvBound.actual, nestedBound.actual)) {
+    return (
+      `Directive denied launcher dest-proof: argv --cwd and nested execution-directory fields ` +
+      `resolve to different directories after realpath (${argvBound.actual} vs ${nestedBound.actual}).`
+    );
+  }
+  return null;
+}
+
 function lifecycleExecutionRootCheck(
   payload: unknown,
   projectRoot: string,
@@ -3200,16 +3363,15 @@ function restampOwnerLiveness(
   }
 }
 
-function hookExecutionCwd(payload: unknown): string | null {
-  const input = record(payload);
-  if (input === null) return null;
-  const toolInput = toolInputRecord(input) ?? input;
-  return (
-    fieldString(toolInput, "cwd") ??
-    fieldString(toolInput, "working_directory") ??
-    fieldString(toolInput, "workingDirectory") ??
-    fieldString(input, "cwd")
-  );
+function hookExecutionCwd(
+  payload: unknown,
+  projectRoot: string,
+  realpath: (path: string) => string,
+  platform: NodeJS.Platform,
+): string | null {
+  const resolved = resolveHookExecutionDirectory(payload, projectRoot, realpath, platform);
+  if (!resolved.ok) return null;
+  return resolved.cwd;
 }
 
 function prepareProcessOnlyDestPath(
@@ -3786,11 +3948,66 @@ function routeHookDecision(
   if (isShellTool(shellToolName)) {
     const command = hookShellCommand(shellInput.payload);
     if (command !== null) {
+      const realpath = seams.realpathLifecycleExecutionRoot ?? realpathSync;
+      const platform = seams.lifecycleExecutionPlatform ?? process.platform;
+      const execDir = resolveHookExecutionDirectory(
+        shellInput.payload,
+        projectRoot,
+        realpath,
+        platform,
+      );
       const launcher = classifyLauncherFamilyArgv(command, {
-        payloadCwd: hookExecutionCwd(shellInput.payload),
+        payloadCwd: hookExecutionCwd(shellInput.payload, projectRoot, realpath, platform),
       });
       if (launcher.kind === "launcher" || launcher.kind === "compound") {
-        return decideLauncherFamilyArgv(shellInput, shellToolName, launcher, seams);
+        if (launcher.kind === "compound") {
+          return remapProxyShellUpdatedInput(
+            input.payload,
+            toolName,
+            shellProxyUnwrap,
+            decideLauncherFamilyArgv(shellInput, shellToolName, launcher, seams),
+          );
+        }
+        if (!execDir.ok) {
+          return remapProxyShellUpdatedInput(
+            input.payload,
+            toolName,
+            shellProxyUnwrap,
+            overlayGrokCriticSpawnNotReadyRecovery(
+              shellInput,
+              shellToolName,
+              deny(shellInput, "spawn-not-ready", shellToolName, execDir.message),
+            ),
+          );
+        }
+        if (execDir.nestedCwd !== null) {
+          const destConflict = launcherArgvNestedDestConflict(
+            command,
+            launcher,
+            execDir.nestedCwd,
+            projectRoot,
+            realpath,
+            platform,
+          );
+          if (destConflict !== null) {
+            return remapProxyShellUpdatedInput(
+              input.payload,
+              toolName,
+              shellProxyUnwrap,
+              overlayGrokCriticSpawnNotReadyRecovery(
+                shellInput,
+                shellToolName,
+                deny(shellInput, "spawn-not-ready", shellToolName, destConflict),
+              ),
+            );
+          }
+        }
+        return remapProxyShellUpdatedInput(
+          input.payload,
+          toolName,
+          shellProxyUnwrap,
+          decideLauncherFamilyArgv(shellInput, shellToolName, launcher, seams),
+        );
       }
     }
     const destructive = decideGitDestructive(shellInput, shellToolName);
