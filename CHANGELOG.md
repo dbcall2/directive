@@ -1,28 +1,18 @@
- Changelog
-
-
+# Changelog
 
 All notable changes to the Deft framework will be documented in this file.
 
-
-
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-
-
 ## [Unreleased]
-
 ### Added
-
 ### Changed
 - Activate Prefer-A Bound keep-active brief for #3907 (productPullRequest unset; swarm-ready story fields). Tracking #3907.
-
 ### Fixed
+- **Same-worktree CAS for ordered-plan mutations (#3907).** `writePlanSequence` and `clearPlanSequence` take `expected_generation`, re-read under a sidecar lock beside `.deft/plan-sequence.json`, and mint N+1 only for the lock holder. The generation sidecar is persisted before the plan file. Token replace is tmp+rename, so a failed persist leaves the previous token intact. Persist and published-file IO failures return `{ ok:false, code: "persist-error" }` (caller may retry); they do not throw. Clear keeps a generation token, so a later set cannot reuse generation 1. CLI `set` / `advance` / `clear` require `--expected-generation`. Tracking #3907.
 - **Competing sessions cannot change worktree files before claiming occupancy (#3906).** Cold, re-arm, and `session:ready` persist the worktree lease before any linked-deposit copy. Failed setup rolls back only this invocation's claim. Tracking #3906.
 - **A session re-checks occupancy before writing ritual (#3906).** A steal during ceremony no longer lets the first session overwrite the new owner's ritual. Tracking #3906.
-
 ### Removed
 
 ## [0.125.2] - 2026-10-15
@@ -49,7 +39,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Same-worktree CAS for ordered-plan mutations (#3907).** `writePlanSequence` and `clearPlanSequence` take `expected_generation`, re-read under a sidecar lock beside `.deft/plan-sequence.json`, and mint N+1 only for the lock holder. Clear keeps a generation token, so a later set cannot reuse generation 1. CLI `set` / `advance` / `clear` require `--expected-generation`. Tracking #3907.
 - **Stricter completion checks (#5602).** New completed briefs are checked for unfinished items and informal delivery records. Code-bearing briefs also need recorded delivery proof. Swarm guidance directs agents to finish leftover work through `task swarm:finalize-cohort` or `task scope:complete` with delivery evidence, and to stop if those commands refuse.
 
 ### Changed
