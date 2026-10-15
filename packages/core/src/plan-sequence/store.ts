@@ -2,10 +2,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { containedRemove, containedWrite } from "../fs/contained-write.js";
-import {
-  type PlanSequenceLockDeps,
-  withPlanSequenceSidecarLock,
-} from "./mutation-lock.js";
+import { type PlanSequenceLockDeps, withPlanSequenceSidecarLock } from "./mutation-lock.js";
 import { PLAN_SEQUENCE_FILENAME, type PlanSequence, parsePlanSequence } from "./types.js";
 
 export function planSequencePath(projectRoot: string): string {
@@ -96,7 +93,9 @@ function parseError(detail: string): PlanSequenceMutationFail {
   };
 }
 
-function readOnDisk(path: string): { ok: true; sequence: PlanSequence | null } | PlanSequenceMutationFail {
+function readOnDisk(
+  path: string,
+): { ok: true; sequence: PlanSequence | null } | PlanSequenceMutationFail {
   if (!existsSync(path)) {
     return { ok: true, sequence: null };
   }

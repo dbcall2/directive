@@ -42,7 +42,10 @@ describe("plan-sequence types", () => {
       sequence_id: "g",
       sequence_kind: "delivery",
       authorized_by: "t",
-      entries: [{ id: "a", kind: "pr" }, { id: "b", kind: "pr" }],
+      entries: [
+        { id: "a", kind: "pr" },
+        { id: "b", kind: "pr" },
+      ],
       source_revision: "base",
     });
     expect(created.generation).toBe(0);

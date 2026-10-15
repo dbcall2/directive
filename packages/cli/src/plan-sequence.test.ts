@@ -66,9 +66,9 @@ describe("plan-sequence CLI (#2402)", () => {
     expect(
       verifyPlanSequenceMain(["--project-root", root, "--target-kind", "pr", "--target", "pr-2"]),
     ).toBe(1);
-    expect(
-      planSequenceMain(["clear", "--project-root", root, "--expected-generation", "3"]),
-    ).toBe(0);
+    expect(planSequenceMain(["clear", "--project-root", root, "--expected-generation", "3"])).toBe(
+      0,
+    );
   });
 
   it("verify skips when no sequence", () => {
@@ -126,9 +126,9 @@ describe("plan-sequence CLI (#2402)", () => {
       planSequenceMain(["advance", "--project-root", root, "--expected-generation", "0"]),
     ).toBe(1);
     expect(planSequenceMain(["clear", "--project-root", root])).toBe(2);
-    expect(
-      planSequenceMain(["clear", "--project-root", root, "--expected-generation", "0"]),
-    ).toBe(0);
+    expect(planSequenceMain(["clear", "--project-root", root, "--expected-generation", "0"])).toBe(
+      0,
+    );
 
     const inline = JSON.stringify({
       sequence_id: "inline",
@@ -153,13 +153,13 @@ describe("plan-sequence CLI (#2402)", () => {
     ).toBe(0);
     // exhausted after advance past single entry
     expect(planSequenceMain(["current", "--project-root", root])).toBe(0);
-    expect(
-      planSequenceMain(["clear", "--project-root", root, "--expected-generation", "2"]),
-    ).toBe(0);
+    expect(planSequenceMain(["clear", "--project-root", root, "--expected-generation", "2"])).toBe(
+      0,
+    );
     // already absent
-    expect(
-      planSequenceMain(["clear", "--project-root", root, "--expected-generation", "0"]),
-    ).toBe(0);
+    expect(planSequenceMain(["clear", "--project-root", root, "--expected-generation", "0"])).toBe(
+      0,
+    );
 
     // Full sequence object with current_index uses parsePlanSequence path
     const fullFile = join(root, "full.json");
@@ -193,9 +193,7 @@ describe("plan-sequence CLI (#2402)", () => {
     ).toBe(0);
     expect(planSequenceMain(["current", "--project-root", root])).toBe(0);
     expect(planSequenceMain(["set", "--project-root", root])).toBe(2);
-    expect(planSequenceMain(["set", "--project-root", root, "--expected-generation", "1"])).toBe(
-      1,
-    );
+    expect(planSequenceMain(["set", "--project-root", root, "--expected-generation", "1"])).toBe(1);
   });
 
   it("current fail-closes when the current issue origin is already in completed/ (#4129)", () => {
@@ -446,9 +444,7 @@ describe("plan-sequence CLI (#2402)", () => {
     expect(parseArgs(["set", "--expected-generation", "1.5"]).error).toMatch(
       /non-negative integer/,
     );
-    expect(parseArgs(["set", "--expected-generation", "-1"]).error).toMatch(
-      /non-negative integer/,
-    );
+    expect(parseArgs(["set", "--expected-generation", "-1"]).error).toMatch(/non-negative integer/);
 
     const root = mkdtempSync(join(tmpdir(), "ps-cli-cas-"));
     roots.push(root);

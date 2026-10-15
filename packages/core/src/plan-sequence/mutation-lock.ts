@@ -60,7 +60,11 @@ export interface PlanSequenceLockDeps {
 
 export type PlanSequenceLockResult<T> =
   | { readonly ok: true; readonly value: T }
-  | { readonly ok: false; readonly code: "lock-timeout" | "lock-reentrant"; readonly message: string };
+  | {
+      readonly ok: false;
+      readonly code: "lock-timeout" | "lock-reentrant";
+      readonly message: string;
+    };
 
 function defaultProbeProcess(pid: number): ProcessLiveness {
   try {
@@ -235,7 +239,7 @@ export function withPlanSequenceSidecarLock<T>(
 
     const startedAt = monotonicNowMs();
     const expired = (): boolean => monotonicNowMs() - startedAt >= budgetMs;
-    const yieldOrFail = (reason: PlanSequenceLockBlockedReason): boolean => {
+    const yieldOrFail = (_reason: PlanSequenceLockBlockedReason): boolean => {
       if (expired()) {
         return true;
       }
