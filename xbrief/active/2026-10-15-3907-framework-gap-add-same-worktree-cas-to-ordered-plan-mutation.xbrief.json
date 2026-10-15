@@ -506,8 +506,6 @@
       },
       "kind": "story",
       "swarm": {
-        "readiness": "ready",
-        "parallel_safe": true,
         "file_scope": [
           "packages/core/src/plan-sequence/store.ts",
           "packages/core/src/plan-sequence/types.ts",
@@ -523,20 +521,6 @@
           "packages/core/src/session/verify-session-ritual.test.ts",
           "packages/core/src/triage/evaluate/evaluate.test.ts",
           "packages/cli/src/verify-plan-sequence.test.ts"
-        ],
-        "verify_commands": [
-          "pnpm exec vitest run packages/core/src/plan-sequence packages/cli/src/plan-sequence.test.ts"
-        ],
-        "expected_outputs": [
-          "same-worktree plan-sequence CAS with sidecar lock and two-process overlap tests"
-        ],
-        "depends_on": [],
-        "conflict_group": "plan-sequence-3907",
-        "size": "M",
-        "file_scope_confidence": "high",
-        "model_tier": "medium",
-        "missing_traces_justification": [
-          "Issue-ingested Bound-remedy story; FR traces live in GitHub #3907 comments."
         ]
       }
     },
