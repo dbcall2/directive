@@ -1381,9 +1381,17 @@ function rollbackUnalignedAcquisition(
   projectRoot: string,
   options: SessionStartOptions,
   acquired: OccupancyDecision | null,
-): void {
-  if (acquired === null) return;
-  (options.rollbackAcquiredOccupancy ?? rollbackAcquiredOccupancy)(projectRoot, acquired);
+): string | null {
+  if (acquired === null) return null;
+  try {
+    const rolled = (options.rollbackAcquiredOccupancy ?? rollbackAcquiredOccupancy)(
+      projectRoot,
+      acquired,
+    );
+    return rolled.code !== 0 ? rolled.message : null;
+  } catch (err) {
+    return err instanceof Error ? err.message : String(err);
+  }
 }
 
 function returnAfterUnalignedAcquisition(
@@ -1392,8 +1400,14 @@ function returnAfterUnalignedAcquisition(
   acquired: OccupancyDecision | null,
   result: SessionStartResult,
 ): SessionStartResult {
-  rollbackUnalignedAcquisition(projectRoot, options, acquired);
-  return result;
+  const rollbackFailure = rollbackUnalignedAcquisition(projectRoot, options, acquired);
+  if (rollbackFailure === null) return result;
+  const recovery = `${String(result.payload.message)}; occupancy rollback failed: ${rollbackFailure}`;
+  return {
+    ...result,
+    payload: { ...result.payload, message: recovery },
+    lines: [...result.lines, recovery],
+  };
 }
 
 function runReadOnlySessionStart(
@@ -1935,35 +1949,46 @@ function runSessionRearm(
   };
 }
 
+function linkedDepositDeny(
+  environment: EnvironmentContext,
+  message: string,
+): { deny: SessionStartResult } {
+  return {
+    deny: {
+      code: 2,
+      payload: {
+        ready: false,
+        exit_code: 2,
+        posture: MUTATION_POSTURE,
+        environment: environmentContextToDict(environment),
+        message,
+      },
+      lines: [formatEnvironmentContext(environment), message],
+    },
+  };
+}
+
 function applyLinkedWorktreeDeposit(
   projectRoot: string,
   options: SessionStartOptions,
   environment: EnvironmentContext,
 ): { deny: SessionStartResult } | { reconstituted: string | null } {
-  const reconstitute =
-    options.reconstituteWorktreeDeposit ??
-    ((root) => reconstituteLinkedWorktreeDeposit(root, { runGit: options.runGit }));
-  const deposit = reconstitute(projectRoot);
-  if (deposit.status === "refused") {
-    const message = deposit.message;
-    return {
-      deny: {
-        code: 2,
-        payload: {
-          ready: false,
-          exit_code: 2,
-          posture: MUTATION_POSTURE,
-          environment: environmentContextToDict(environment),
-          message,
-        },
-        lines: [formatEnvironmentContext(environment), message],
-      },
-    };
+  try {
+    const reconstitute =
+      options.reconstituteWorktreeDeposit ??
+      ((root) => reconstituteLinkedWorktreeDeposit(root, { runGit: options.runGit }));
+    const deposit = reconstitute(projectRoot);
+    if (deposit.status === "refused") {
+      return linkedDepositDeny(environment, deposit.message);
+    }
+    if (deposit.status === "reconstituted") {
+      return { reconstituted: `[deft session] ${deposit.message}` };
+    }
+    return { reconstituted: null };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return linkedDepositDeny(environment, message);
   }
-  if (deposit.status === "reconstituted") {
-    return { reconstituted: `[deft session] ${deposit.message}` };
-  }
-  return { reconstituted: null };
 }
 
 export function runSessionStart(

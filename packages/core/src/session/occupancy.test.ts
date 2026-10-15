@@ -1645,6 +1645,61 @@ describe("worktree occupancy lease (#3433)", () => {
       expect(readOccupancy(root)).toBeNull();
     });
 
+    it("does not delete a lease after a later same-id heartbeat (#3906)", () => {
+      const root = tempRoot();
+      const claimed = applyWorktreeOccupancy(root, {
+        sessionId: "host:test:v1:later-hb",
+        now: new Date("2026-08-17T12:00:00Z"),
+      });
+      applyWorktreeOccupancy(root, {
+        sessionId: "host:test:v1:later-hb",
+        now: new Date("2026-08-17T12:01:00Z"),
+      });
+      const rolled = rollbackAcquiredOccupancy(root, claimed);
+      expect(rolled.message).toContain("no longer current");
+      expect(readOccupancy(root)?.sessionId).toBe("host:test:v1:later-hb");
+    });
+
+    it("does not delete a lease after ritual aligned for this session (#3906)", () => {
+      const root = tempRoot();
+      const claimed = applyWorktreeOccupancy(root, {
+        sessionId: "host:test:v1:ritual-keep",
+        now: new Date("2026-08-17T12:00:00Z"),
+      });
+      writeRitualState(
+        root,
+        ritualPayloadFor(
+          root,
+          "host:test:v1:ritual-keep",
+          "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+          new Date("2026-08-17T12:02:00Z"),
+        ),
+      );
+      const rolled = rollbackAcquiredOccupancy(root, claimed);
+      expect(rolled.message).toContain("ritual has aligned");
+      expect(readOccupancy(root)?.sessionId).toBe("host:test:v1:ritual-keep");
+    });
+
+    it("still rolls back when leftover ritual is older than this claim (#3906)", () => {
+      const root = tempRoot();
+      writeRitualState(
+        root,
+        ritualPayloadFor(
+          root,
+          "host:test:v1:old-ritual",
+          "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+          new Date("2026-08-17T11:00:00Z"),
+        ),
+      );
+      const claimed = applyWorktreeOccupancy(root, {
+        sessionId: "host:test:v1:old-ritual",
+        now: new Date("2026-08-17T12:00:00Z"),
+      });
+      const rolled = rollbackAcquiredOccupancy(root, claimed);
+      expect(rolled.action).toBe("released");
+      expect(readOccupancy(root)).toBeNull();
+    });
+
     it("--session-id still binds when this process is the later presenter", () => {
       const root = tempRoot();
       const decision = applyWorktreeOccupancy(root, {

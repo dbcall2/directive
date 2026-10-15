@@ -1286,6 +1286,40 @@ describe("runSessionStart worktree deposit reconstitution (#4443)", () => {
     expect(readOccupancy(root)).toBeNull();
   });
 
+  it("rolls back a persist-time claim when reconstitution throws (#3906)", () => {
+    const root = tempRoot();
+    const result = runSessionStart(root, {
+      ...baseOptions(root, () => userMdResult({})),
+      sessionId: "host:test:v1:copy-throw",
+      reconstituteWorktreeDeposit: () => {
+        throw new Error("ENOSPC: no space left on device");
+      },
+      orientation: null,
+    });
+    expect(result.code).toBe(2);
+    expect(String(result.payload.message)).toContain("ENOSPC");
+    expect(readOccupancy(root)).toBeNull();
+  });
+
+  it("surfaces occupancy rollback failure after a thrown deposit copy (#3906)", () => {
+    const root = tempRoot();
+    const result = runSessionStart(root, {
+      ...baseOptions(root, () => userMdResult({})),
+      sessionId: "host:test:v1:rollback-throw",
+      reconstituteWorktreeDeposit: () => {
+        throw new Error("ENOSPC: no space left on device");
+      },
+      rollbackAcquiredOccupancy: () => {
+        throw new Error("EACCES: occupancy lock");
+      },
+      orientation: null,
+    });
+    expect(result.code).toBe(2);
+    expect(String(result.payload.message)).toContain("ENOSPC");
+    expect(String(result.payload.message)).toContain("occupancy rollback failed");
+    expect(String(result.payload.message)).toContain("EACCES");
+  });
+
   it("rolls back a persist-time claim when finalize-owed blocks (#3906)", () => {
     const root = tempRoot();
     const result = runSessionStart(root, {

@@ -1060,4 +1060,22 @@ describe("runSessionReady worktree deposit (#4443)", () => {
     expect(readOccupancy(root)).toBeNull();
     rmSync(root, { recursive: true, force: true });
   });
+
+  it("rolls back a persist-time claim when reconstitution throws (#3906)", () => {
+    const root = mkdtempSync(join(tmpdir(), "session-ready-copy-throw-"));
+    const result = runSessionReady(root, {
+      env: {},
+      sessionId: "host:test:v1:ready-copy-throw",
+      applyOccupancy: (projectRoot, input) => applyWorktreeOccupancy(projectRoot, input),
+      inspectRitual: vi.fn(() => okVerify()),
+      verifyRitual: vi.fn(() => okVerify()),
+      reconstituteWorktreeDeposit: () => {
+        throw new Error("ENOSPC: no space left on device");
+      },
+    });
+    expect(result.code).toBe(2);
+    expect(result.message).toContain("ENOSPC");
+    expect(readOccupancy(root)).toBeNull();
+    rmSync(root, { recursive: true, force: true });
+  });
 });

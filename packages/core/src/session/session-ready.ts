@@ -262,13 +262,33 @@ export function runSessionReady(
   let occupancyAlignedWithRitual = false;
   const rollbackIfUnaligned = (): void => {
     if (acquired !== null && !occupancyAlignedWithRitual) {
-      rollback(projectRoot, acquired);
+      try {
+        rollback(projectRoot, acquired);
+      } catch {
+        // Keep the original readiness failure; occupancy may remain held.
+      }
     }
   };
   const reconstitute =
     options.reconstituteWorktreeDeposit ??
     ((root) => reconstituteLinkedWorktreeDeposit(root, { runGit: options.runGit }));
-  const deposit = reconstitute(projectRoot);
+  let deposit: WorktreeDepositReconstituteResult;
+  try {
+    deposit = reconstitute(projectRoot);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    lines.push(message);
+    rollbackIfUnaligned();
+    return {
+      code: 2,
+      sessionId,
+      message,
+      path: SESSION_READY_FAILED,
+      lines,
+      steps,
+      duration_ms: elapsedMs(started),
+    };
+  }
   if (deposit.status === "refused") {
     const message = deposit.message;
     lines.push(message);

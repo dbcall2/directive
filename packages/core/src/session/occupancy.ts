@@ -95,6 +95,7 @@ import {
   listLinkedWorktreeCheckouts,
   mainWorktreeRoot,
 } from "./main-worktree.js";
+import { readRitualState } from "./ritual-sentinel.js";
 import { parseTimestamp, timestampIso } from "./time.js";
 
 export const OCCUPANCY_SCHEMA_VERSION = 1;
@@ -1863,16 +1864,30 @@ function acquiredRecordStillCurrent(
   acquired: OccupancyDecision,
 ): boolean {
   if (existing.sessionId !== acquired.sessionId) return false;
-  const claimedAt = acquired.record?.claimedAt;
-  if (claimedAt === undefined) return true;
-  return existing.claimedAt.getTime() === claimedAt.getTime();
+  const rec = acquired.record;
+  if (rec === null) return true;
+  if (existing.claimedAt.getTime() !== rec.claimedAt.getTime()) return false;
+  if (existing.heartbeatAt.getTime() !== rec.heartbeatAt.getTime()) return false;
+  const existingWrite = existing.lastWriteAt?.getTime() ?? null;
+  const acquiredWrite = rec.lastWriteAt?.getTime() ?? null;
+  return existingWrite === acquiredWrite;
+}
+
+function ritualAlignedAfterAcquisition(projectRoot: string, acquired: OccupancyDecision): boolean {
+  const rec = acquired.record;
+  if (rec === null) return false;
+  const [state] = readRitualState(projectRoot);
+  if (state === null || state.sessionId !== acquired.sessionId) return false;
+  return state.startedAt.getTime() > rec.heartbeatAt.getTime();
 }
 
 /**
  * Compare-and-delete a persist-time claimed or stolen lease this invocation
  * wrote (#3906 / #4444). Does not release heartbeat. Does not restore a
  * stolen-from occupant (`OCCUPANCY_STEAL_CLAIM_FIRST_ROLLBACK`). Does not
- * run `releaseOccupancy` consumer-header enforcement.
+ * run `releaseOccupancy` consumer-header enforcement. Skips delete when a
+ * later same-id heartbeat/write advanced the lease or ritual aligned after
+ * this persist.
  */
 export function rollbackAcquiredOccupancy(
   projectRoot: string,
@@ -1914,6 +1929,17 @@ export function rollbackAcquiredOccupancy(
           code: 0,
         };
       }
+      if (ritualAlignedAfterAcquisition(projectRoot, acquired)) {
+        return {
+          action: "denied" as const,
+          sessionId: acquired.sessionId,
+          record: existing,
+          path,
+          message:
+            "occupancy rollback skipped: ritual has aligned for this session since acquisition",
+          code: 0,
+        };
+      }
       fence();
       const still = readOccupancy(projectRoot);
       if (still === null) {
@@ -1933,6 +1959,17 @@ export function rollbackAcquiredOccupancy(
           record: still,
           path,
           message: "occupancy rollback skipped: acquired record is no longer current",
+          code: 0,
+        };
+      }
+      if (ritualAlignedAfterAcquisition(projectRoot, acquired)) {
+        return {
+          action: "denied" as const,
+          sessionId: acquired.sessionId,
+          record: still,
+          path,
+          message:
+            "occupancy rollback skipped: ritual has aligned for this session since acquisition",
           code: 0,
         };
       }

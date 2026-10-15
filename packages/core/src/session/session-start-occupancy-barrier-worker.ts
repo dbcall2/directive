@@ -1,8 +1,34 @@
+import { mkdirSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { containedWrite } from "../fs/contained-write.js";
 import { runSessionStart } from "./session-start.js";
 
 export const SESSION_START_BARRIER_DEST_REL = join(".deft", "core", "DEST-MARKER");
+
+function waitForCompetingAcquisitionWindow(): void {
+  const dir = process.env.SESSION_START_BARRIER_WAIT_DIR;
+  if (dir === undefined || dir.length === 0) return;
+  const id = process.env.SESSION_START_BARRIER_WAIT_ID ?? process.pid.toString();
+  const needed = Number(process.env.SESSION_START_BARRIER_WAIT_COUNT ?? "2");
+  mkdirSync(dir, { recursive: true });
+  containedWrite({
+    root: dir,
+    target: `${id}.ready`,
+    data: "1",
+    mode: "replace",
+  });
+  const deadline = Date.now() + 15_000;
+  while (Date.now() < deadline) {
+    let count = 0;
+    try {
+      count = readdirSync(dir).filter((name) => name.endsWith(".ready")).length;
+    } catch {
+      count = 0;
+    }
+    if (count >= needed) return;
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10);
+  }
+}
 
 export function runSessionStartOccupancyBarrier(input: {
   readonly root: string;
@@ -12,6 +38,7 @@ export function runSessionStartOccupancyBarrier(input: {
   readonly destWrote: boolean;
   readonly sessionId: string;
 } {
+  waitForCompetingAcquisitionWindow();
   let destWrote = false;
   const result = runSessionStart(input.root, {
     sessionId: input.sessionId,

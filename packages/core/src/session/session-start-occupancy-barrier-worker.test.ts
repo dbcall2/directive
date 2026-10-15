@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -19,6 +19,7 @@ afterEach(() => {
 function spawnBarrierWorker(
   root: string,
   sessionId: string,
+  wait?: { readonly dir: string; readonly id: string; readonly count?: number },
 ): Promise<{
   code: number;
   destWrote: boolean;
@@ -34,6 +35,13 @@ function spawnBarrierWorker(
         ...process.env,
         SESSION_START_BARRIER_ROOT: root,
         SESSION_START_BARRIER_SESSION: sessionId,
+        ...(wait === undefined
+          ? {}
+          : {
+              SESSION_START_BARRIER_WAIT_DIR: wait.dir,
+              SESSION_START_BARRIER_WAIT_ID: wait.id,
+              SESSION_START_BARRIER_WAIT_COUNT: String(wait.count ?? 2),
+            }),
       },
       cwd: dirname(workerFile),
     });
@@ -67,11 +75,13 @@ describe("session:start occupancy dest barrier (#3906)", () => {
   }, async () => {
     const root = mkdtempSync(join(tmpdir(), "session-start-barrier-"));
     temps.push(root);
+    const waitDir = join(root, "compete");
+    mkdirSync(waitDir, { recursive: true });
     const ownerA = "host:test:v1:barrier-a";
     const ownerB = "host:test:v1:barrier-b";
     const results = await Promise.all([
-      spawnBarrierWorker(root, ownerA),
-      spawnBarrierWorker(root, ownerB),
+      spawnBarrierWorker(root, ownerA, { dir: waitDir, id: "a" }),
+      spawnBarrierWorker(root, ownerB, { dir: waitDir, id: "b" }),
     ]);
     const writers = results.filter((row) => row.destWrote);
     expect(writers).toHaveLength(1);
@@ -91,10 +101,12 @@ describe("session:start occupancy dest barrier (#3906)", () => {
   }, async () => {
     const root = mkdtempSync(join(tmpdir(), "session-start-barrier-same-"));
     temps.push(root);
+    const waitDir = join(root, "compete");
+    mkdirSync(waitDir, { recursive: true });
     const sessionId = "host:test:v1:barrier-same";
     const results = await Promise.all([
-      spawnBarrierWorker(root, sessionId),
-      spawnBarrierWorker(root, sessionId),
+      spawnBarrierWorker(root, sessionId, { dir: waitDir, id: "a" }),
+      spawnBarrierWorker(root, sessionId, { dir: waitDir, id: "b" }),
     ]);
     expect(results.every((row) => row.code === 0)).toBe(true);
     expect(results.some((row) => row.destWrote)).toBe(true);
