@@ -1024,8 +1024,8 @@ export function runTransition(
             if (driftRecord !== null) {
               // Lock refuse returns completedAt=null with no ledger write.
               // Unlink dest this process exclusive-created so retry is not
-              // Target already exists. Skip unlink when destCreatedThisAttempt
-              // is false (concurrent writer or matching-bytes dest).
+              // blocked. Skip unlink when destCreatedThisAttempt is false
+              // (concurrent writer or matching-bytes dest).
               const lockRefuseNoWrite = driftRecord.completedAt === null;
               if (lockRefuseNoWrite) {
                 rollbackDest(destCreatedThisAttempt);
