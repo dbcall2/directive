@@ -2,7 +2,7 @@
   "xBRIEFInfo": {
     "version": "0.8",
     "description": "Scope xBRIEF ingested from GitHub issue #3906",
-    "updated": "2026-10-15T12:36:01Z"
+    "updated": "2026-10-15T18:10:00Z"
   },
   "plan": {
     "title": "[framework-gap] Acquire occupancy before session-start mutations",
@@ -202,7 +202,10 @@
           "packages/core/src/session/session-start.ts",
           "packages/core/src/session/session-ready.ts",
           "packages/core/src/session/occupancy.ts",
-          "packages/core/src/session/session-start-occupancy-barrier-worker.ts"
+          "packages/core/src/session/session-start-occupancy-barrier-worker.ts",
+          "packages/core/src/session/session-start-rearm.test.ts",
+          "packages/core/src/session/session-ready.test.ts",
+          "packages/core/src/session/session-start.test.ts"
         ]
       },
       "intended_placement": {
@@ -517,6 +520,6 @@
       }
     },
     "id": "github.issue.5283615249",
-    "updated": "2026-10-15T12:36:01Z"
+    "updated": "2026-10-15T18:10:00Z"
   }
 }
