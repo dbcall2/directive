@@ -348,14 +348,14 @@ describe("session re-arm vs cold ceremony tiers (#2992)", () => {
 
     expect(result.code).toBe(0);
     expect(minted).not.toHaveBeenCalled();
-    expect(occupancyInputs).toHaveLength(2);
-    expect(occupancyInputs.map((input) => input.sessionId)).toEqual([sessionId, sessionId]);
-    expect(occupancyInputs.map((input) => input.write)).toEqual([false, true]);
+    expect(occupancyInputs).toHaveLength(1);
+    expect(occupancyInputs.map((input) => input.sessionId)).toEqual([sessionId]);
+    expect(occupancyInputs.map((input) => input.write)).toEqual([true]);
     expect((result.payload.occupancy as { session_id: string }).session_id).toBe(sessionId);
     expect(readRitualState(root)[0]?.sessionId).toBe(sessionId);
   });
 
-  it("previews a confirmed steal without mutation, then steals once with the resolved ID (#3611)", () => {
+  it("steals once with the resolved ID before dest mutation (#3611 / #3906)", () => {
     const root = tempRoot();
     const head = "bcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbc";
     const started = new Date("2026-07-20T12:00:00Z");
@@ -400,9 +400,9 @@ describe("session re-arm vs cold ceremony tiers (#2992)", () => {
     });
 
     expect(result.code).toBe(0);
-    expect(applyOccupancy).toHaveBeenCalledTimes(2);
-    expect(applyOccupancy.mock.calls.map(([, input]) => input.write)).toEqual([false, true]);
-    expect(ownersAfterApply).toEqual([legacySessionId, sessionId]);
+    expect(applyOccupancy).toHaveBeenCalledTimes(1);
+    expect(applyOccupancy.mock.calls.map(([, input]) => input.write)).toEqual([true]);
+    expect(ownersAfterApply).toEqual([sessionId]);
     expect(readOccupancy(root)?.sessionId).toBe(sessionId);
     expect(readRitualState(root)[0]?.sessionId).toBe(sessionId);
   });

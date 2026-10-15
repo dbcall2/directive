@@ -112,11 +112,12 @@ import {
   type ApplyOccupancyInput,
   applyWorktreeOccupancy,
   evaluateOccupancyCeremonyEligibility,
+  isPersistTimeAcquisition,
   type OccupancyDecision,
   type OccupancyIdentityProvenance,
   type PrimaryClaimException,
-  releaseOccupancy,
   resolveOccupancySessionClaim,
+  rollbackAcquiredOccupancy,
 } from "./occupancy.js";
 import {
   type OrientationBundle,
@@ -363,7 +364,8 @@ export interface SessionStartOptions {
   readonly applyOccupancy?: (projectRoot: string, input: ApplyOccupancyInput) => OccupancyDecision;
   readonly persistSessionPosture?: typeof persistTrustedSessionPosture;
   readonly clearSessionPosture?: typeof clearPersistedSessionPosture;
-  readonly releaseOccupancy?: typeof releaseOccupancy;
+  /** #3906 / #4444: compare-and-delete persist-time claimed|stolen only. */
+  readonly rollbackAcquiredOccupancy?: typeof rollbackAcquiredOccupancy;
   readonly runTriageWelcome?: (
     projectRoot: string,
     options: { writeHistory: boolean; now: Date; output: (line: string) => void },
@@ -1371,6 +1373,29 @@ function persistOccupancyOrDeny(
   return occupancy;
 }
 
+function persistTimeAcquisition(occupancy: OccupancyDecision): OccupancyDecision | null {
+  return isPersistTimeAcquisition(occupancy.action) ? occupancy : null;
+}
+
+function rollbackUnalignedAcquisition(
+  projectRoot: string,
+  options: SessionStartOptions,
+  acquired: OccupancyDecision | null,
+): void {
+  if (acquired === null) return;
+  (options.rollbackAcquiredOccupancy ?? rollbackAcquiredOccupancy)(projectRoot, acquired);
+}
+
+function returnAfterUnalignedAcquisition(
+  projectRoot: string,
+  options: SessionStartOptions,
+  acquired: OccupancyDecision | null,
+  result: SessionStartResult,
+): SessionStartResult {
+  rollbackUnalignedAcquisition(projectRoot, options, acquired);
+  return result;
+}
+
 function runReadOnlySessionStart(
   projectRoot: string,
   options: SessionStartOptions,
@@ -1490,13 +1515,12 @@ function runRequirementsSessionStart(
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     let recovery = message;
-    if (persisted.action === "claimed" || persisted.action === "stolen") {
+    if (isPersistTimeAcquisition(persisted.action)) {
       try {
-        const released = (options.releaseOccupancy ?? releaseOccupancy)(projectRoot, {
-          sessionId: persisted.sessionId,
-          env: options.env,
-          now: instant,
-        });
+        const released = (options.rollbackAcquiredOccupancy ?? rollbackAcquiredOccupancy)(
+          projectRoot,
+          persisted,
+        );
         if (released.code !== 0) {
           recovery = `${message}; occupancy rollback failed: ${released.message}`;
         }
@@ -1575,17 +1599,24 @@ function runSessionRearm(
   }
 
   const occupancyStarted = performance.now();
-  const plannedOccupancy = runOccupancy(projectRoot, options, sessionId, instant, false);
+  const persistedOccupancy = persistOccupancyOrDeny(
+    projectRoot,
+    options,
+    sessionId,
+    instant,
+    environment,
+  );
   pushExclusiveStep(stepTimings, "occupancy_plan", occupancyStarted);
-  if (plannedOccupancy.code !== 0) {
-    return occupancyDeniedResult(plannedOccupancy, environment);
+  if ("payload" in persistedOccupancy) {
+    return persistedOccupancy;
   }
+  const acquired = persistTimeAcquisition(persistedOccupancy);
 
   const linkedStarted = performance.now();
   const linkedDeposit = applyLinkedWorktreeDeposit(projectRoot, options, environment);
   pushExclusiveStep(stepTimings, "linked_deposit", linkedStarted);
   if ("deny" in linkedDeposit) {
-    return linkedDeposit.deny;
+    return returnAfterUnalignedAcquisition(projectRoot, options, acquired, linkedDeposit.deny);
   }
 
   const resolveUserMd =
@@ -1641,7 +1672,7 @@ function runSessionRearm(
       },
       { projectRoot },
     );
-    return {
+    return returnAfterUnalignedAcquisition(projectRoot, options, acquired, {
       code: 1,
       payload: {
         ready: false,
@@ -1654,7 +1685,7 @@ function runSessionRearm(
         duration_ms: elapsedMs(overallStarted),
       },
       lines,
-    };
+    });
   }
 
   // Light branch-policy disclosure (local only) so re-arm still surfaces policy state.
@@ -1752,16 +1783,6 @@ function runSessionRearm(
   const gatedSteps = restampSteps(eligibility.state.gatedSteps, instant);
 
   const writeStarted = performance.now();
-  const persistedOccupancy = persistOccupancyOrDeny(
-    projectRoot,
-    options,
-    sessionId,
-    instant,
-    environment,
-  );
-  if ("payload" in persistedOccupancy) {
-    return persistedOccupancy;
-  }
   // #3433: keep DEFT_SESSION_ID / occupant id. Do not mint a new UUID on re-arm.
   const rearmSessionId = persistedOccupancy.sessionId;
   lines.push(persistedOccupancy.message);
@@ -2132,17 +2153,24 @@ export function runSessionStart(
   }
 
   const occupancyStarted = performance.now();
-  const plannedOccupancy = runOccupancy(projectRoot, options, sessionId, instant, false);
+  const persistedOccupancy = persistOccupancyOrDeny(
+    projectRoot,
+    options,
+    sessionId,
+    instant,
+    environment,
+  );
   pushExclusiveStep(stepTimings, "occupancy_plan", occupancyStarted);
-  if (plannedOccupancy.code !== 0) {
-    return occupancyDeniedResult(plannedOccupancy, environment);
+  if ("payload" in persistedOccupancy) {
+    return persistedOccupancy;
   }
+  const acquired = persistTimeAcquisition(persistedOccupancy);
 
   const linkedStarted = performance.now();
   const linkedDeposit = applyLinkedWorktreeDeposit(projectRoot, options, environment);
   pushExclusiveStep(stepTimings, "linked_deposit", linkedStarted);
   if ("deny" in linkedDeposit) {
-    return linkedDeposit.deny;
+    return returnAfterUnalignedAcquisition(projectRoot, options, acquired, linkedDeposit.deny);
   }
 
   const quickSteps: Record<string, Record<string, unknown>> = recordDeferredSteps(
@@ -2598,7 +2626,7 @@ export function runSessionStart(
       },
       { projectRoot },
     );
-    return {
+    return returnAfterUnalignedAcquisition(projectRoot, options, acquired, {
       code: 1,
       payload: {
         ready: false,
@@ -2612,20 +2640,10 @@ export function runSessionStart(
         duration_ms: elapsedMs(overallStarted),
       },
       lines,
-    };
+    });
   }
 
   const writeStarted = performance.now();
-  const persistedOccupancy = persistOccupancyOrDeny(
-    projectRoot,
-    options,
-    sessionId,
-    instant,
-    environment,
-  );
-  if ("payload" in persistedOccupancy) {
-    return persistedOccupancy;
-  }
   const coldSessionId = persistedOccupancy.sessionId;
   lines.push(persistedOccupancy.message);
   pushWorkClaimScan(lines, projectRoot, options);
