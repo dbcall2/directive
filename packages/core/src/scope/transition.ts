@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, unlinkSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, readFileSync, unlinkSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import {
   enforceConsumerHeaderPlaceholderAtCompletionChokepoint,
@@ -16,6 +16,7 @@ import {
   containedWrite,
 } from "../fs/contained-write.js";
 import {
+  assertDestinationNotSymlink,
   assertProjectionContained,
   ProjectionContainmentError,
 } from "../fs/projection-containment.js";
@@ -357,12 +358,55 @@ export interface ScopeDestPublishResult {
   readonly message: string;
 }
 
+/** destPath leaf/parent symlink refuse before matching-bytes accept (#3908 / #3953). */
+function scopeDestPathUnsafeMessage(projectRoot: string, destPath: string): string | null {
+  try {
+    assertDestinationNotSymlink(projectRoot, destPath);
+    return null;
+  } catch (err) {
+    if (err instanceof ProjectionContainmentError) {
+      return err.message;
+    }
+    throw err;
+  }
+}
+
+function destExistedBeforeExclusiveCreate(destPath: string): boolean {
+  try {
+    lstatSync(destPath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Unlink dest this process O_EXCL-created when exclusive publish fails mid-write (#3908). */
+function unlinkDestCreatedByFailedExclusivePublish(args: {
+  readonly destPath: string;
+  readonly projectRoot: string;
+}): void {
+  try {
+    const info = lstatSync(args.destPath);
+    if (info.isSymbolicLink() || info.isDirectory()) {
+      return;
+    }
+  } catch {
+    return;
+  }
+  try {
+    containedRemove({ root: args.projectRoot, target: args.destPath });
+  } catch {
+    /* best-effort dest rollback */
+  }
+}
+
 /** Exclusive dest publish: O_EXCL create, never POSIX tmp+rename overwrite (#3908). */
 export function publishScopeDestExclusive(args: {
   readonly destPath: string;
   readonly formatted: string;
   readonly projectRoot: string;
 }): ScopeDestPublishResult {
+  const existedBefore = destExistedBeforeExclusiveCreate(args.destPath);
   try {
     containedWrite({
       root: args.projectRoot,
@@ -374,6 +418,12 @@ export function publishScopeDestExclusive(args: {
   } catch (err: unknown) {
     if (err instanceof ContainedWriteError && err.code === ContainedWriteErrorCode.EXISTS) {
       return { ok: false, message: `Target already exists: ${args.destPath}` };
+    }
+    if (!existedBefore) {
+      unlinkDestCreatedByFailedExclusivePublish({
+        destPath: args.destPath,
+        projectRoot: args.projectRoot,
+      });
     }
     const msg = err instanceof Error ? err.message : String(err);
     return { ok: false, message: `Failed to write ${args.destPath}: ${msg}` };
@@ -859,6 +909,10 @@ export function runTransition(
 
       // Dest identity is vbriefRoot + targetFolder + basename (#3908). complete and
       // fail share targetFolder completed and therefore the same dest path.
+      const destUnsafe = scopeDestPathUnsafeMessage(projectRoot, destPath);
+      if (destUnsafe !== null) {
+        return { ok: false, message: destUnsafe };
+      }
       let destCreatedThisAttempt = false;
       if (existsSync(destPath)) {
         let destBytes: string | undefined;
@@ -883,6 +937,10 @@ export function runTransition(
         const published = publishScopeDestExclusive({ destPath, formatted, projectRoot });
         if (!published.ok) {
           if (published.message.startsWith("Target already exists:")) {
+            const racedUnsafe = scopeDestPathUnsafeMessage(projectRoot, destPath);
+            if (racedUnsafe !== null) {
+              return { ok: false, message: racedUnsafe };
+            }
             let racedBytes: string | undefined;
             try {
               racedBytes = readFileSync(destPath, "utf8");

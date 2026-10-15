@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -16,6 +16,16 @@ function tempDir(prefix: string): string {
   const dir = mkdtempSync(join(tmpdir(), prefix));
   temps.push(dir);
   return dir;
+}
+
+async function waitForPath(path: string, timeoutMs: number): Promise<void> {
+  const start = Date.now();
+  while (!existsSync(path)) {
+    if (Date.now() - start > timeoutMs) {
+      throw new Error(`timeout waiting for ${path}`);
+    }
+    await new Promise((resolveWait) => setTimeout(resolveWait, 15));
+  }
 }
 
 function spawnWorker(args: {
@@ -121,27 +131,73 @@ process.stdout.write(JSON.stringify(result) + "\\n");
       const workerFile = join(workerDir, "complete-worker.ts");
       writeFileSync(
         workerFile,
-        `import { runTransition } from ${JSON.stringify(transitionAbs)};
+        `import { existsSync, writeFileSync } from "node:fs";
+import { runTransition } from ${JSON.stringify(transitionAbs)};
 const file = process.env.SCOPE_3908_FILE ?? "";
+const ready = process.env.SCOPE_3908_READY ?? "";
+const go = process.env.SCOPE_3908_GO ?? "";
+const entered = process.env.SCOPE_3908_ENTERED ?? "";
+writeFileSync(ready, "1");
+const start = Date.now();
+while (!existsSync(go)) {
+  if (Date.now() - start > 15000) {
+    process.stderr.write("barrier-timeout\\n");
+    process.exit(3);
+  }
+}
+writeFileSync(entered, "1");
 const result = runTransition("complete", file, new Date("2026-10-15T12:00:00.000Z"));
 process.stdout.write(JSON.stringify(result) + "\\n");
 `,
         "utf8",
       );
-      const [a, b] = await Promise.all([
-        spawnWorker({ workerFile, env: { SCOPE_3908_FILE: source } }),
-        spawnWorker({ workerFile, env: { SCOPE_3908_FILE: source } }),
-      ]);
+      const barrierDir = tempDir("scope-3908-complete-barrier-");
+      const readyA = join(barrierDir, "ready-a");
+      const readyB = join(barrierDir, "ready-b");
+      const go = join(barrierDir, "go");
+      const enteredA = join(barrierDir, "entered-a");
+      const enteredB = join(barrierDir, "entered-b");
+      const workerA = spawnWorker({
+        workerFile,
+        env: {
+          SCOPE_3908_FILE: source,
+          SCOPE_3908_READY: readyA,
+          SCOPE_3908_GO: go,
+          SCOPE_3908_ENTERED: enteredA,
+        },
+      });
+      const workerB = spawnWorker({
+        workerFile,
+        env: {
+          SCOPE_3908_FILE: source,
+          SCOPE_3908_READY: readyB,
+          SCOPE_3908_GO: go,
+          SCOPE_3908_ENTERED: enteredB,
+        },
+      });
+      await waitForPath(readyA, 10_000);
+      await waitForPath(readyB, 10_000);
+      writeFileSync(go, "1");
+      await waitForPath(enteredA, 10_000);
+      await waitForPath(enteredB, 10_000);
+      const [a, b] = await Promise.all([workerA, workerB]);
       expect(a.code).toBe(0);
       expect(b.code).toBe(0);
       const ra = JSON.parse(a.stdout.trim()) as { ok: boolean; message: string };
       const rb = JSON.parse(b.stdout.trim()) as { ok: boolean; message: string };
       const oks = [ra, rb].filter((r) => r.ok);
+      const fails = [ra, rb].filter((r) => !r.ok);
       expect(oks.length).toBeGreaterThanOrEqual(1);
-      expect(readFileSync(dest, "utf8").length).toBeGreaterThan(0);
+      expect(existsSync(enteredA)).toBe(true);
+      expect(existsSync(enteredB)).toBe(true);
       const destBytes = readFileSync(dest, "utf8");
+      expect(destBytes.length).toBeGreaterThan(0);
       const parsed = JSON.parse(destBytes) as { plan: { status: string } };
       expect(parsed.plan.status).toBe("completed");
+      for (const fail of fails) {
+        expect(readFileSync(dest, "utf8")).toBe(destBytes);
+        expect(fail.message.length).toBeGreaterThan(0);
+      }
     },
   );
 });

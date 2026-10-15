@@ -10,6 +10,8 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import * as containedWriteMod from "../fs/contained-write.js";
+import { ContainedWriteError, ContainedWriteErrorCode } from "../fs/contained-write.js";
 import * as clauseDerivation from "../intake/clause-derivation.js";
 import { ENV_RUN_SUMMARY_PATH } from "../run-summary/index.js";
 import type { GitRunner } from "../session/git.js";
@@ -2384,6 +2386,74 @@ describe("scope dest exclusive-create and owned unlink (#3908)", () => {
     });
     expect(result.ok).toBe(false);
     expect(result.message).toContain("Failed to write");
+  });
+
+  it("publishScopeDestExclusive unlinks dest this process O_EXCL-created when write fails", () => {
+    root = makeRepo();
+    const destPath = join(root, "xbrief", "completed", "partial.xbrief.json");
+    const formatted = "full-payload\n";
+    const spy = vi.spyOn(containedWriteMod, "containedWrite").mockImplementation((input) => {
+      writeFileSync(String(input.target), "part", "utf8");
+      throw new ContainedWriteError("contained write I/O failed: ENOSPC", {
+        code: ContainedWriteErrorCode.IO,
+        root: String(input.root),
+        target: String(input.target),
+      });
+    });
+    try {
+      const result = publishScopeDestExclusive({ destPath, formatted, projectRoot: root });
+      expect(result.ok).toBe(false);
+      expect(result.message).toContain("Failed to write");
+      expect(existsSync(destPath)).toBe(false);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it("publishScopeDestExclusive does not unlink a dest that already existed when write fails", () => {
+    root = makeRepo();
+    const destPath = join(root, "xbrief", "completed", "winner.xbrief.json");
+    writeFileSync(destPath, "winner-bytes\n", "utf8");
+    const spy = vi.spyOn(containedWriteMod, "containedWrite").mockImplementation((input) => {
+      throw new ContainedWriteError("contained write I/O failed: ENOSPC", {
+        code: ContainedWriteErrorCode.IO,
+        root: String(input.root),
+        target: String(input.target),
+      });
+    });
+    try {
+      const result = publishScopeDestExclusive({
+        destPath,
+        formatted: "loser-bytes\n",
+        projectRoot: root,
+      });
+      expect(result.ok).toBe(false);
+      expect(result.message).toContain("Failed to write");
+      expect(readFileSync(destPath, "utf8")).toBe("winner-bytes\n");
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  itSymlink("refuses matching dest bytes when destPath is a leaf symlink", () => {
+    root = makeRepo();
+    const name = "2026-01-01-link-dest.xbrief.json";
+    const now = new Date("2026-10-15T12:00:00.000Z");
+    const file = writeVbrief(root, "active", "running", name);
+    const first = runTransition("complete", file, now);
+    expect(first.ok).toBe(true);
+    const dest = join(root, "xbrief", "completed", name);
+    const destBytes = readFileSync(dest, "utf8");
+    const shadow = join(root, "shadow-dest.xbrief.json");
+    writeFileSync(shadow, destBytes, "utf8");
+    rmSync(dest);
+    symlinkSync(shadow, dest);
+    const restored = writeVbrief(root, "active", "running", name);
+    const second = runTransition("complete", restored, now);
+    expect(second.ok).toBe(false);
+    expect(second.message).toMatch(/symlink/i);
+    expect(existsSync(restored)).toBe(true);
+    expect(readFileSync(shadow, "utf8")).toBe(destBytes);
   });
 
   it("unlinkOwnedScopeDest skips when the held lock is not owned", () => {
