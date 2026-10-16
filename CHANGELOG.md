@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Prevent stale ordered-plan changes (#3907).** Competing commands in the same worktree can no longer overwrite or clear a plan using an outdated generation. Clearing and recreating a plan keeps older commands from changing its replacement. Persist failures are retryable. CLI `set`, `advance`, and `clear` require `--expected-generation`. Tracking #3907.
 - **Competing sessions cannot change worktree files before claiming occupancy (#3906).** Cold, re-arm, and `session:ready` persist the worktree lease before any linked-deposit copy. Failed setup rolls back only this invocation's claim. Tracking #3906.
 - **A session re-checks occupancy before writing ritual (#3906).** A steal during ceremony no longer lets the first session overwrite the new owner's ritual. Tracking #3906.
+- **Competing scope moves preserve the winning brief (#3908).** When two processes move the same scope, the losing attempt no longer overwrites or removes the winner's destination. Spec-drift lock-refuse unlinks dest this process created so a retry is not blocked. Dest symlink/containment refusals stay returned-failure (no throw). Tracking #3908.
 ### Removed
 
 ## [0.125.2] - 2026-10-15
