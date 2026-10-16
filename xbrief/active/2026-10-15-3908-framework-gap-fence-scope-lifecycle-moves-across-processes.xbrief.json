@@ -522,8 +522,7 @@
           "packages/core/src/scope/transition.concurrency.test.ts"
         ],
         "file_scope_confidence": "high"
-      },
-      "productPullRequest": 5653
+      }
     },
     "id": "github.issue.5283616449",
     "updated": "2026-10-15T18:35:29Z"
